@@ -1,5 +1,9 @@
 document.addEventListener("DOMContentLoaded", () => {
   const board = document.getElementById("game-board");
+  
+  // Create containers for hands
+  const botHandContainer = document.createElement("div");
+  botHandContainer.classList.add("hand");
   const handContainer = document.createElement("div");
   handContainer.classList.add("hand");
 
@@ -35,24 +39,43 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function updateHandDisplay() {
+    // Update player's hand
     handContainer.innerHTML = "";
     playerHand.forEach((card, index) => {
-      const cardSlot = createCardSlot(card, index);
+      const cardSlot = createCardSlot(card, index, "player");
       handContainer.appendChild(cardSlot);
+    });
+
+    // Update bot's hand
+    botHandContainer.innerHTML = "";
+    botHand.forEach((card, index) => {
+      const cardSlot = createCardSlot(card, index, "bot");
+      botHandContainer.appendChild(cardSlot);
     });
   }
 
-  function createCardSlot(card, index) {
+  function createCardSlot(card, index, playerType) {
     const cardSlot = document.createElement("div");
     cardSlot.classList.add("card-slot");
-    cardSlot.setAttribute("draggable", "true");
-    cardSlot.dataset.index = index;
 
-    if (card) {
-      cardSlot.textContent = `${card.rank} ${card.suit}`;
-      cardSlot.classList.add(card.color === "red" ? "red" : "black");
-      cardSlot.addEventListener("dragstart", (event) => dragCard(event, index));
-      cardSlot.addEventListener("dragend", clearHighlights);
+    if (playerType === "player") {
+      cardSlot.setAttribute("draggable", "true");
+      cardSlot.dataset.index = index;
+
+      if (card) {
+        cardSlot.textContent = `${card.rank} ${card.suit}`;
+        cardSlot.classList.add(card.color === "red" ? "red" : "black");
+        cardSlot.addEventListener("dragstart", (event) => dragCard(event, index));
+        cardSlot.addEventListener("dragend", clearHighlights);
+      }
+    } else {
+      // Bot's hand
+      if (card) {
+        cardSlot.textContent = `${card.rank} ${card.suit}`;
+        cardSlot.classList.add(card.color === "red" ? "red" : "black");
+      } else {
+        cardSlot.textContent = "";
+      }
     }
     return cardSlot;
   }
@@ -60,7 +83,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function dragCard(event, index) {
     if (playerTurn) {
       event.dataTransfer.setData("cardIndex", index);
-      highlightValidSpaces();
+      highlightValidSpaces(event);
     }
   }
 
@@ -98,14 +121,10 @@ document.addEventListener("DOMContentLoaded", () => {
     playerTurn = false;
     drawCard(playerDeck, playerHand);
     checkEndGame();
-    if (playerDeck.length === 0 && playerHand.every((card) => card === null)) {
-      botPlay();
-    } else {
-      botPlay();
-    }
+    botPlay();
   }
 
-  function highlightValidSpaces() {
+  function highlightValidSpaces(event) {
     const cells = board.querySelectorAll(".cell");
     clearCellHighlights(cells);
 
@@ -114,7 +133,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    const { selectedCard, selectedCardRank, opponentColor } = getSelectedCardInfo();
+    const { selectedCard, selectedCardRank, opponentColor } = getSelectedCardInfo(event);
 
     highlightHomeRowOpenSpots();
     const connectedCells = findConnectedCellsToHomeRow("player");
@@ -130,7 +149,7 @@ document.addEventListener("DOMContentLoaded", () => {
     firstMoveCell.classList.add("highlight");
   }
 
-  function getSelectedCardInfo() {
+  function getSelectedCardInfo(event) {
     const cardIndex = event.dataTransfer.getData("cardIndex");
     const selectedCard = playerHand[cardIndex];
     const selectedCardRank = getCardRank(selectedCard.rank);
@@ -163,7 +182,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (
               adjacentCell.classList.contains(opponentColor) &&
-              opponentCardRank < selectedCardRank
+              opponentCardRank < selectedCardRank &&
+              opponentCardRank !== selectedCardRank
             ) {
               adjacentCell.classList.add("highlight");
             }
@@ -283,6 +303,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (validMoves.length > 0) {
       executeBotMove(validMoves);
+    } else {
+      discardBotCard();
     }
 
     endBotTurn();
@@ -295,6 +317,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const botCard = botHand[botCardIndex];
       placeBotCardOnCell(botFirstMoveCell, botCard);
       botHand[botCardIndex] = null;
+      updateHandDisplay(); // Moved here to reflect the change
     }
     isBotFirstMove = false;
     playerTurn = true;
@@ -304,6 +327,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function placeBotCardOnCell(cell, card) {
     cell.textContent = `${card.rank} ${card.suit}`;
     cell.classList.add("card-played", card.color === "red" ? "red" : "black");
+    // Removed updateHandDisplay() from here
   }
 
   function getBotValidMoves() {
@@ -318,26 +342,26 @@ document.addEventListener("DOMContentLoaded", () => {
       adjacentIndices.forEach((adjIndex) => {
         if (adjIndex >= 0 && adjIndex < boardSize * boardSize) {
           const adjacentCell = cells[adjIndex];
-          const botCardIndex = botHand.findIndex((card) => card !== null);
+          botHand.forEach((botCard, botCardIndex) => {
+            if (botCard) {
+              const botCardRank = getCardRank(botCard.rank);
 
-          if (botCardIndex !== -1) {
-            const botCard = botHand[botCardIndex];
-            const botCardRank = getCardRank(botCard.rank);
-
-            if (!adjacentCell.textContent) {
-              validMoves.push({ cellIndex: adjIndex, cardIndex: botCardIndex });
-            } else {
-              const cellText = adjacentCell.textContent;
-              const opponentCardRank = getCardRank(cellText.split(" ")[0]);
-
-              if (
-                (cellText.includes("♥") || cellText.includes("♦")) &&
-                opponentCardRank < botCardRank
-              ) {
+              if (!adjacentCell.textContent) {
                 validMoves.push({ cellIndex: adjIndex, cardIndex: botCardIndex });
+              } else {
+                const cellText = adjacentCell.textContent;
+                const opponentCardRank = getCardRank(cellText.split(" ")[0]);
+
+                if (
+                  (cellText.includes("♥") || cellText.includes("♦")) &&
+                  opponentCardRank < botCardRank &&
+                  opponentCardRank !== botCardRank
+                ) {
+                  validMoves.push({ cellIndex: adjIndex, cardIndex: botCardIndex });
+                }
               }
             }
-          }
+          });
         }
       });
     });
@@ -352,6 +376,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
     placeBotCardOnCell(cell, card);
     botHand[randomMove.cardIndex] = null;
+    updateHandDisplay(); // Ensure the hand is updated after the move
+  }
+
+  function discardBotCard() {
+    const botCardIndex = botHand.findIndex((card) => card !== null);
+    if (botCardIndex !== -1) {
+      botHand[botCardIndex] = null;
+      updateHandDisplay();
+    }
   }
 
   function endBotTurn() {
@@ -423,7 +456,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  document.body.appendChild(handContainer);
+  // Append the bot's hand above the board and player's hand below
+  board.parentNode.insertBefore(botHandContainer, board);
+  board.parentNode.appendChild(handContainer);
+
   initializeBoard();
   startGame();
 });
