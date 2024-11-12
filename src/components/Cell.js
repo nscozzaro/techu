@@ -20,7 +20,6 @@ function Cell({
 
   const canDrop = () => {
     if (!playerTurn) return false;
-    if (stack.length > 0 && stack[stack.length - 1]) return false; // Can't place on occupied cell unless allowed
     return highlightedCells.includes(index);
   };
 

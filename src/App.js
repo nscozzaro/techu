@@ -4,7 +4,8 @@ import Hand from './components/Hand';
 
 function App() {
   const boardSize = 5;
-  const playerHomeRow = boardSize * (boardSize - 1) + Math.floor(boardSize / 2);
+  const playerHomeRow =
+    boardSize * (boardSize - 1) + Math.floor(boardSize / 2);
   const botHomeRow = Math.floor(boardSize / 2);
 
   const [playerDeck, setPlayerDeck] = useState([]);
@@ -18,6 +19,288 @@ function App() {
   const [isFirstMove, setIsFirstMove] = useState(true);
   const [isBotFirstMove, setIsBotFirstMove] = useState(true);
   const [highlightedCells, setHighlightedCells] = useState([]);
+
+  // Helper functions
+
+  const getCardRank = useCallback((rank) => {
+    const rankOrder = {
+      '2': 2,
+      '3': 3,
+      '4': 4,
+      '5': 5,
+      '6': 6,
+      '7': 7,
+      '8': 8,
+      '9': 9,
+      '10': 10,
+      J: 11,
+      Q: 12,
+      K: 13,
+      A: 14,
+    };
+    return rankOrder[rank];
+  }, []);
+
+  const getAdjacentIndices = useCallback(
+    (index) => {
+      const indices = [];
+      const row = Math.floor(index / boardSize);
+      const col = index % boardSize;
+
+      // Up
+      if (row > 0) indices.push(index - boardSize);
+      // Down
+      if (row < boardSize - 1) indices.push(index + boardSize);
+      // Left
+      if (col > 0) indices.push(index - 1);
+      // Right
+      if (col < boardSize - 1) indices.push(index + 1);
+
+      return indices;
+    },
+    [boardSize]
+  );
+
+  const findConnectedCellsToHomeRow = useCallback(
+    (playerType, currentBoardState) => {
+      const visited = new Set();
+      const queue = [];
+      const color = playerType === 'player' ? 'red' : 'black';
+
+      let homeRowStart, homeRowEnd;
+      if (playerType === 'player') {
+        homeRowStart = boardSize * (boardSize - 1);
+        homeRowEnd = boardSize * boardSize;
+      } else {
+        homeRowStart = 0;
+        homeRowEnd = boardSize;
+      }
+
+      for (let i = homeRowStart; i < homeRowEnd; i++) {
+        const stack = currentBoardState[i];
+        const topCard = stack[stack.length - 1];
+
+        if (topCard && topCard.color === color) {
+          queue.push(i);
+          visited.add(i);
+        }
+      }
+
+      while (queue.length > 0) {
+        const currentIndex = queue.shift();
+        const adjacentIndices = getAdjacentIndices(currentIndex);
+
+        adjacentIndices.forEach((adjIndex) => {
+          if (
+            adjIndex >= 0 &&
+            adjIndex < boardSize * boardSize &&
+            !visited.has(adjIndex)
+          ) {
+            const stack = currentBoardState[adjIndex];
+            const topCard = stack[stack.length - 1];
+
+            if (topCard && topCard.color === color) {
+              visited.add(adjIndex);
+              queue.push(adjIndex);
+            }
+          }
+        });
+      }
+
+      return Array.from(visited);
+    },
+    [boardSize, getAdjacentIndices]
+  );
+
+  const getBotValidMoves = useCallback(() => {
+    const validMoves = [];
+
+    botHand.forEach((botCard, cardIndex) => {
+      if (botCard) {
+        const botCardRank = getCardRank(botCard.rank);
+
+        const connectedCells = findConnectedCellsToHomeRow('bot', boardState);
+
+        if (connectedCells.length === 0) {
+          // Bot can try to play on its home row if possible
+          const stack = boardState[botHomeRow];
+          const topCard = stack[stack.length - 1];
+
+          if (
+            !topCard ||
+            (topCard.color === 'red' && getCardRank(topCard.rank) < botCardRank)
+          ) {
+            validMoves.push({ cellIndex: botHomeRow, cardIndex });
+          }
+        } else {
+          // Bot has connected cells, find valid moves adjacent to connected cells
+          connectedCells.forEach((index) => {
+            const adjacentIndices = getAdjacentIndices(index);
+            adjacentIndices.forEach((adjIndex) => {
+              if (adjIndex >= 0 && adjIndex < boardSize * boardSize) {
+                const stack = boardState[adjIndex];
+                const topCard = stack[stack.length - 1];
+
+                if (!topCard) {
+                  validMoves.push({ cellIndex: adjIndex, cardIndex });
+                } else if (
+                  topCard.color === 'red' &&
+                  getCardRank(topCard.rank) < botCardRank
+                ) {
+                  validMoves.push({ cellIndex: adjIndex, cardIndex });
+                }
+              }
+            });
+          });
+        }
+      }
+    });
+
+    return validMoves;
+  }, [
+    botHand,
+    boardState,
+    findConnectedCellsToHomeRow,
+    getAdjacentIndices,
+    getCardRank,
+    botHomeRow,
+    boardSize,
+  ]);
+
+  const executeBotMove = useCallback(
+    (validMoves) => {
+      const randomMove =
+        validMoves[Math.floor(Math.random() * validMoves.length)];
+      const cellIndex = randomMove.cellIndex;
+      const cardIndex = randomMove.cardIndex;
+      const botCard = botHand[cardIndex];
+
+      setBoardState((prevBoardState) => {
+        const newBoardState = [...prevBoardState];
+        const stack = newBoardState[cellIndex];
+        const topCard = stack[stack.length - 1];
+
+        if (
+          !topCard ||
+          (topCard.color === 'red' &&
+            getCardRank(topCard.rank) < getCardRank(botCard.rank))
+        ) {
+          newBoardState[cellIndex] = [...stack, botCard];
+        }
+        return newBoardState;
+      });
+
+      const newBotHand = [...botHand];
+      newBotHand[cardIndex] = null;
+      setBotHand(newBotHand);
+
+      drawCard(botDeck, setBotDeck, newBotHand, setBotHand);
+    },
+    [botHand, botDeck, getCardRank]
+  );
+
+  const discardBotCard = useCallback(() => {
+    const botCardIndex = botHand.findIndex((card) => card !== null);
+    if (botCardIndex !== -1) {
+      const newBotHand = [...botHand];
+      newBotHand[botCardIndex] = null;
+      setBotHand(newBotHand);
+
+      drawCard(botDeck, setBotDeck, newBotHand, setBotHand);
+    }
+  }, [botHand, botDeck]);
+
+  const handleBotFirstMove = useCallback(() => {
+    const botFirstMoveCell = botHomeRow;
+    const botCardIndex = botHand.findIndex((card) => card !== null);
+    if (botCardIndex !== -1) {
+      const botCard = botHand[botCardIndex];
+
+      setBoardState((prevBoardState) => {
+        const newBoardState = [...prevBoardState];
+        newBoardState[botFirstMoveCell] = [
+          ...newBoardState[botFirstMoveCell],
+          botCard,
+        ];
+        return newBoardState;
+      });
+
+      const newBotHand = [...botHand];
+      newBotHand[botCardIndex] = null;
+      setBotHand(newBotHand);
+    }
+    setIsBotFirstMove(false);
+    drawCard(botDeck, setBotDeck, botHand, setBotHand);
+    setPlayerTurn(true);
+  }, [botHand, botDeck, botHomeRow]);
+
+  const determineWinner = useCallback(() => {
+    let playerCount = 0;
+    let botCount = 0;
+
+    boardState.forEach((stack) => {
+      const topCard = stack[stack.length - 1];
+      if (topCard) {
+        if (topCard.color === 'red') {
+          playerCount++;
+        } else {
+          botCount++;
+        }
+      }
+    });
+
+    if (playerCount > botCount) {
+      alert('Player wins!');
+    } else if (botCount > playerCount) {
+      alert('Bot wins!');
+    } else {
+      alert("It's a tie!");
+    }
+  }, [boardState]);
+
+  const checkEndGame = useCallback(() => {
+    if (
+      playerDeck.length === 0 &&
+      botDeck.length === 0 &&
+      playerHand.every((card) => card === null) &&
+      botHand.every((card) => card === null)
+    ) {
+      determineWinner();
+    }
+  }, [playerDeck, botDeck, playerHand, botHand, determineWinner]);
+
+  const botPlay = useCallback(() => {
+    if (isBotFirstMove) {
+      handleBotFirstMove();
+      return;
+    }
+
+    const validMoves = getBotValidMoves();
+
+    if (validMoves.length > 0) {
+      executeBotMove(validMoves);
+    } else {
+      discardBotCard();
+    }
+
+    checkEndGame();
+    setPlayerTurn(true);
+  }, [
+    isBotFirstMove,
+    handleBotFirstMove,
+    getBotValidMoves,
+    executeBotMove,
+    discardBotCard,
+    checkEndGame,
+  ]);
+
+  useEffect(() => {
+    if (!playerTurn) {
+      setTimeout(() => {
+        botPlay();
+      }, 500);
+    }
+  }, [playerTurn, botPlay]);
 
   // Initialize game
   const initializeGame = useCallback(() => {
@@ -47,7 +330,6 @@ function App() {
     initializeGame();
   }, [initializeGame]);
 
-  // Helper functions
   const createDeck = (color) => {
     const suits = color === 'red' ? ['♥', '♦'] : ['♣', '♠'];
     const ranks = [
@@ -89,89 +371,6 @@ function App() {
     }
   };
 
-  const getCardRank = (rank) => {
-    const rankOrder = {
-      '2': 2,
-      '3': 3,
-      '4': 4,
-      '5': 5,
-      '6': 6,
-      '7': 7,
-      '8': 8,
-      '9': 9,
-      '10': 10,
-      J: 11,
-      Q: 12,
-      K: 13,
-      A: 14,
-    };
-    return rankOrder[rank];
-  };
-
-  const getAdjacentIndices = (index) => {
-    const indices = [];
-    const row = Math.floor(index / boardSize);
-    const col = index % boardSize;
-
-    // Up
-    if (row > 0) indices.push(index - boardSize);
-    // Down
-    if (row < boardSize - 1) indices.push(index + boardSize);
-    // Left
-    if (col > 0) indices.push(index - 1);
-    // Right
-    if (col < boardSize - 1) indices.push(index + 1);
-
-    return indices;
-  };
-
-  const findConnectedCellsToHomeRow = (playerType) => {
-    const visited = new Set();
-    const queue = [];
-    const colors = playerType === 'player' ? ['red'] : ['black'];
-
-    let homeRowStart, homeRowEnd;
-    if (playerType === 'player') {
-      homeRowStart = boardSize * (boardSize - 1);
-      homeRowEnd = boardSize * boardSize;
-    } else {
-      homeRowStart = 0;
-      homeRowEnd = boardSize;
-    }
-
-    for (let i = homeRowStart; i < homeRowEnd; i++) {
-      if (
-        boardState[i] &&
-        colors.includes(boardState[i][boardState[i].length - 1]?.color)
-      ) {
-        queue.push(i);
-        visited.add(i);
-      }
-    }
-
-    while (queue.length > 0) {
-      const currentIndex = queue.shift();
-      const adjacentIndices = getAdjacentIndices(currentIndex);
-
-      adjacentIndices.forEach((adjIndex) => {
-        if (
-          adjIndex >= 0 &&
-          adjIndex < boardSize * boardSize &&
-          !visited.has(adjIndex) &&
-          boardState[adjIndex] &&
-          colors.includes(
-            boardState[adjIndex][boardState[adjIndex].length - 1]?.color
-          )
-        ) {
-          visited.add(adjIndex);
-          queue.push(adjIndex);
-        }
-      });
-    }
-
-    return Array.from(visited);
-  };
-
   const calculateValidMoves = (cardIndex) => {
     const selectedCard = playerHand[cardIndex];
     const selectedCardRank = getCardRank(selectedCard.rank);
@@ -180,31 +379,40 @@ function App() {
     if (isFirstMove) {
       validIndices.push(playerHomeRow);
     } else {
-      for (let i = boardSize * (boardSize - 1); i < boardSize * boardSize; i++) {
-        if (boardState[i].length === 0) {
-          validIndices.push(i);
+      const connectedCells = findConnectedCellsToHomeRow('player', boardState);
+
+      if (connectedCells.length === 0) {
+        // Player can play on home row if no connected cells
+        const stack = boardState[playerHomeRow];
+        const topCard = stack[stack.length - 1];
+
+        if (
+          !topCard ||
+          (topCard.color !== selectedCard.color &&
+            getCardRank(topCard.rank) < selectedCardRank)
+        ) {
+          validIndices.push(playerHomeRow);
         }
-      }
+      } else {
+        connectedCells.forEach((index) => {
+          const adjacentIndices = getAdjacentIndices(index);
+          adjacentIndices.forEach((adjIndex) => {
+            if (adjIndex >= 0 && adjIndex < boardSize * boardSize) {
+              const stack = boardState[adjIndex];
+              const topCard = stack[stack.length - 1];
 
-      const connectedCells = findConnectedCellsToHomeRow('player');
-      connectedCells.forEach((index) => {
-        const adjacentIndices = getAdjacentIndices(index);
-        adjacentIndices.forEach((adjIndex) => {
-          if (adjIndex >= 0 && adjIndex < boardSize * boardSize) {
-            const stack = boardState[adjIndex];
-            const topCard = stack[stack.length - 1];
-
-            if (!topCard) {
-              validIndices.push(adjIndex);
-            } else if (
-              topCard.color !== selectedCard.color &&
-              getCardRank(topCard.rank) < selectedCardRank
-            ) {
-              validIndices.push(adjIndex);
+              if (!topCard) {
+                validIndices.push(adjIndex);
+              } else if (
+                topCard.color !== selectedCard.color &&
+                getCardRank(topCard.rank) < selectedCardRank
+              ) {
+                validIndices.push(adjIndex);
+              }
             }
-          }
+          });
         });
-      });
+      }
     }
 
     setHighlightedCells(validIndices);
@@ -227,167 +435,13 @@ function App() {
     newPlayerHand[cardIndex] = null;
     setPlayerHand(newPlayerHand);
 
-    setPlayerTurn(false);
     setIsFirstMove(false);
     clearHighlights();
 
     drawCard(playerDeck, setPlayerDeck, newPlayerHand, setPlayerHand);
+
     checkEndGame();
-    setTimeout(botPlay, 500);
-  };
-
-  const botPlay = () => {
-    if (isBotFirstMove) {
-      handleBotFirstMove();
-      return;
-    }
-
-    const validMoves = getBotValidMoves();
-    if (validMoves.length > 0) {
-      executeBotMove(validMoves);
-    } else {
-      discardBotCard();
-    }
-
-    setPlayerTurn(true);
-    checkEndGame();
-  };
-
-  const handleBotFirstMove = () => {
-    const botFirstMoveCell = botHomeRow;
-    const botCardIndex = botHand.findIndex((card) => card !== null);
-    if (botCardIndex !== -1) {
-      const botCard = botHand[botCardIndex];
-
-      setBoardState((prevBoardState) => {
-        const newBoardState = [...prevBoardState];
-        newBoardState[botFirstMoveCell] = [
-          ...newBoardState[botFirstMoveCell],
-          botCard,
-        ];
-        return newBoardState;
-      });
-
-      const newBotHand = [...botHand];
-      newBotHand[botCardIndex] = null;
-      setBotHand(newBotHand);
-    }
-    setIsBotFirstMove(false);
-    setPlayerTurn(true);
-    drawCard(botDeck, setBotDeck, botHand, setBotHand);
-  };
-
-  const getBotValidMoves = () => {
-    const validMoves = [];
-
-    botHand.forEach((botCard, cardIndex) => {
-      if (botCard) {
-        const botCardRank = getCardRank(botCard.rank);
-
-        for (let i = 0; i < boardSize; i++) {
-          if (boardState[i].length === 0) {
-            validMoves.push({ cellIndex: i, cardIndex });
-          }
-        }
-
-        const connectedCells = findConnectedCellsToHomeRow('bot');
-        connectedCells.forEach((index) => {
-          const adjacentIndices = getAdjacentIndices(index);
-          adjacentIndices.forEach((adjIndex) => {
-            if (adjIndex >= 0 && adjIndex < boardSize * boardSize) {
-              const stack = boardState[adjIndex];
-              const topCard = stack[stack.length - 1];
-
-              if (!topCard) {
-                validMoves.push({ cellIndex: adjIndex, cardIndex });
-              } else if (
-                topCard.color === 'red' &&
-                getCardRank(topCard.rank) < botCardRank
-              ) {
-                validMoves.push({ cellIndex: adjIndex, cardIndex });
-              }
-            }
-          });
-        });
-      }
-    });
-
-    return validMoves;
-  };
-
-  const executeBotMove = (validMoves) => {
-    const randomMove =
-      validMoves[Math.floor(Math.random() * validMoves.length)];
-    const cellIndex = randomMove.cellIndex;
-    const cardIndex = randomMove.cardIndex;
-    const botCard = botHand[cardIndex];
-
-    setBoardState((prevBoardState) => {
-      const newBoardState = [...prevBoardState];
-      const stack = newBoardState[cellIndex];
-      const topCard = stack[stack.length - 1];
-
-      if (
-        !topCard ||
-        (topCard.color === 'red' &&
-          getCardRank(topCard.rank) < getCardRank(botCard.rank))
-      ) {
-        newBoardState[cellIndex] = [...stack, botCard];
-      }
-      return newBoardState;
-    });
-
-    const newBotHand = [...botHand];
-    newBotHand[cardIndex] = null;
-    setBotHand(newBotHand);
-
-    drawCard(botDeck, setBotDeck, newBotHand, setBotHand);
-  };
-
-  const discardBotCard = () => {
-    const botCardIndex = botHand.findIndex((card) => card !== null);
-    if (botCardIndex !== -1) {
-      const newBotHand = [...botHand];
-      newBotHand[botCardIndex] = null;
-      setBotHand(newBotHand);
-
-      drawCard(botDeck, setBotDeck, newBotHand, setBotHand);
-    }
-  };
-
-  const checkEndGame = () => {
-    if (
-      playerDeck.length === 0 &&
-      botDeck.length === 0 &&
-      playerHand.every((card) => card === null) &&
-      botHand.every((card) => card === null)
-    ) {
-      determineWinner();
-    }
-  };
-
-  const determineWinner = () => {
-    let playerCount = 0;
-    let botCount = 0;
-
-    boardState.forEach((stack) => {
-      const topCard = stack[stack.length - 1];
-      if (topCard) {
-        if (topCard.color === 'red') {
-          playerCount++;
-        } else {
-          botCount++;
-        }
-      }
-    });
-
-    if (playerCount > botCount) {
-      alert('Player wins!');
-    } else if (botCount > playerCount) {
-      alert('Bot wins!');
-    } else {
-      alert("It's a tie!");
-    }
+    setPlayerTurn(false);
   };
 
   return (
