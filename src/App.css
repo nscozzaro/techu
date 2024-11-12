@@ -1,83 +1,86 @@
 body {
   font-family: Arial, sans-serif;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  margin: 0;
   background-color: #222;
   color: #fff;
+  margin: 0;
+  padding: 0;
 }
 
-.container {
+.App {
   text-align: center;
-}
-
-.board {
-  display: grid;
-  grid-template-columns: repeat(5, 80px);
-  gap: 10px;
-  margin-top: 20px;
-}
-
-.board .cell {
-  width: 80px;
-  height: 120px;
-  background-color: #333;
-  border-radius: 8px;
-  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .hand {
   display: flex;
   justify-content: center;
   gap: 10px;
-  margin-top: 20px;
+  margin: 10px;
 }
 
-.card-slot,
-.cell.card-played {
-  position: relative;
+.board {
+  display: grid;
+  grid-template-columns: repeat(5, 80px);
+  gap: 10px;
+  margin: 20px auto;
+}
+
+.cell {
   width: 80px;
   height: 120px;
-  background-color: white;
-  border: 1px solid #ccc;
+  background-color: #333;
   border-radius: 8px;
-  box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.3);
-  padding: 5px;
+  position: relative;
   box-sizing: border-box;
 }
 
-.card-slot .top-left,
-.cell.card-played .top-left,
-.card-slot .bottom-right,
-.cell.card-played .bottom-right {
+.card-slot,
+.cell .card-played {
+  background-color: white;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  position: relative;
+  width: 80px;
+  height: 120px;
+  box-sizing: border-box;
+  padding: 5px;
+}
+
+.card-slot.empty {
+  background-color: #333;
+  border: 1px solid #444;
+}
+
+.top-left,
+.bottom-right {
   position: absolute;
   font-size: 14px;
   line-height: 14px;
 }
 
-.card-slot .top-left,
-.cell.card-played .top-left {
+.top-left {
   top: 5px;
   left: 5px;
   text-align: left;
 }
 
-.card-slot .bottom-right,
-.cell.card-played .bottom-right {
+.bottom-right {
   bottom: 5px;
   right: 5px;
   text-align: right;
   transform: rotate(180deg);
 }
 
-.card-slot .suit,
-.cell.card-played .suit {
+.suit {
   font-size: 48px;
   text-align: center;
   line-height: 1;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 
 .red {
@@ -88,11 +91,11 @@ body {
   color: black;
 }
 
-.card-slot.dragging {
-  opacity: 0.5;
-}
-
 .cell.highlight {
   outline: 2px solid yellow;
   box-shadow: 0 0 10px yellow;
+}
+
+.card-slot.dragging {
+  opacity: 0.5;
 }
