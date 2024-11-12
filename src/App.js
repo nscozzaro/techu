@@ -122,15 +122,22 @@ function App() {
         const connectedCells = findConnectedCellsToHomeRow('bot', boardState);
 
         if (connectedCells.length === 0) {
-          // Bot can try to play on its home row if possible
-          const stack = boardState[botHomeRow];
-          const topCard = stack[stack.length - 1];
+          // Bot can try to play on any of its home row cells
+          let homeRowStart = 0;
+          let homeRowEnd = boardSize;
 
-          if (
-            !topCard ||
-            (topCard.color === 'red' && getCardRank(topCard.rank) < botCardRank)
-          ) {
-            validMoves.push({ cellIndex: botHomeRow, cardIndex });
+          for (let i = homeRowStart; i < homeRowEnd; i++) {
+            const cellIndex = i;
+            const stack = boardState[cellIndex];
+            const topCard = stack[stack.length - 1];
+
+            if (
+              !topCard ||
+              (topCard.color !== botCard.color &&
+                getCardRank(topCard.rank) < botCardRank)
+            ) {
+              validMoves.push({ cellIndex, cardIndex });
+            }
           }
         } else {
           // Bot has connected cells, find valid moves adjacent to connected cells
@@ -144,7 +151,7 @@ function App() {
                 if (!topCard) {
                   validMoves.push({ cellIndex: adjIndex, cardIndex });
                 } else if (
-                  topCard.color === 'red' &&
+                  topCard.color !== botCard.color &&
                   getCardRank(topCard.rank) < botCardRank
                 ) {
                   validMoves.push({ cellIndex: adjIndex, cardIndex });
@@ -163,7 +170,6 @@ function App() {
     findConnectedCellsToHomeRow,
     getAdjacentIndices,
     getCardRank,
-    botHomeRow,
     boardSize,
   ]);
 
@@ -182,7 +188,7 @@ function App() {
 
         if (
           !topCard ||
-          (topCard.color === 'red' &&
+          (topCard.color !== botCard.color &&
             getCardRank(topCard.rank) < getCardRank(botCard.rank))
         ) {
           newBoardState[cellIndex] = [...stack, botCard];
