@@ -2,6 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Board from './components/Board';
 import Hand from './components/Hand';
 
+import {
+  shuffle,
+} from './utils';
+
 function App() {
   const boardSize = 5;
   const playerHomeRow =
@@ -356,13 +360,6 @@ function App() {
     return suits.flatMap((suit) =>
       ranks.map((rank) => ({ suit, rank, color }))
     );
-  };
-
-  const shuffle = (deck) => {
-    for (let i = deck.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [deck[i], deck[j]] = [deck[j], deck[i]];
-    }
   };
 
   const drawCard = (deck, setDeck, hand, setHand) => {
