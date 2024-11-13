@@ -3,6 +3,9 @@ import Board from './components/Board';
 import Hand from './components/Hand';
 
 import {
+  createDeck,
+  getAdjacentIndices,
+  getCardRank,
   shuffle,
 } from './utils';
 
@@ -23,47 +26,6 @@ function App() {
   const [isFirstMove, setIsFirstMove] = useState(true);
   const [isBotFirstMove, setIsBotFirstMove] = useState(true);
   const [highlightedCells, setHighlightedCells] = useState([]);
-
-  // Helper functions
-
-  const getCardRank = useCallback((rank) => {
-    const rankOrder = {
-      '2': 2,
-      '3': 3,
-      '4': 4,
-      '5': 5,
-      '6': 6,
-      '7': 7,
-      '8': 8,
-      '9': 9,
-      '10': 10,
-      J: 11,
-      Q: 12,
-      K: 13,
-      A: 14,
-    };
-    return rankOrder[rank];
-  }, []);
-
-  const getAdjacentIndices = useCallback(
-    (index) => {
-      const indices = [];
-      const row = Math.floor(index / boardSize);
-      const col = index % boardSize;
-
-      // Up
-      if (row > 0) indices.push(index - boardSize);
-      // Down
-      if (row < boardSize - 1) indices.push(index + boardSize);
-      // Left
-      if (col > 0) indices.push(index - 1);
-      // Right
-      if (col < boardSize - 1) indices.push(index + 1);
-
-      return indices;
-    },
-    [boardSize]
-  );
 
   const findConnectedCellsToHomeRow = useCallback(
     (playerType, currentBoardState) => {
@@ -92,7 +54,7 @@ function App() {
 
       while (queue.length > 0) {
         const currentIndex = queue.shift();
-        const adjacentIndices = getAdjacentIndices(currentIndex);
+        const adjacentIndices = getAdjacentIndices(currentIndex, boardSize);
 
         adjacentIndices.forEach((adjIndex) => {
           if (
@@ -113,7 +75,7 @@ function App() {
 
       return Array.from(visited);
     },
-    [boardSize, getAdjacentIndices]
+    [boardSize]
   );
 
   const getBotValidMoves = useCallback(() => {
@@ -146,7 +108,7 @@ function App() {
         } else {
           // Bot has connected cells, find valid moves adjacent to connected cells
           connectedCells.forEach((index) => {
-            const adjacentIndices = getAdjacentIndices(index);
+            const adjacentIndices = getAdjacentIndices(index, boardSize);
             adjacentIndices.forEach((adjIndex) => {
               if (adjIndex >= 0 && adjIndex < boardSize * boardSize) {
                 const stack = boardState[adjIndex];
@@ -172,8 +134,6 @@ function App() {
     botHand,
     boardState,
     findConnectedCellsToHomeRow,
-    getAdjacentIndices,
-    getCardRank,
     boardSize,
   ]);
 
@@ -206,7 +166,7 @@ function App() {
 
       drawCard(botDeck, setBotDeck, newBotHand, setBotHand);
     },
-    [botHand, botDeck, getCardRank]
+    [botHand, botDeck]
   );
 
   const discardBotCard = useCallback(() => {
@@ -340,28 +300,6 @@ function App() {
     initializeGame();
   }, [initializeGame]);
 
-  const createDeck = (color) => {
-    const suits = color === 'red' ? ['♥', '♦'] : ['♣', '♠'];
-    const ranks = [
-      '2',
-      '3',
-      '4',
-      '5',
-      '6',
-      '7',
-      '8',
-      '9',
-      '10',
-      'J',
-      'Q',
-      'K',
-      'A',
-    ];
-    return suits.flatMap((suit) =>
-      ranks.map((rank) => ({ suit, rank, color }))
-    );
-  };
-
   const drawCard = (deck, setDeck, hand, setHand) => {
     const emptySlot = hand.findIndex((slot) => slot === null);
     if (deck.length > 0 && emptySlot !== -1) {
@@ -398,7 +336,7 @@ function App() {
         }
       } else {
         connectedCells.forEach((index) => {
-          const adjacentIndices = getAdjacentIndices(index);
+          const adjacentIndices = getAdjacentIndices(index, boardSize);
           adjacentIndices.forEach((adjIndex) => {
             if (adjIndex >= 0 && adjIndex < boardSize * boardSize) {
               const stack = boardState[adjIndex];
