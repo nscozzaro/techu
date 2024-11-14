@@ -1,3 +1,4 @@
+// App.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import Board from './components/Board';
 import Hand from './components/Hand';
@@ -104,14 +105,19 @@ function App() {
       const selectedCardRank = getCardRank(selectedCard.rank);
       const validIndices: number[] = [];
       const homeRow = isBot ? botHomeRow : playerHomeRow;
+
+      // Determine if this is the first move for the player
       const isPlayerFirstMove = isBot ? isBotFirstMove : isFirstMove;
 
+      // Handle first move: restrict to home row only, bypassing connected cells
       if (isPlayerFirstMove) {
         validIndices.push(homeRow);
       } else {
+        // Normal move logic, considering connected cells
         const connectedCells = findConnectedCellsToHomeRow(playerType, boardState);
 
         if (connectedCells.length === 0) {
+          // If no connected cells are found, treat home row as a valid move
           const stack = boardState[homeRow];
           const topCard = stack[stack.length - 1];
 
@@ -123,6 +129,7 @@ function App() {
             validIndices.push(homeRow);
           }
         } else {
+          // Standard move logic to identify valid cells
           connectedCells.forEach((index) => {
             const adjacentIndices = getAdjacentIndices(index, boardSize);
             adjacentIndices.forEach((adjIndex) => {
@@ -130,7 +137,12 @@ function App() {
                 const stack = boardState[adjIndex];
                 const topCard = stack[stack.length - 1];
 
-                if (!topCard) {
+                // Allow player to play over their own card if the rank is higher
+                if (topCard && topCard.color === selectedCard.color) {
+                  if (getCardRank(topCard.rank) < selectedCardRank) {
+                    validIndices.push(adjIndex);
+                  }
+                } else if (!topCard) {
                   validIndices.push(adjIndex);
                 } else if (
                   topCard.color !== selectedCard.color &&
@@ -187,6 +199,9 @@ function App() {
         if (
           !topCard ||
           (topCard.color !== botCard.color &&
+            getCardRank(topCard.rank) < getCardRank(botCard.rank)) ||
+          // Allow bot to place on its own lower-ranked card
+          (topCard.color === botCard.color &&
             getCardRank(topCard.rank) < getCardRank(botCard.rank))
         ) {
           newBoardState[cellIndex] = [...stack, botCard];
@@ -233,10 +248,11 @@ function App() {
       newBotHand[botCardIndex] = null;
       setBotHand(newBotHand);
     }
-    setIsBotFirstMove(false);
+    setIsBotFirstMove(false); // Reset after the first move
     drawCard(botDeck, setBotDeck, botHand, setBotHand);
     setPlayerTurn(true);
   }, [botHand, botDeck, botHomeRow]);
+
 
   const determineWinner = useCallback(() => {
     let playerCount = 0;
@@ -355,14 +371,14 @@ function App() {
     newPlayerHand[cardIndex] = null;
     setPlayerHand(newPlayerHand);
 
-    setIsFirstMove(false);
+    if (isFirstMove) setIsFirstMove(false); // Reset after the first move
     clearHighlights();
 
     drawCard(playerDeck, setPlayerDeck, newPlayerHand, setPlayerHand);
-
     checkEndGame();
     setPlayerTurn(false);
   };
+
 
   return (
     <div className="App">
