@@ -1,11 +1,37 @@
 import React from 'react';
 import { useDrag } from 'react-dnd';
 
-function CardSlot({ card, index, isBot, playerTurn, calculateValidMoves, clearHighlights }) {
+interface Card {
+  suit: string;
+  rank: string;
+  color: 'red' | 'black';
+}
+
+interface CardSlotProps {
+  card: Card | null;
+  index: number;
+  isBot: boolean;
+  playerTurn: boolean;
+  calculateValidMoves: (index: number) => void;
+  clearHighlights: () => void;
+}
+
+interface DragItem {
+  cardIndex: number;
+}
+
+const CardSlot: React.FC<CardSlotProps> = ({
+  card,
+  index,
+  isBot,
+  playerTurn,
+  calculateValidMoves,
+  clearHighlights,
+}) => {
   const [{ isDragging }, drag] = useDrag(
     () => ({
       type: 'CARD',
-      item: () => {
+      item: (): DragItem => {
         if (!isBot && card && playerTurn) {
           calculateValidMoves(index); // Calculate valid moves on drag start
         }
@@ -37,6 +63,6 @@ function CardSlot({ card, index, isBot, playerTurn, calculateValidMoves, clearHi
       ) : null}
     </div>
   );
-}
+};
 
 export default CardSlot;

@@ -1,30 +1,53 @@
 import React from 'react';
 import { useDrop } from 'react-dnd';
 
-function Cell({
+interface Card {
+  suit: string;
+  rank: string;
+  color: 'red' | 'black';
+}
+
+interface DropItem {
+  cardIndex: number;
+}
+
+interface CellProps {
+  stack: Card[];
+  index: number;
+  playerTurn: boolean;
+  placeCardOnBoard: (index: number, cardIndex: number) => void;
+  highlightedCells: number[];
+}
+
+const Cell: React.FC<CellProps> = ({
   stack,
   index,
   playerTurn,
   placeCardOnBoard,
   highlightedCells,
-}) {
+}) => {
+  // DnD hook for managing drop functionality
   const [, drop] = useDrop({
     accept: 'CARD',
     canDrop: () => canDrop(),
-    drop: (item) => {
+    drop: (item: DropItem) => {
       if (playerTurn) {
         placeCardOnBoard(index, item.cardIndex);
       }
     },
   });
 
+  // Check if the cell can receive a drop
   const canDrop = () => {
     if (!playerTurn) return false;
     return highlightedCells.includes(index);
   };
 
+  // Determine if the cell should be highlighted
   const isHighlighted = highlightedCells.includes(index);
-  const topCard = stack[stack.length - 1]; // Display only the top card
+  
+  // Display only the top card in the stack
+  const topCard = stack[stack.length - 1];
 
   return (
     <div
@@ -41,6 +64,6 @@ function Cell({
       )}
     </div>
   );
-}
+};
 
 export default Cell;

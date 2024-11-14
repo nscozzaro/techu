@@ -1,13 +1,27 @@
 import React from 'react';
 import Cell from './Cell';
 
-function Board({
+interface Card {
+  suit: string;
+  rank: string;
+  color: 'red' | 'black';
+}
+
+interface BoardProps {
+  boardSize: number;
+  boardState: Card[][];
+  playerTurn: boolean;
+  placeCardOnBoard: (index: number, cardIndex: number) => void;
+  highlightedCells: number[];
+}
+
+const Board: React.FC<BoardProps> = ({
   boardSize,
   boardState,
   playerTurn,
   placeCardOnBoard,
   highlightedCells,
-}) {
+}) => {
   const renderCells = () => {
     return boardState.map((cellStack, index) => (
       <Cell
@@ -22,6 +36,6 @@ function Board({
   };
 
   return <div className="board">{renderCells()}</div>;
-}
+};
 
 export default Board;

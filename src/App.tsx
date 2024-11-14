@@ -7,33 +7,51 @@ import {
   getAdjacentIndices,
   getCardRank,
   shuffle,
+  drawCard,
 } from './utils';
+
+type Suit = '♥' | '♦' | '♣' | '♠';
+type Color = 'red' | 'black';
+type Rank = '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K' | 'A';
+
+interface Card {
+  suit: Suit;
+  rank: Rank;
+  color: Color;
+}
+
+type Deck = Card[];
+type HandType = (Card | null)[];
+
+interface Move {
+  cellIndex: number;
+  cardIndex: number;
+}
 
 function App() {
   const boardSize = 5;
-  const playerHomeRow =
-    boardSize * (boardSize - 1) + Math.floor(boardSize / 2);
+  const playerHomeRow = boardSize * (boardSize - 1) + Math.floor(boardSize / 2);
   const botHomeRow = Math.floor(boardSize / 2);
 
-  const [playerDeck, setPlayerDeck] = useState([]);
-  const [botDeck, setBotDeck] = useState([]);
-  const [playerHand, setPlayerHand] = useState([null, null, null]);
-  const [botHand, setBotHand] = useState([null, null, null]);
-  const [boardState, setBoardState] = useState(
+  const [playerDeck, setPlayerDeck] = useState<Deck>([]);
+  const [botDeck, setBotDeck] = useState<Deck>([]);
+  const [playerHand, setPlayerHand] = useState<HandType>([null, null, null]);
+  const [botHand, setBotHand] = useState<HandType>([null, null, null]);
+  const [boardState, setBoardState] = useState<Card[][]>(
     Array.from({ length: boardSize * boardSize }, () => [])
   );
-  const [playerTurn, setPlayerTurn] = useState(true);
-  const [isFirstMove, setIsFirstMove] = useState(true);
-  const [isBotFirstMove, setIsBotFirstMove] = useState(true);
-  const [highlightedCells, setHighlightedCells] = useState([]);
+  const [playerTurn, setPlayerTurn] = useState<boolean>(true);
+  const [isFirstMove, setIsFirstMove] = useState<boolean>(true);
+  const [isBotFirstMove, setIsBotFirstMove] = useState<boolean>(true);
+  const [highlightedCells, setHighlightedCells] = useState<number[]>([]);
 
   const findConnectedCellsToHomeRow = useCallback(
-    (playerType, currentBoardState) => {
-      const visited = new Set();
-      const queue = [];
-      const color = playerType === 'player' ? 'red' : 'black';
+    (playerType: 'player' | 'bot', currentBoardState: Card[][]): number[] => {
+      const visited = new Set<number>();
+      const queue: number[] = [];
+      const color: Color = playerType === 'player' ? 'red' : 'black';
 
-      let homeRowStart, homeRowEnd;
+      let homeRowStart: number, homeRowEnd: number;
       if (playerType === 'player') {
         homeRowStart = boardSize * (boardSize - 1);
         homeRowEnd = boardSize * boardSize;
@@ -53,7 +71,7 @@ function App() {
       }
 
       while (queue.length > 0) {
-        const currentIndex = queue.shift();
+        const currentIndex = queue.shift()!;
         const adjacentIndices = getAdjacentIndices(currentIndex, boardSize);
 
         adjacentIndices.forEach((adjIndex) => {
@@ -78,35 +96,33 @@ function App() {
     [boardSize]
   );
 
-  const getBotValidMoves = useCallback(() => {
-    const validMoves = [];
+  const calculateValidMoves = useCallback(
+    (cardIndex: number, playerType: 'player' | 'bot'): number[] => {
+      const isBot = playerType === 'bot';
+      const hand = isBot ? botHand : playerHand;
+      const selectedCard = hand[cardIndex]!;
+      const selectedCardRank = getCardRank(selectedCard.rank);
+      const validIndices: number[] = [];
+      const homeRow = isBot ? botHomeRow : playerHomeRow;
+      const isPlayerFirstMove = isBot ? isBotFirstMove : isFirstMove;
 
-    botHand.forEach((botCard, cardIndex) => {
-      if (botCard) {
-        const botCardRank = getCardRank(botCard.rank);
-
-        const connectedCells = findConnectedCellsToHomeRow('bot', boardState);
+      if (isPlayerFirstMove) {
+        validIndices.push(homeRow);
+      } else {
+        const connectedCells = findConnectedCellsToHomeRow(playerType, boardState);
 
         if (connectedCells.length === 0) {
-          // Bot can try to play on any of its home row cells
-          let homeRowStart = 0;
-          let homeRowEnd = boardSize;
+          const stack = boardState[homeRow];
+          const topCard = stack[stack.length - 1];
 
-          for (let i = homeRowStart; i < homeRowEnd; i++) {
-            const cellIndex = i;
-            const stack = boardState[cellIndex];
-            const topCard = stack[stack.length - 1];
-
-            if (
-              !topCard ||
-              (topCard.color !== botCard.color &&
-                getCardRank(topCard.rank) < botCardRank)
-            ) {
-              validMoves.push({ cellIndex, cardIndex });
-            }
+          if (
+            !topCard ||
+            (topCard.color !== selectedCard.color &&
+              getCardRank(topCard.rank) < selectedCardRank)
+          ) {
+            validIndices.push(homeRow);
           }
         } else {
-          // Bot has connected cells, find valid moves adjacent to connected cells
           connectedCells.forEach((index) => {
             const adjacentIndices = getAdjacentIndices(index, boardSize);
             adjacentIndices.forEach((adjIndex) => {
@@ -115,35 +131,53 @@ function App() {
                 const topCard = stack[stack.length - 1];
 
                 if (!topCard) {
-                  validMoves.push({ cellIndex: adjIndex, cardIndex });
+                  validIndices.push(adjIndex);
                 } else if (
-                  topCard.color !== botCard.color &&
-                  getCardRank(topCard.rank) < botCardRank
+                  topCard.color !== selectedCard.color &&
+                  getCardRank(topCard.rank) < selectedCardRank
                 ) {
-                  validMoves.push({ cellIndex: adjIndex, cardIndex });
+                  validIndices.push(adjIndex);
                 }
               }
             });
           });
         }
       }
-    });
 
+      return validIndices;
+    },
+    [
+      boardState,
+      findConnectedCellsToHomeRow,
+      boardSize,
+      playerHomeRow,
+      botHomeRow,
+      isFirstMove,
+      isBotFirstMove,
+      playerHand,
+      botHand,
+    ]
+  );
+
+  const getBotValidMoves = useCallback((): Move[] => {
+    const validMoves: Move[] = [];
+    botHand.forEach((botCard, cardIndex) => {
+      if (botCard) {
+        const botValidIndices = calculateValidMoves(cardIndex, 'bot');
+        botValidIndices.forEach((cellIndex) => {
+          validMoves.push({ cellIndex, cardIndex });
+        });
+      }
+    });
     return validMoves;
-  }, [
-    botHand,
-    boardState,
-    findConnectedCellsToHomeRow,
-    boardSize,
-  ]);
+  }, [botHand, calculateValidMoves]);
 
   const executeBotMove = useCallback(
-    (validMoves) => {
-      const randomMove =
-        validMoves[Math.floor(Math.random() * validMoves.length)];
+    (validMoves: Move[]) => {
+      const randomMove = validMoves[Math.floor(Math.random() * validMoves.length)];
       const cellIndex = randomMove.cellIndex;
       const cardIndex = randomMove.cardIndex;
-      const botCard = botHand[cardIndex];
+      const botCard = botHand[cardIndex]!;
 
       setBoardState((prevBoardState) => {
         const newBoardState = [...prevBoardState];
@@ -184,7 +218,7 @@ function App() {
     const botFirstMoveCell = botHomeRow;
     const botCardIndex = botHand.findIndex((card) => card !== null);
     if (botCardIndex !== -1) {
-      const botCard = botHand[botCardIndex];
+      const botCard = botHand[botCardIndex]!;
 
       setBoardState((prevBoardState) => {
         const newBoardState = [...prevBoardState];
@@ -222,7 +256,7 @@ function App() {
     if (playerCount > botCount) {
       alert('Player wins!');
     } else if (botCount > playerCount) {
-      alert('Bot wins!');
+      alert("Bot wins!");
     } else {
       alert("It's a tie!");
     }
@@ -272,7 +306,6 @@ function App() {
     }
   }, [playerTurn, botPlay]);
 
-  // Initialize game
   const initializeGame = useCallback(() => {
     const pDeck = createDeck('red');
     const bDeck = createDeck('black');
@@ -280,14 +313,14 @@ function App() {
     shuffle(pDeck);
     shuffle(bDeck);
 
-    const initialPlayerHand = [];
-    const initialBotHand = [];
+    const initialPlayerHand: HandType = [];
+    const initialBotHand: HandType = [];
     let newPDeck = [...pDeck];
     let newBDeck = [...bDeck];
 
     for (let i = 0; i < 3; i++) {
-      initialPlayerHand.push(newPDeck.pop());
-      initialBotHand.push(newBDeck.pop());
+      initialPlayerHand.push(newPDeck.pop()!);
+      initialBotHand.push(newBDeck.pop()!);
     }
 
     setPlayerDeck(newPDeck);
@@ -300,62 +333,8 @@ function App() {
     initializeGame();
   }, [initializeGame]);
 
-  const drawCard = (deck, setDeck, hand, setHand) => {
-    const emptySlot = hand.findIndex((slot) => slot === null);
-    if (deck.length > 0 && emptySlot !== -1) {
-      const newDeck = [...deck];
-      const card = newDeck.pop();
-      const newHand = [...hand];
-      newHand[emptySlot] = card;
-      setDeck(newDeck);
-      setHand(newHand);
-    }
-  };
-
-  const calculateValidMoves = (cardIndex) => {
-    const selectedCard = playerHand[cardIndex];
-    const selectedCardRank = getCardRank(selectedCard.rank);
-    const validIndices = [];
-
-    if (isFirstMove) {
-      validIndices.push(playerHomeRow);
-    } else {
-      const connectedCells = findConnectedCellsToHomeRow('player', boardState);
-
-      if (connectedCells.length === 0) {
-        // Player can play on home row if no connected cells
-        const stack = boardState[playerHomeRow];
-        const topCard = stack[stack.length - 1];
-
-        if (
-          !topCard ||
-          (topCard.color !== selectedCard.color &&
-            getCardRank(topCard.rank) < selectedCardRank)
-        ) {
-          validIndices.push(playerHomeRow);
-        }
-      } else {
-        connectedCells.forEach((index) => {
-          const adjacentIndices = getAdjacentIndices(index, boardSize);
-          adjacentIndices.forEach((adjIndex) => {
-            if (adjIndex >= 0 && adjIndex < boardSize * boardSize) {
-              const stack = boardState[adjIndex];
-              const topCard = stack[stack.length - 1];
-
-              if (!topCard) {
-                validIndices.push(adjIndex);
-              } else if (
-                topCard.color !== selectedCard.color &&
-                getCardRank(topCard.rank) < selectedCardRank
-              ) {
-                validIndices.push(adjIndex);
-              }
-            }
-          });
-        });
-      }
-    }
-
+  const calculatePlayerValidMoves = (cardIndex: number) => {
+    const validIndices = calculateValidMoves(cardIndex, 'player');
     setHighlightedCells(validIndices);
   };
 
@@ -363,8 +342,8 @@ function App() {
     setHighlightedCells([]);
   };
 
-  const placeCardOnBoard = (index, cardIndex) => {
-    const selectedCard = playerHand[cardIndex];
+  const placeCardOnBoard = (index: number, cardIndex: number) => {
+    const selectedCard = playerHand[cardIndex]!;
 
     setBoardState((prevBoardState) => {
       const newBoardState = [...prevBoardState];
@@ -387,7 +366,13 @@ function App() {
 
   return (
     <div className="App">
-      <Hand cards={botHand} isBot={true} />
+      <Hand
+        cards={botHand}
+        isBot={true}
+        playerTurn={playerTurn}
+        calculateValidMoves={calculatePlayerValidMoves}
+        clearHighlights={clearHighlights}
+      />
       <Board
         boardSize={boardSize}
         boardState={boardState}
@@ -399,7 +384,7 @@ function App() {
         cards={playerHand}
         isBot={false}
         playerTurn={playerTurn}
-        calculateValidMoves={calculateValidMoves}
+        calculateValidMoves={calculatePlayerValidMoves}
         clearHighlights={clearHighlights}
       />
     </div>
