@@ -9,6 +9,7 @@ import {
   getCardRank,
   shuffle,
   drawCard,
+  isSelectedCardGreaterThanTopCard, isFirstMoveValidIndex
 } from './utils';
 
 type Suit = '♥' | '♦' | '♣' | '♠';
@@ -102,72 +103,55 @@ function App() {
       const isBot = playerType === 'bot';
       const hand = isBot ? botHand : playerHand;
       const selectedCard = hand[cardIndex]!;
-      const selectedCardRank = getCardRank(selectedCard.rank);
       const validIndices: number[] = [];
-      const homeRow = isBot ? botHomeRow : playerHomeRow;
-
-      // Determine if this is the first move for the player
+      const homeRowStart = isBot ? 0 : boardSize * (boardSize - 1);
+      const homeRowEnd = isBot ? boardSize : boardSize * boardSize;
+      const middleHomeRowIndex = isBot ? botHomeRow : playerHomeRow;
+  
       const isPlayerFirstMove = isBot ? isBotFirstMove : isFirstMove;
-
-      // Handle first move: restrict to home row only, bypassing connected cells
+  
       if (isPlayerFirstMove) {
-        validIndices.push(homeRow);
+        validIndices.push(middleHomeRowIndex);
       } else {
-        // Normal move logic, considering connected cells
-        const connectedCells = findConnectedCellsToHomeRow(playerType, boardState);
-
-        if (connectedCells.length === 0) {
-          // If no connected cells are found, treat home row as a valid move
-          const stack = boardState[homeRow];
+        for (let i = homeRowStart; i < homeRowEnd; i++) {
+          const stack = boardState[i];
           const topCard = stack[stack.length - 1];
-
-          if (
-            !topCard ||
-            (topCard.color !== selectedCard.color &&
-              getCardRank(topCard.rank) < selectedCardRank)
-          ) {
-            validIndices.push(homeRow);
+          if (isFirstMoveValidIndex(selectedCard, topCard)) {
+            validIndices.push(i);
           }
-        } else {
-          // Standard move logic to identify valid cells
-          connectedCells.forEach((index) => {
-            const adjacentIndices = getAdjacentIndices(index, boardSize);
-            adjacentIndices.forEach((adjIndex) => {
-              if (adjIndex >= 0 && adjIndex < boardSize * boardSize) {
-                const stack = boardState[adjIndex];
-                const topCard = stack[stack.length - 1];
-
-                // Allow player to play over their own card if the rank is higher
-                if (topCard && topCard.color === selectedCard.color) {
-                  if (getCardRank(topCard.rank) < selectedCardRank) {
-                    validIndices.push(adjIndex);
-                  }
-                } else if (!topCard) {
-                  validIndices.push(adjIndex);
-                } else if (
-                  topCard.color !== selectedCard.color &&
-                  getCardRank(topCard.rank) < selectedCardRank
-                ) {
-                  validIndices.push(adjIndex);
-                }
-              }
-            });
-          });
         }
+  
+        const connectedCells = findConnectedCellsToHomeRow(playerType, boardState);
+  
+        connectedCells.forEach((index) => {
+          const adjacentIndices = getAdjacentIndices(index, boardSize);
+          adjacentIndices.forEach((adjIndex) => {
+            if (adjIndex >= 0 && adjIndex < boardSize * boardSize) {
+              const stack = boardState[adjIndex];
+              const topCard = stack[stack.length - 1];
+              if (
+                !topCard ||
+                isSelectedCardGreaterThanTopCard(selectedCard, topCard)
+              ) {
+                validIndices.push(adjIndex);
+              }
+            }
+          });
+        });
       }
-
+  
       return validIndices;
     },
     [
       boardState,
       findConnectedCellsToHomeRow,
       boardSize,
-      playerHomeRow,
-      botHomeRow,
-      isFirstMove,
-      isBotFirstMove,
       playerHand,
       botHand,
+      isFirstMove,
+      isBotFirstMove,
+      playerHomeRow,
+      botHomeRow,
     ]
   );
 

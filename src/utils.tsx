@@ -1,3 +1,5 @@
+// utils.tsx
+
 // Define types for card properties and deck
 type Suit = '♥' | '♦' | '♣' | '♠';
 type Color = 'red' | 'black';
@@ -76,4 +78,15 @@ export const drawCard = (deck: Deck, setDeck: SetDeck, hand: Hand, setHand: SetH
         setDeck(newDeck);
         setHand(newHand);
     }
+};
+
+// Helper function to check if selected card has a higher rank than the top card
+export const isSelectedCardGreaterThanTopCard = (selectedCard: Card, topCard: Card): boolean => {
+    return getCardRank(selectedCard.rank) > getCardRank(topCard.rank);
+};
+
+// Helper function to check if a move is valid on the first move
+export const isFirstMoveValidIndex = (selectedCard: Card, topCard: Card | undefined): boolean => {
+    if (!topCard) return true; // Empty space is valid
+    return getCardRank(selectedCard.rank) > getCardRank(topCard.rank); // Can play on opponent's lower-ranked card
 };
