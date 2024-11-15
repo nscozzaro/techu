@@ -9,7 +9,9 @@ import {
   getCardRank,
   shuffle,
   drawCard,
-  isSelectedCardGreaterThanTopCard, isFirstMoveValidIndex
+  isSelectedCardGreaterThanTopCard, 
+  isFirstMoveValidIndex, 
+  findConnectedCellsToHomeRow,
 } from './utils';
 
 type Suit = '♥' | '♦' | '♣' | '♠';
@@ -47,57 +49,6 @@ function App() {
   const [isBotFirstMove, setIsBotFirstMove] = useState<boolean>(true);
   const [highlightedCells, setHighlightedCells] = useState<number[]>([]);
 
-  const findConnectedCellsToHomeRow = useCallback(
-    (playerType: 'player' | 'bot', currentBoardState: Card[][]): number[] => {
-      const visited = new Set<number>();
-      const queue: number[] = [];
-      const color: Color = playerType === 'player' ? 'red' : 'black';
-
-      let homeRowStart: number, homeRowEnd: number;
-      if (playerType === 'player') {
-        homeRowStart = boardSize * (boardSize - 1);
-        homeRowEnd = boardSize * boardSize;
-      } else {
-        homeRowStart = 0;
-        homeRowEnd = boardSize;
-      }
-
-      for (let i = homeRowStart; i < homeRowEnd; i++) {
-        const stack = currentBoardState[i];
-        const topCard = stack[stack.length - 1];
-
-        if (topCard && topCard.color === color) {
-          queue.push(i);
-          visited.add(i);
-        }
-      }
-
-      while (queue.length > 0) {
-        const currentIndex = queue.shift()!;
-        const adjacentIndices = getAdjacentIndices(currentIndex, boardSize);
-
-        adjacentIndices.forEach((adjIndex) => {
-          if (
-            adjIndex >= 0 &&
-            adjIndex < boardSize * boardSize &&
-            !visited.has(adjIndex)
-          ) {
-            const stack = currentBoardState[adjIndex];
-            const topCard = stack[stack.length - 1];
-
-            if (topCard && topCard.color === color) {
-              visited.add(adjIndex);
-              queue.push(adjIndex);
-            }
-          }
-        });
-      }
-
-      return Array.from(visited);
-    },
-    [boardSize]
-  );
-
   const calculateValidMoves = useCallback(
     (cardIndex: number, playerType: 'player' | 'bot'): number[] => {
       const isBot = playerType === 'bot';
@@ -121,7 +72,14 @@ function App() {
           }
         }
   
-        const connectedCells = findConnectedCellsToHomeRow(playerType, boardState);
+        // Use the imported findConnectedCellsToHomeRow function
+        const connectedCells = findConnectedCellsToHomeRow(
+          playerType,
+          boardState,
+          playerType === 'player' ? 'red' : 'black',
+          boardSize,
+          getAdjacentIndices
+        );
   
         connectedCells.forEach((index) => {
           const adjacentIndices = getAdjacentIndices(index, boardSize);
@@ -129,10 +87,7 @@ function App() {
             if (adjIndex >= 0 && adjIndex < boardSize * boardSize) {
               const stack = boardState[adjIndex];
               const topCard = stack[stack.length - 1];
-              if (
-                !topCard ||
-                isSelectedCardGreaterThanTopCard(selectedCard, topCard)
-              ) {
+              if (!topCard || isSelectedCardGreaterThanTopCard(selectedCard, topCard)) {
                 validIndices.push(adjIndex);
               }
             }
@@ -144,7 +99,6 @@ function App() {
     },
     [
       boardState,
-      findConnectedCellsToHomeRow,
       boardSize,
       playerHand,
       botHand,

@@ -90,3 +90,71 @@ export const isFirstMoveValidIndex = (selectedCard: Card, topCard: Card | undefi
     if (!topCard) return true; // Empty space is valid
     return getCardRank(selectedCard.rank) > getCardRank(topCard.rank); // Can play on opponent's lower-ranked card
 };
+
+// Get home row indices based on player type
+export const getHomeRowIndices = (playerType: 'player' | 'bot', boardSize: number): { start: number; end: number } => {
+    if (playerType === 'player') {
+        return { start: boardSize * (boardSize - 1), end: boardSize * boardSize };
+    } else {
+        return { start: 0, end: boardSize };
+    }
+};
+
+// Explore connected cells starting from initial cells in home row
+export const exploreConnectedCells = (
+    initialCells: number[],
+    currentBoardState: Card[][],
+    color: Color,
+    boardSize: number,
+    getAdjacentIndices: (index: number, boardSize: number) => number[]
+): Set<number> => {
+    const visited = new Set<number>();
+    const queue = [...initialCells];
+
+    initialCells.forEach((cell) => visited.add(cell));
+
+    while (queue.length > 0) {
+        const currentIndex = queue.shift()!;
+        const adjacentIndices = getAdjacentIndices(currentIndex, boardSize);
+
+        adjacentIndices.forEach((adjIndex) => {
+            if (
+                adjIndex >= 0 &&
+                adjIndex < boardSize * boardSize &&
+                !visited.has(adjIndex)
+            ) {
+                const stack = currentBoardState[adjIndex];
+                const topCard = stack[stack.length - 1];
+
+                if (topCard && topCard.color === color) {
+                    visited.add(adjIndex);
+                    queue.push(adjIndex);
+                }
+            }
+        });
+    }
+
+    return visited;
+};
+
+// Find cells connected to the home row for the given player type and board state
+export const findConnectedCellsToHomeRow = (
+    playerType: 'player' | 'bot',
+    currentBoardState: Card[][],
+    color: Color,
+    boardSize: number,
+    getAdjacentIndices: (index: number, boardSize: number) => number[]
+): number[] => {
+    const { start, end } = getHomeRowIndices(playerType, boardSize);
+    const initialCells: number[] = [];
+
+    for (let i = start; i < end; i++) {
+        const stack = currentBoardState[i];
+        const topCard = stack[stack.length - 1];
+        if (topCard && topCard.color === color) {
+            initialCells.push(i);
+        }
+    }
+
+    return Array.from(exploreConnectedCells(initialCells, currentBoardState, color, boardSize, getAdjacentIndices));
+};
