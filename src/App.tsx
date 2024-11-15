@@ -1,17 +1,15 @@
 // App.tsx
+
 import React, { useState, useEffect, useCallback } from 'react';
 import Board from './components/Board';
 import Hand from './components/Hand';
 
 import {
   createDeck,
-  getAdjacentIndices,
-  getCardRank,
   shuffle,
   drawCard,
-  isSelectedCardGreaterThanTopCard, 
-  isFirstMoveValidIndex, 
-  findConnectedCellsToHomeRow,
+  calculateValidMoves,
+  getCardRank, // Re-import getCardRank
 } from './utils';
 
 type Suit = '♥' | '♦' | '♣' | '♠';
@@ -49,78 +47,27 @@ function App() {
   const [isBotFirstMove, setIsBotFirstMove] = useState<boolean>(true);
   const [highlightedCells, setHighlightedCells] = useState<number[]>([]);
 
-  const calculateValidMoves = useCallback(
-    (cardIndex: number, playerType: 'player' | 'bot'): number[] => {
-      const isBot = playerType === 'bot';
-      const hand = isBot ? botHand : playerHand;
-      const selectedCard = hand[cardIndex]!;
-      const validIndices: number[] = [];
-      const homeRowStart = isBot ? 0 : boardSize * (boardSize - 1);
-      const homeRowEnd = isBot ? boardSize : boardSize * boardSize;
-      const middleHomeRowIndex = isBot ? botHomeRow : playerHomeRow;
-  
-      const isPlayerFirstMove = isBot ? isBotFirstMove : isFirstMove;
-  
-      if (isPlayerFirstMove) {
-        validIndices.push(middleHomeRowIndex);
-      } else {
-        for (let i = homeRowStart; i < homeRowEnd; i++) {
-          const stack = boardState[i];
-          const topCard = stack[stack.length - 1];
-          if (isFirstMoveValidIndex(selectedCard, topCard)) {
-            validIndices.push(i);
-          }
-        }
-  
-        // Use the imported findConnectedCellsToHomeRow function
-        const connectedCells = findConnectedCellsToHomeRow(
-          playerType,
-          boardState,
-          playerType === 'player' ? 'red' : 'black',
-          boardSize,
-          getAdjacentIndices
-        );
-  
-        connectedCells.forEach((index) => {
-          const adjacentIndices = getAdjacentIndices(index, boardSize);
-          adjacentIndices.forEach((adjIndex) => {
-            if (adjIndex >= 0 && adjIndex < boardSize * boardSize) {
-              const stack = boardState[adjIndex];
-              const topCard = stack[stack.length - 1];
-              if (!topCard || isSelectedCardGreaterThanTopCard(selectedCard, topCard)) {
-                validIndices.push(adjIndex);
-              }
-            }
-          });
-        });
-      }
-  
-      return validIndices;
-    },
-    [
-      boardState,
-      boardSize,
-      playerHand,
-      botHand,
-      isFirstMove,
-      isBotFirstMove,
-      playerHomeRow,
-      botHomeRow,
-    ]
-  );
-
   const getBotValidMoves = useCallback((): Move[] => {
     const validMoves: Move[] = [];
     botHand.forEach((botCard, cardIndex) => {
       if (botCard) {
-        const botValidIndices = calculateValidMoves(cardIndex, 'bot');
+        const botValidIndices = calculateValidMoves(
+          cardIndex,
+          'bot',
+          boardState,
+          boardSize,
+          isBotFirstMove,
+          botHand,
+          playerHomeRow,
+          botHomeRow
+        );
         botValidIndices.forEach((cellIndex) => {
           validMoves.push({ cellIndex, cardIndex });
         });
       }
     });
     return validMoves;
-  }, [botHand, calculateValidMoves]);
+  }, [botHand, boardState, boardSize, isBotFirstMove, playerHomeRow, botHomeRow]);
 
   const executeBotMove = useCallback(
     (validMoves: Move[]) => {
@@ -138,7 +85,6 @@ function App() {
           !topCard ||
           (topCard.color !== botCard.color &&
             getCardRank(topCard.rank) < getCardRank(botCard.rank)) ||
-          // Allow bot to place on its own lower-ranked card
           (topCard.color === botCard.color &&
             getCardRank(topCard.rank) < getCardRank(botCard.rank))
         ) {
@@ -186,11 +132,10 @@ function App() {
       newBotHand[botCardIndex] = null;
       setBotHand(newBotHand);
     }
-    setIsBotFirstMove(false); // Reset after the first move
+    setIsBotFirstMove(false);
     drawCard(botDeck, setBotDeck, botHand, setBotHand);
     setPlayerTurn(true);
   }, [botHand, botDeck, botHomeRow]);
-
 
   const determineWinner = useCallback(() => {
     let playerCount = 0;
@@ -288,7 +233,16 @@ function App() {
   }, [initializeGame]);
 
   const calculatePlayerValidMoves = (cardIndex: number) => {
-    const validIndices = calculateValidMoves(cardIndex, 'player');
+    const validIndices = calculateValidMoves(
+      cardIndex,
+      'player',
+      boardState,
+      boardSize,
+      isFirstMove,
+      playerHand,
+      playerHomeRow,
+      botHomeRow
+    );
     setHighlightedCells(validIndices);
   };
 
@@ -309,14 +263,13 @@ function App() {
     newPlayerHand[cardIndex] = null;
     setPlayerHand(newPlayerHand);
 
-    if (isFirstMove) setIsFirstMove(false); // Reset after the first move
+    if (isFirstMove) setIsFirstMove(false);
     clearHighlights();
 
     drawCard(playerDeck, setPlayerDeck, newPlayerHand, setPlayerHand);
     checkEndGame();
     setPlayerTurn(false);
   };
-
 
   return (
     <div className="App">
