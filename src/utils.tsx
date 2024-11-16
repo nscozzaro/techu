@@ -80,15 +80,9 @@ export const drawCard = (deck: Deck, setDeck: SetDeck, hand: Hand, setHand: SetH
     }
 };
 
-// Helper function to check if selected card has a higher rank than the top card
-export const isSelectedCardGreaterThanTopCard = (selectedCard: Card, topCard: Card): boolean => {
-    return getCardRank(selectedCard.rank) > getCardRank(topCard.rank);
-};
-
-// Helper function to check if a move is valid on the first move
-export const isFirstMoveValidIndex = (selectedCard: Card, topCard: Card | undefined): boolean => {
-    if (!topCard) return true; // Empty space is valid
-    return getCardRank(selectedCard.rank) > getCardRank(topCard.rank); // Can play on opponent's lower-ranked card
+// Check if selected card has a higher rank than the top card, handling undefined topCard
+export const isSelectedCardGreaterThanTopCard = (selectedCard: Card, topCard: Card | undefined): boolean => {
+    return !topCard || getCardRank(selectedCard.rank) > getCardRank(topCard.rank);
 };
 
 // Get home row indices based on player type
@@ -98,13 +92,12 @@ export const getHomeRowIndices = (playerType: 'player' | 'bot', boardSize: numbe
         : { start: 0, end: boardSize };
 };
 
-// Explore connected cells starting from initial cells in home row
-export const exploreConnectedCells = (
+// Explore cells, adding indices of cells meeting a filter condition
+export const exploreCells = (
     initialCells: number[],
-    currentBoardState: Card[][],
-    color: Color,
+    boardState: Card[][],
     boardSize: number,
-    getAdjacentIndices: (index: number, boardSize: number) => number[]
+    filterFn: (card: Card | undefined) => boolean
 ): Set<number> => {
     const visited = new Set<number>();
     const queue = [...initialCells];
@@ -115,9 +108,9 @@ export const exploreConnectedCells = (
         const adjacentIndices = getAdjacentIndices(currentIndex, boardSize);
         adjacentIndices.forEach((adjIndex) => {
             if (adjIndex >= 0 && adjIndex < boardSize * boardSize && !visited.has(adjIndex)) {
-                const stack = currentBoardState[adjIndex];
+                const stack = boardState[adjIndex];
                 const topCard = stack[stack.length - 1];
-                if (topCard && topCard.color === color) {
+                if (filterFn(topCard)) {
                     visited.add(adjIndex);
                     queue.push(adjIndex);
                 }
@@ -128,70 +121,34 @@ export const exploreConnectedCells = (
     return visited;
 };
 
-// Find cells connected to the home row for the given player type and board state
+// Find cells connected to the home row for a given player type and board state
 export const findConnectedCellsToHomeRow = (
     playerType: 'player' | 'bot',
-    currentBoardState: Card[][],
+    boardState: Card[][],
     color: Color,
-    boardSize: number,
-    getAdjacentIndices: (index: number, boardSize: number) => number[]
-): number[] => {
-    const { start, end } = getHomeRowIndices(playerType, boardSize);
-    const initialCells: number[] = [];
-    for (let i = start; i < end; i++) {
-        const stack = currentBoardState[i];
-        const topCard = stack[stack.length - 1];
-        if (topCard && topCard.color === color) {
-            initialCells.push(i);
-        }
-    }
-    return Array.from(exploreConnectedCells(initialCells, currentBoardState, color, boardSize, getAdjacentIndices));
-};
-
-// Helper to get indices for the first move in the home row
-const getFirstMoveIndices = (
-    middleHomeRowIndex: number
-): number[] => [middleHomeRowIndex];
-
-// Helper to get valid indices within the player's home row based on card rank
-const getHomeRowValidIndices = (
-    homeRowStart: number,
-    homeRowEnd: number,
-    boardState: Card[][],
-    selectedCard: Card
-): number[] => {
-    const validIndices: number[] = [];
-    for (let i = homeRowStart; i < homeRowEnd; i++) {
-        const stack = boardState[i];
-        const topCard = stack[stack.length - 1];
-        if (isFirstMoveValidIndex(selectedCard, topCard)) {
-            validIndices.push(i);
-        }
-    }
-    return validIndices;
-};
-
-// Helper to get connected valid indices for normal moves
-const getConnectedValidIndices = (
-    connectedCells: number[],
-    boardState: Card[][],
-    selectedCard: Card,
     boardSize: number
 ): number[] => {
-    const validIndices: number[] = [];
-    connectedCells.forEach((index) => {
-        const adjacentIndices = getAdjacentIndices(index, boardSize);
-        adjacentIndices.forEach((adjIndex) => {
-            if (adjIndex >= 0 && adjIndex < boardSize * boardSize) {
-                const stack = boardState[adjIndex];
-                const topCard = stack[stack.length - 1];
-                if (!topCard || isSelectedCardGreaterThanTopCard(selectedCard, topCard)) {
-                    validIndices.push(adjIndex);
-                }
-            }
-        });
+    const { start, end } = getHomeRowIndices(playerType, boardSize);
+    const initialCells = Array.from({ length: end - start }, (_, i) => start + i).filter(i => {
+        const topCard = boardState[i][boardState[i].length - 1];
+        return topCard && topCard.color === color;
     });
-    return validIndices;
+
+    return Array.from(exploreCells(initialCells, boardState, boardSize, (card) => card?.color === color));
+};
+
+// Get valid move indices by applying a filter function to cells
+export const getValidMoveIndices = (
+    indices: number[],
+    boardState: Card[][],
+    selectedCard: Card,
+    filterFn: (selectedCard: Card, topCard: Card | undefined) => boolean
+): number[] => {
+    return indices.filter(index => {
+        const stack = boardState[index];
+        const topCard = stack[stack.length - 1];
+        return filterFn(selectedCard, topCard);
+    });
 };
 
 // Calculate valid moves by checking home row and connected cells
@@ -208,23 +165,28 @@ export const calculateValidMoves = (
     const isBot = playerType === 'bot';
     const selectedCard = hand[cardIndex]!;
     const middleHomeRowIndex = isBot ? botHomeRow : playerHomeRow;
-    const { start: homeRowStart, end: homeRowEnd } = getHomeRowIndices(playerType, boardSize);
 
     if (isFirstMove) {
-        return getFirstMoveIndices(middleHomeRowIndex);
+        return [middleHomeRowIndex];
     }
 
-    const homeRowValidIndices = getHomeRowValidIndices(homeRowStart, homeRowEnd, boardState, selectedCard);
+    const { start: homeRowStart, end: homeRowEnd } = getHomeRowIndices(playerType, boardSize);
 
+    // Get indices within the player's home row where moves are valid
+    const homeRowIndices = Array.from({ length: homeRowEnd - homeRowStart }, (_, i) => homeRowStart + i);
+    const homeRowValidIndices = getValidMoveIndices(homeRowIndices, boardState, selectedCard, isSelectedCardGreaterThanTopCard);
+
+    // Get adjacent indices for connected cells (allows moves to adjacent spaces based on card rank)
     const connectedCells = findConnectedCellsToHomeRow(
         playerType,
         boardState,
         playerType === 'player' ? 'red' : 'black',
-        boardSize,
-        getAdjacentIndices
+        boardSize
     );
-
-    const connectedValidIndices = getConnectedValidIndices(connectedCells, boardState, selectedCard, boardSize);
+    const connectedValidIndices = connectedCells.flatMap((index) => {
+        const adjacentIndices = getAdjacentIndices(index, boardSize);
+        return getValidMoveIndices(adjacentIndices, boardState, selectedCard, isSelectedCardGreaterThanTopCard);
+    });
 
     return [...homeRowValidIndices, ...connectedValidIndices];
 };
