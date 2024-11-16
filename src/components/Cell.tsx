@@ -1,18 +1,13 @@
 import React from 'react';
 import { useDrop } from 'react-dnd';
-
-interface Card {
-  suit: string;
-  rank: string;
-  color: 'red' | 'black';
-}
+import { Card } from '../types';
 
 interface DropItem {
   cardIndex: number;
 }
 
 interface CellProps {
-  stack: Card[];
+  stack: Card[]; // Updated to use the Card type from types.ts
   index: number;
   playerTurn: boolean;
   placeCardOnBoard: (index: number, cardIndex: number) => void;
@@ -45,7 +40,7 @@ const Cell: React.FC<CellProps> = ({
 
   // Determine if the cell should be highlighted
   const isHighlighted = highlightedCells.includes(index);
-  
+
   // Display only the top card in the stack
   const topCard = stack[stack.length - 1];
 
@@ -56,7 +51,7 @@ const Cell: React.FC<CellProps> = ({
       data-index={index}
     >
       {topCard && (
-        <div className={`card-played ${topCard.color}`}>
+        <div className={`card-played ${topCard.color.toLowerCase()}`}>
           <div className="top-left">{topCard.rank}</div>
           <div className="suit">{topCard.suit}</div>
           <div className="bottom-right">{topCard.rank}</div>

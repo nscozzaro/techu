@@ -1,11 +1,10 @@
 import React from 'react';
 import Cell from './Cell';
-
-import { Card } from '../types';
+import { BoardState } from '../types';
 
 interface BoardProps {
   boardSize: number;
-  boardState: Card[][];
+  boardState: BoardState; // Use the updated BoardState type
   playerTurn: boolean;
   placeCardOnBoard: (index: number, cardIndex: number) => void;
   highlightedCells: number[];

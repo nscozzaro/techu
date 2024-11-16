@@ -1,173 +1,188 @@
-import { Card, Color,Deck, Hand, Suit,  Rank, SetDeck, SetHand } from './types';
-
-// Shuffle function with deck type
-export const shuffle = (deck: Deck): void => {
+import {
+    Card,
+    ColorEnum,
+    Deck,
+    Hand,
+    PlayerEnum,
+    RankEnum,
+    SuitEnum,
+    SetDeck,
+    SetHand,
+    BoardState,
+  } from './types';
+  
+  // Shuffle function for a deck
+  export const shuffle = (deck: Deck): void => {
     for (let i = deck.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [deck[i], deck[j]] = [deck[j], deck[i]];
+      const j = Math.floor(Math.random() * (i + 1));
+      [deck[i], deck[j]] = [deck[j], deck[i]];
     }
-};
-
-// Get adjacent indices with explicit index and boardSize types
-export const getAdjacentIndices = (index: number, boardSize: number): number[] => {
+  };
+  
+  // Get adjacent indices on the board
+  export const getAdjacentIndices = (index: number, boardSize: number): number[] => {
     const indices: number[] = [];
     const row = Math.floor(index / boardSize);
     const col = index % boardSize;
-
-    if (row > 0) indices.push(index - boardSize);
-    if (row < boardSize - 1) indices.push(index + boardSize);
-    if (col > 0) indices.push(index - 1);
-    if (col < boardSize - 1) indices.push(index + 1);
-
+  
+    if (row > 0) indices.push(index - boardSize); // Above
+    if (row < boardSize - 1) indices.push(index + boardSize); // Below
+    if (col > 0) indices.push(index - 1); // Left
+    if (col < boardSize - 1) indices.push(index + 1); // Right
+  
     return indices;
-};
-
-// Get card rank with specific rank type and return number
-export const getCardRank = (rank: Rank): number => {
-    const rankOrder: { [key in Rank]: number } = {
-        '2': 2,
-        '3': 3,
-        '4': 4,
-        '5': 5,
-        '6': 6,
-        '7': 7,
-        '8': 8,
-        '9': 9,
-        '10': 10,
-        J: 11,
-        Q: 12,
-        K: 13,
-        A: 14,
+  };
+  
+  // Map rank enum to numerical values
+  export const getCardRank = (rank: RankEnum): number => {
+    const rankOrder: { [key in RankEnum]: number } = {
+      [RankEnum.TWO]: 2,
+      [RankEnum.THREE]: 3,
+      [RankEnum.FOUR]: 4,
+      [RankEnum.FIVE]: 5,
+      [RankEnum.SIX]: 6,
+      [RankEnum.SEVEN]: 7,
+      [RankEnum.EIGHT]: 8,
+      [RankEnum.NINE]: 9,
+      [RankEnum.TEN]: 10,
+      [RankEnum.JACK]: 11,
+      [RankEnum.QUEEN]: 12,
+      [RankEnum.KING]: 13,
+      [RankEnum.ACE]: 14,
     };
     return rankOrder[rank];
-};
-
-// Create a deck with color type and return Deck
-export const createDeck = (color: Color): Deck => {
-    const suits: Suit[] = color === 'red' ? ['♥', '♦'] : ['♣', '♠'];
-    const ranks: Rank[] = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
-    return suits.flatMap((suit) => ranks.map((rank) => ({ suit, rank, color })));
-};
-
-// Draw card with explicit types for parameters and state updates
-export const drawCard = (deck: Deck, setDeck: SetDeck, hand: Hand, setHand: SetHand): void => {
+  };
+  
+  // Create a deck for a player with the specified color
+  export const createDeck = (color: ColorEnum, owner: PlayerEnum): Deck => {
+    const suits =
+      color === ColorEnum.RED ? [SuitEnum.HEARTS, SuitEnum.DIAMONDS] : [SuitEnum.CLUBS, SuitEnum.SPADES];
+    const ranks = Object.values(RankEnum);
+    return suits.flatMap((suit) =>
+      ranks.map((rank) => ({ suit, rank, color, owner }))
+    );
+  };
+  
+  // Draw a card from a deck and update the hand
+  export const drawCard = (deck: Deck, setDeck: SetDeck, hand: Hand, setHand: SetHand): void => {
     const emptySlot = hand.findIndex((slot) => slot === null);
     if (deck.length > 0 && emptySlot !== -1) {
-        const newDeck = [...deck];
-        const card = newDeck.pop() as Card;
-        const newHand = [...hand];
-        newHand[emptySlot] = card;
-        setDeck(newDeck);
-        setHand(newHand);
+      const newDeck = [...deck];
+      const card = newDeck.pop() as Card;
+      const newHand = [...hand];
+      newHand[emptySlot] = card;
+      setDeck(newDeck);
+      setHand(newHand);
     }
-};
-
-// Check if selected card has a higher rank than the top card, handling undefined topCard
-export const isSelectedCardGreaterThanTopCard = (selectedCard: Card, topCard: Card | undefined): boolean => {
+  };
+  
+  // Check if a card outranks another card
+  export const isSelectedCardGreaterThanTopCard = (selectedCard: Card, topCard: Card | undefined): boolean => {
     return !topCard || getCardRank(selectedCard.rank) > getCardRank(topCard.rank);
-};
-
-// Get home row indices based on player type
-export const getHomeRowIndices = (playerType: 'player1' | 'player2', boardSize: number): { start: number; end: number } => {
-    return playerType === 'player1'
-        ? { start: boardSize * (boardSize - 1), end: boardSize * boardSize }
-        : { start: 0, end: boardSize };
-};
-
-// Explore cells that are connected to initial cells and share the same color
-export const exploreConnectedCells = (
+  };
+  
+  // Get the indices for the home row of a player
+  export const getHomeRowIndices = (playerType: PlayerEnum, boardSize: number): { start: number; end: number } => {
+    return playerType === PlayerEnum.PLAYER1
+      ? { start: boardSize * (boardSize - 1), end: boardSize * boardSize }
+      : { start: 0, end: boardSize };
+  };
+  
+  // Explore cells connected to the initial cells and sharing the same color
+  export const exploreConnectedCells = (
     initialCells: number[],
-    boardState: Card[][],
+    boardState: BoardState,
     boardSize: number,
-    color: Color
-): Set<number> => {
+    color: ColorEnum
+  ): Set<number> => {
     const visited = new Set<number>();
     const queue = [...initialCells];
     initialCells.forEach((cell) => visited.add(cell));
-
+  
     while (queue.length > 0) {
-        const currentIndex = queue.shift()!;
-        const adjacentIndices = getAdjacentIndices(currentIndex, boardSize);
-        adjacentIndices.forEach((adjIndex) => {
-            if (adjIndex >= 0 && adjIndex < boardSize * boardSize && !visited.has(adjIndex)) {
-                const stack = boardState[adjIndex];
-                const topCard = stack[stack.length - 1];
-                if (topCard && topCard.color === color) {
-                    visited.add(adjIndex);
-                    queue.push(adjIndex);
-                }
-            }
-        });
+      const currentIndex = queue.shift()!;
+      const adjacentIndices = getAdjacentIndices(currentIndex, boardSize);
+      adjacentIndices.forEach((adjIndex) => {
+        if (adjIndex >= 0 && adjIndex < boardSize * boardSize && !visited.has(adjIndex)) {
+          const stack = boardState[adjIndex];
+          const topCard = stack[stack.length - 1];
+          if (topCard && topCard.color === color) {
+            visited.add(adjIndex);
+            queue.push(adjIndex);
+          }
+        }
+      });
     }
-
+  
     return visited;
-};
-
-// Find cells connected to the home row for a given player type and board state
-export const findConnectedCellsToHomeRow = (
-    playerType: 'player1' | 'player2',
-    boardState: Card[][],
-    color: Color,
+  };
+  
+  // Find cells connected to the home row for a player
+  export const findConnectedCellsToHomeRow = (
+    playerType: PlayerEnum,
+    boardState: BoardState,
+    color: ColorEnum,
     boardSize: number
-): number[] => {
+  ): number[] => {
     const { start, end } = getHomeRowIndices(playerType, boardSize);
-    const initialCells = Array.from({ length: end - start }, (_, i) => start + i).filter(i => {
-        const topCard = boardState[i][boardState[i].length - 1];
-        return topCard && topCard.color === color;
+    const initialCells = Array.from({ length: end - start }, (_, i) => start + i).filter((i) => {
+      const topCard = boardState[i][boardState[i].length - 1];
+      return topCard && topCard.color === color;
     });
-
+  
     return Array.from(exploreConnectedCells(initialCells, boardState, boardSize, color));
-};
-
-// Get valid move indices by checking if selectedCard outranks the top card on each stack
-export const getValidMoveIndices = (
+  };
+  
+  // Get valid move indices where the selected card outranks the top card
+  export const getValidMoveIndices = (
     indices: number[],
-    boardState: Card[][],
+    boardState: BoardState,
     selectedCard: Card
-): number[] => {
-    return indices.filter(index => {
-        const stack = boardState[index];
-        const topCard = stack[stack.length - 1];
-        return isSelectedCardGreaterThanTopCard(selectedCard, topCard);
+  ): number[] => {
+    return indices.filter((index) => {
+      const stack = boardState[index];
+      const topCard = stack[stack.length - 1];
+      return isSelectedCardGreaterThanTopCard(selectedCard, topCard);
     });
-};
-
-// Calculate valid moves by checking home row and connected cells
-export const calculateValidMoves = (
+  };
+  
+  // Calculate valid moves for a card
+  export const calculateValidMoves = (
     cardIndex: number,
-    playerType: 'player1' | 'player2',
-    boardState: Card[][],
+    playerType: PlayerEnum,
+    boardState: BoardState,
     boardSize: number,
     isFirstMove: boolean,
     hand: Hand,
     playerHomeRow: number,
     player2HomeRow: number
-): number[] => {
-    const isPlayer2 = playerType === 'player2';
+  ): number[] => {
+    const isPlayer2 = playerType === PlayerEnum.PLAYER2;
     const selectedCard = hand[cardIndex]!;
     const middleHomeRowIndex = isPlayer2 ? player2HomeRow : playerHomeRow;
-
+  
     if (isFirstMove) {
-        return [middleHomeRowIndex];
+      return [middleHomeRowIndex];
     }
-
+  
     const { start: homeRowStart, end: homeRowEnd } = getHomeRowIndices(playerType, boardSize);
-
-    // Get indices within the player's home row where moves are valid
+  
+    // Home row valid moves
     const homeRowIndices = Array.from({ length: homeRowEnd - homeRowStart }, (_, i) => homeRowStart + i);
     const homeRowValidIndices = getValidMoveIndices(homeRowIndices, boardState, selectedCard);
-
-    // Get adjacent indices for connected cells (allows moves to adjacent spaces based on card rank)
+  
+    // Connected cells valid moves
     const connectedCells = findConnectedCellsToHomeRow(
-        playerType,
-        boardState,
-        playerType === 'player1' ? 'red' : 'black',
-        boardSize
+      playerType,
+      boardState,
+      playerType === PlayerEnum.PLAYER1 ? ColorEnum.RED : ColorEnum.BLACK,
+      boardSize
     );
     const connectedValidIndices = connectedCells.flatMap((index) => {
-        const adjacentIndices = getAdjacentIndices(index, boardSize);
-        return getValidMoveIndices(adjacentIndices, boardState, selectedCard);
+      const adjacentIndices = getAdjacentIndices(index, boardSize);
+      return getValidMoveIndices(adjacentIndices, boardState, selectedCard);
     });
-
+  
     return [...homeRowValidIndices, ...connectedValidIndices];
-};
+  };
+  

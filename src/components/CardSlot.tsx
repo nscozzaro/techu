@@ -1,6 +1,6 @@
 import React from 'react';
 import { useDrag } from 'react-dnd';
-import { Card } from '../types'; 
+import { Card } from '../types';
 
 interface CardSlotProps {
   card: Card | null;
@@ -46,7 +46,7 @@ const CardSlot: React.FC<CardSlotProps> = ({
   return (
     <div
       ref={!isBot && card ? drag : null}
-      className={`card-slot ${card ? card.color : ''}`}
+      className={`card-slot ${card ? card.color.toLowerCase() : ''}`} // Use color as a class name
       style={{ opacity: isDragging ? 0.5 : 1 }}
     >
       {card ? (
