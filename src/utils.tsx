@@ -1,22 +1,5 @@
-// utils.tsx
+import { Card, Deck, Hand, Suit, Color, Rank, SetDeck, SetHand} from './types'
 
-// Define types for card properties and deck
-type Suit = '♥' | '♦' | '♣' | '♠';
-type Color = 'red' | 'black';
-type Rank = '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K' | 'A';
-
-interface Card {
-    suit: Suit;
-    rank: Rank;
-    color: Color;
-}
-
-type Deck = Card[];
-type Hand = (Card | null)[];
-
-// Define types for state update functions
-type SetDeck = React.Dispatch<React.SetStateAction<Deck>>;
-type SetHand = React.Dispatch<React.SetStateAction<Hand>>;
 
 // Shuffle function with deck type
 export const shuffle = (deck: Deck): void => {

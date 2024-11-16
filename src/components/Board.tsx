@@ -1,11 +1,7 @@
 import React from 'react';
 import Cell from './Cell';
 
-interface Card {
-  suit: string;
-  rank: string;
-  color: 'red' | 'black';
-}
+import { Card } from '../types';
 
 interface BoardProps {
   boardSize: number;
