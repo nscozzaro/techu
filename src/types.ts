@@ -10,6 +10,14 @@ export interface Card {
 
 export type Deck = Card[];
 export type Hand = (Card | null)[];
+export type BoardState = Card[][];
+
+export interface Move {
+  cellIndex: number;
+  cardIndex: number;
+}
+
+export type Moves = Move[];
 
 export type SetDeck = React.Dispatch<React.SetStateAction<Deck>>;
 export type SetHand = React.Dispatch<React.SetStateAction<Hand>>;

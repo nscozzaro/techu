@@ -1,11 +1,6 @@
 import React from 'react';
 import { useDrag } from 'react-dnd';
-
-interface Card {
-  suit: string;
-  rank: string;
-  color: 'red' | 'black';
-}
+import { Card } from '../types'; 
 
 interface CardSlotProps {
   card: Card | null;

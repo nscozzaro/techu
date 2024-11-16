@@ -1,14 +1,9 @@
 import React from 'react';
 import CardSlot from './CardSlot';
-
-interface Card {
-  suit: string;
-  rank: string;
-  color: 'red' | 'black';
-}
+import { Hand as HandType} from '../types';
 
 interface HandProps {
-  cards: (Card | null)[];
+  cards: HandType;
   isBot: boolean;
   playerTurn: boolean;
   calculateValidMoves: (index: number) => void;

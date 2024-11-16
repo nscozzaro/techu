@@ -1,5 +1,4 @@
-import { Card, Deck, Hand, Suit, Color, Rank, SetDeck, SetHand} from './types'
-
+import { Card, Color,Deck, Hand, Suit,  Rank, SetDeck, SetHand } from './types';
 
 // Shuffle function with deck type
 export const shuffle = (deck: Deck): void => {
@@ -69,8 +68,8 @@ export const isSelectedCardGreaterThanTopCard = (selectedCard: Card, topCard: Ca
 };
 
 // Get home row indices based on player type
-export const getHomeRowIndices = (playerType: 'player' | 'bot', boardSize: number): { start: number; end: number } => {
-    return playerType === 'player'
+export const getHomeRowIndices = (playerType: 'player1' | 'player2', boardSize: number): { start: number; end: number } => {
+    return playerType === 'player1'
         ? { start: boardSize * (boardSize - 1), end: boardSize * boardSize }
         : { start: 0, end: boardSize };
 };
@@ -106,7 +105,7 @@ export const exploreConnectedCells = (
 
 // Find cells connected to the home row for a given player type and board state
 export const findConnectedCellsToHomeRow = (
-    playerType: 'player' | 'bot',
+    playerType: 'player1' | 'player2',
     boardState: Card[][],
     color: Color,
     boardSize: number
@@ -136,17 +135,17 @@ export const getValidMoveIndices = (
 // Calculate valid moves by checking home row and connected cells
 export const calculateValidMoves = (
     cardIndex: number,
-    playerType: 'player' | 'bot',
+    playerType: 'player1' | 'player2',
     boardState: Card[][],
     boardSize: number,
     isFirstMove: boolean,
     hand: Hand,
     playerHomeRow: number,
-    botHomeRow: number
+    player2HomeRow: number
 ): number[] => {
-    const isBot = playerType === 'bot';
+    const isPlayer2 = playerType === 'player2';
     const selectedCard = hand[cardIndex]!;
-    const middleHomeRowIndex = isBot ? botHomeRow : playerHomeRow;
+    const middleHomeRowIndex = isPlayer2 ? player2HomeRow : playerHomeRow;
 
     if (isFirstMove) {
         return [middleHomeRowIndex];
@@ -162,7 +161,7 @@ export const calculateValidMoves = (
     const connectedCells = findConnectedCellsToHomeRow(
         playerType,
         boardState,
-        playerType === 'player' ? 'red' : 'black',
+        playerType === 'player1' ? 'red' : 'black',
         boardSize
     );
     const connectedValidIndices = connectedCells.flatMap((index) => {
