@@ -17,7 +17,6 @@ import {
 } from './types';
 
 function App() {
-
   const [players, setPlayers] = useState({
     [PlayerEnum.PLAYER1]: initializePlayer(
       ColorEnum.RED,
@@ -137,19 +136,21 @@ function App() {
     }
   }, [playerTurn, playForPlayer]);
 
-  const calculatePlayerValidMoves = (cardIndex: number) => {
-    setHighlightedCells(
-      calculateValidMoves(
+  const handleCardDrag = useCallback(
+    (cardIndex: number, playerId: PlayerEnum) => {
+      const validMoves = calculateValidMoves(
         cardIndex,
-        PlayerEnum.PLAYER1,
+        playerId,
         boardState,
         BOARD_SIZE,
-        firstMove[PlayerEnum.PLAYER1],
-        players[PlayerEnum.PLAYER1].hand,
+        firstMove[playerId],
+        players[playerId].hand,
         STARTING_INDICES
-      )
-    );
-  };
+      );
+      setHighlightedCells(validMoves);
+    },
+    [boardState, firstMove, players]
+  );
 
   const placeCardOnBoard = (index: number, cardIndex: number) => {
     playMove({ cellIndex: index, cardIndex }, PlayerEnum.PLAYER1);
@@ -174,7 +175,7 @@ function App() {
         cards={players[PlayerEnum.PLAYER1].hand}
         playerId={PlayerEnum.PLAYER1}
         currentPlayerId={playerTurn}
-        calculateValidMoves={calculatePlayerValidMoves}
+        handleCardDrag={handleCardDrag}
         clearHighlights={() => setHighlightedCells([])}
       />
     </div>

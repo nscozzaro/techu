@@ -7,7 +7,7 @@ interface HandProps {
   cards: HandType;
   playerId: PlayerEnum;
   currentPlayerId: PlayerEnum;
-  calculateValidMoves?: (index: number) => void;
+  handleCardDrag?: (index: number, playerId: PlayerEnum) => void;
   clearHighlights?: () => void;
 }
 
@@ -15,7 +15,7 @@ const Hand: React.FC<HandProps> = ({
   cards,
   playerId,
   currentPlayerId,
-  calculateValidMoves,
+  handleCardDrag,
   clearHighlights,
 }) => (
   <div className="hand">
@@ -26,7 +26,7 @@ const Hand: React.FC<HandProps> = ({
         index={index}
         playerId={playerId}
         currentPlayerId={currentPlayerId}
-        calculateValidMoves={calculateValidMoves}
+        handleCardDrag={handleCardDrag}
         clearHighlights={clearHighlights}
       />
     ))}

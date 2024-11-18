@@ -1,6 +1,6 @@
 // Cell.tsx
 import React from 'react';
-import { useDrag, useDrop, DragSourceMonitor, DropTargetMonitor } from 'react-dnd';
+import { useDrag, useDrop, DragSourceMonitor } from 'react-dnd';
 import { Card, PlayerEnum } from '../types';
 
 interface DropItem {
@@ -10,10 +10,10 @@ interface DropItem {
 interface CellProps {
   stack: Card[];
   index: number;
-  playerId?: PlayerEnum;         // For hand cells
-  currentPlayerId?: PlayerEnum;  // To determine if it's the player's turn
-  playerTurn?: boolean;          // For board cells
-  calculateValidMoves?: (index: number) => void;
+  playerId?: PlayerEnum;         
+  currentPlayerId?: PlayerEnum;  
+  playerTurn?: boolean;          
+  handleCardDrag?: (cardIndex: number, playerId: PlayerEnum) => void;
   clearHighlights?: () => void;
   placeCardOnBoard?: (index: number, cardIndex: number) => void;
   highlightedCells?: number[];
@@ -25,7 +25,7 @@ const Cell: React.FC<CellProps> = ({
   playerId,
   currentPlayerId,
   playerTurn,
-  calculateValidMoves,
+  handleCardDrag,
   clearHighlights,
   placeCardOnBoard,
   highlightedCells,
@@ -45,14 +45,14 @@ const Cell: React.FC<CellProps> = ({
   >({
     type: 'CARD',
     item: () => {
-      if (calculateValidMoves) calculateValidMoves(index);
+      if (handleCardDrag && playerId !== undefined) handleCardDrag(index, playerId);
       return { cardIndex: index };
     },
     canDrag:
       isHandCell &&
       playerId === currentPlayerId &&
       !!topCard &&
-      !!calculateValidMoves,
+      !!handleCardDrag,
     collect: (monitor: DragSourceMonitor) => ({
       isDragging: monitor.isDragging(),
     }),
@@ -64,7 +64,7 @@ const Cell: React.FC<CellProps> = ({
   // useDrop Hook for board cells
   const [, dropRef] = useDrop<DropItem, void, unknown>({
     accept: 'CARD',
-    canDrop: (item: DropItem, monitor: DropTargetMonitor) => {
+    canDrop: () => {
       return Boolean(playerTurn && isBoardCell && isHighlighted);
     },
     drop: (item: DropItem) => {
