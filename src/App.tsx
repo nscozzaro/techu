@@ -1,5 +1,5 @@
 // App.tsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import Board from './components/Board';
 import Hand from './components/Hand';
 import {
@@ -45,174 +45,147 @@ function App() {
   }>({});
   const [tieBreaker, setTieBreaker] = useState(false);
 
-  const updateHandAndDrawCard = useCallback(
-    (playerId: PlayerEnum, cardIndex: number) => {
-      setPlayers((prevPlayers) => {
-        const updatedPlayer = { ...prevPlayers[playerId] };
-        updatedPlayer.hand.splice(cardIndex, 1);
-        drawCardForPlayer(updatedPlayer);
-        return { ...prevPlayers, [playerId]: updatedPlayer };
-      });
-    },
-    []
-  );
+  const updateHandAndDrawCard = (playerId: PlayerEnum, cardIndex: number) => {
+    setPlayers((prevPlayers) => {
+      const updatedPlayer = { ...prevPlayers[playerId] };
+      updatedPlayer.hand.splice(cardIndex, 1);
+      drawCardForPlayer(updatedPlayer);
+      return { ...prevPlayers, [playerId]: updatedPlayer };
+    });
+  };
 
-  const playMove = useCallback(
-    (move: Move, playerId: PlayerEnum) => {
-      const { cellIndex, cardIndex } = move;
+  const playMove = (
+    move: Move,
+    playerId: PlayerEnum
+  ) => {
+    const { cellIndex, cardIndex } = move;
+    const card = players[playerId].hand[cardIndex];
+
+    setBoardState((prevBoardState) => {
+      const newBoardState = [...prevBoardState];
+      newBoardState[cellIndex] = [...newBoardState[cellIndex], card];
+      return newBoardState;
+    });
+
+    updateHandAndDrawCard(playerId, cardIndex);
+
+    setFirstMove((prevFirstMove) => ({
+      ...prevFirstMove,
+      [playerId]: false,
+    }));
+  };
+
+  const getValidMoves = (playerId: PlayerEnum): Move[] => {
+    const player = players[playerId];
+    const isFirst = firstMove[playerId];
+    return player.hand.flatMap((card, cardIndex) =>
+      calculateValidMoves(
+        cardIndex,
+        playerId,
+        boardState,
+        BOARD_SIZE,
+        isFirst,
+        player.hand,
+        STARTING_INDICES,
+        tieBreaker
+      ).map((cellIndex) => ({ cellIndex, cardIndex }))
+    );
+  };
+
+  const playForPlayer = (playerId: PlayerEnum) => {
+    const isFirst = firstMove[playerId];
+
+    if (isFirst) {
+      const cardIndex = 0;
       const card = players[playerId].hand[cardIndex];
-
-      setBoardState((prevBoardState) => {
-        const newBoardState = [...prevBoardState];
-        newBoardState[cellIndex] = [...newBoardState[cellIndex], card];
-        return newBoardState;
-      });
-
+      const faceDownCard = { ...card, faceDown: true };
       updateHandAndDrawCard(playerId, cardIndex);
+
+      let validMoves: Move[] = [];
+      if (tieBreaker) {
+        const homeRowIndices = getHomeRowIndices(playerId, BOARD_SIZE);
+        const validCellIndices = getValidMoveIndices(
+          homeRowIndices,
+          boardState,
+          card
+        );
+        validMoves = validCellIndices.map((cellIndex) => ({
+          cellIndex,
+          cardIndex,
+        }));
+      } else {
+        validMoves = [{ cellIndex: STARTING_INDICES[playerId], cardIndex }];
+      }
+
+      if (validMoves.length > 0) {
+        const move =
+          validMoves[Math.floor(Math.random() * validMoves.length)];
+
+        setInitialFaceDownCards((prev) => ({
+          ...prev,
+          [playerId]: {
+            ...faceDownCard,
+            cellIndex: move.cellIndex,
+          },
+        }));
+
+        setBoardState((prevBoardState) => {
+          const newBoardState = [...prevBoardState];
+          newBoardState[move.cellIndex] = [
+            ...newBoardState[move.cellIndex],
+            faceDownCard,
+          ];
+          return newBoardState;
+        });
+      } else {
+        setPlayers((prevPlayers) => {
+          const updatedPlayer = { ...prevPlayers[playerId] };
+          drawCardForPlayer(updatedPlayer);
+          return { ...prevPlayers, [playerId]: updatedPlayer };
+        });
+      }
 
       setFirstMove((prevFirstMove) => ({
         ...prevFirstMove,
         [playerId]: false,
       }));
-    },
-    [players, updateHandAndDrawCard]
-  );
 
-  const getValidMoves = useCallback(
-    (playerId: PlayerEnum): Move[] => {
-      const player = players[playerId];
-      const isFirst = firstMove[playerId];
-      return player.hand.flatMap((card, cardIndex) =>
-        calculateValidMoves(
-          cardIndex,
-          playerId,
-          boardState,
-          BOARD_SIZE,
-          isFirst,
-          player.hand,
-          STARTING_INDICES,
-          tieBreaker
-        ).map((cellIndex) => ({ cellIndex, cardIndex }))
+      setPlayerTurn(
+        playerId === PlayerEnum.PLAYER1
+          ? PlayerEnum.PLAYER2
+          : PlayerEnum.PLAYER1
       );
-    },
-    [players, boardState, firstMove, tieBreaker]
-  );
-
-  const playForPlayer = useCallback(
-    (playerId: PlayerEnum) => {
-      const isFirst = firstMove[playerId];
-
-      if (isFirst) {
-        const cardIndex = 0;
-        const card = players[playerId].hand[cardIndex];
-        const faceDownCard = { ...card, faceDown: true };
-        updateHandAndDrawCard(playerId, cardIndex);
-
-        let validMoves: Move[] = [];
-        if (tieBreaker) {
-          // During tie-breaker, get valid moves in home row
-          const homeRowIndices = getHomeRowIndices(playerId, BOARD_SIZE);
-          const validCellIndices = getValidMoveIndices(
-            homeRowIndices,
-            boardState,
-            card
-          );
-          validMoves = validCellIndices.map((cellIndex) => ({
-            cellIndex,
-            cardIndex,
-          }));
-        } else {
-          // Non-tie-breaker first move: only starting index
-          validMoves = [{ cellIndex: STARTING_INDICES[playerId], cardIndex }];
-        }
-
-        if (validMoves.length > 0) {
-          // Randomly select a move from validMoves
-          const move =
-            validMoves[Math.floor(Math.random() * validMoves.length)];
-
-          // For the initial face-down card, we need to set it in initialFaceDownCards
-          setInitialFaceDownCards((prev) => ({
-            ...prev,
-            [playerId]: {
-              ...faceDownCard,
-              cellIndex: move.cellIndex,
-            },
-          }));
-
-          // Update the boardState to include the face-down card
-          setBoardState((prevBoardState) => {
-            const newBoardState = [...prevBoardState];
-            newBoardState[move.cellIndex] = [
-              ...newBoardState[move.cellIndex],
-              faceDownCard,
-            ];
-            return newBoardState;
-          });
-        } else {
-          // No valid moves: draw a card
-          setPlayers((prevPlayers) => {
-            const updatedPlayer = { ...prevPlayers[playerId] };
-            drawCardForPlayer(updatedPlayer);
-            return { ...prevPlayers, [playerId]: updatedPlayer };
-          });
-        }
-
-        // Regardless, set firstMove to false
-        setFirstMove((prevFirstMove) => ({
-          ...prevFirstMove,
-          [playerId]: false,
-        }));
-
-        // **Set playerTurn to the other player**
-        setPlayerTurn(
-          playerId === PlayerEnum.PLAYER1
-            ? PlayerEnum.PLAYER2
-            : PlayerEnum.PLAYER1
-        );
+    } else {
+      const validMoves = getValidMoves(playerId);
+      if (validMoves.length > 0) {
+        const randomMove =
+          validMoves[Math.floor(Math.random() * validMoves.length)];
+        playMove(randomMove, playerId);
       } else {
-        const validMoves = getValidMoves(playerId);
-        if (validMoves.length > 0) {
-          const randomMove =
-            validMoves[Math.floor(Math.random() * validMoves.length)];
-          playMove(randomMove, playerId);
-        } else {
-          setPlayers((prevPlayers) => {
-            const updatedPlayer = { ...prevPlayers[playerId] };
-            drawCardForPlayer(updatedPlayer);
-            return { ...prevPlayers, [playerId]: updatedPlayer };
-          });
-        }
-
-        setPlayerTurn(
-          playerId === PlayerEnum.PLAYER1
-            ? PlayerEnum.PLAYER2
-            : PlayerEnum.PLAYER1
-        );
+        setPlayers((prevPlayers) => {
+          const updatedPlayer = { ...prevPlayers[playerId] };
+          drawCardForPlayer(updatedPlayer);
+          return { ...prevPlayers, [playerId]: updatedPlayer };
+        });
       }
-    },
-    [
-      firstMove,
-      getValidMoves,
-      playMove,
-      players,
-      updateHandAndDrawCard,
-      tieBreaker,
-      boardState,
-    ]
-  );
+
+      setPlayerTurn(
+        playerId === PlayerEnum.PLAYER1
+          ? PlayerEnum.PLAYER2
+          : PlayerEnum.PLAYER1
+      );
+    }
+  };
 
   useEffect(() => {
     if (
       initialFaceDownCards.hasOwnProperty(PlayerEnum.PLAYER1) &&
       initialFaceDownCards.hasOwnProperty(PlayerEnum.PLAYER2)
     ) {
-      // Both initial cards have been placed (even if one player couldn't play)
       const flipInitialCards = () => {
         const card1 = initialFaceDownCards[PlayerEnum.PLAYER1];
         const card2 = initialFaceDownCards[PlayerEnum.PLAYER2];
 
-        // Flip the cards if they exist
         setBoardState((prevBoardState) => {
           const newBoardState = [...prevBoardState];
 
@@ -239,36 +212,29 @@ function App() {
           return newBoardState;
         });
 
-        // Compare the cards and determine who plays next
         const rank1 = card1 ? getCardRank(card1.rank) : -1;
         const rank2 = card2 ? getCardRank(card2.rank) : -1;
 
         if (rank1 === -1 && rank2 === -1) {
-          // Both players couldn't play; game ends or continue as per rules
           setTieBreaker(false);
           setInitialFaceDownCards({});
         } else if (rank1 === -1) {
-          // Player 1 couldn't play; Player 2 plays next
           setPlayerTurn(PlayerEnum.PLAYER2);
           setTieBreaker(false);
           setInitialFaceDownCards({});
         } else if (rank2 === -1) {
-          // Player 2 couldn't play; Player 1 plays next
           setPlayerTurn(PlayerEnum.PLAYER1);
           setTieBreaker(false);
           setInitialFaceDownCards({});
         } else if (rank1 < rank2) {
-          // Player 1 has lower card, they play next
           setPlayerTurn(PlayerEnum.PLAYER1);
           setTieBreaker(false);
           setInitialFaceDownCards({});
         } else if (rank2 < rank1) {
-          // Player 2 has lower card, they play next
           setPlayerTurn(PlayerEnum.PLAYER2);
           setTieBreaker(false);
           setInitialFaceDownCards({});
         } else {
-          // Tie again: Both players draw and play again in their home row
           setFirstMove({
             [PlayerEnum.PLAYER1]: true,
             [PlayerEnum.PLAYER2]: true,
@@ -290,32 +256,31 @@ function App() {
       if (!firstMove[PlayerEnum.PLAYER2]) {
         setTimeout(() => playForPlayer(PlayerEnum.PLAYER2), 500);
       } else {
-        // First move for Player 2
         playForPlayer(PlayerEnum.PLAYER2);
       }
     }
-  }, [playerTurn, playForPlayer, firstMove]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playerTurn]);
 
-  const handleCardDrag = useCallback(
-    (cardIndex: number, playerId: PlayerEnum) => {
-      const validMoves = calculateValidMoves(
-        cardIndex,
-        playerId,
-        boardState,
-        BOARD_SIZE,
-        firstMove[playerId],
-        players[playerId].hand,
-        STARTING_INDICES,
-        tieBreaker
-      );
-      setHighlightedCells(validMoves);
-    },
-    [boardState, firstMove, players, tieBreaker]
-  );
+  const handleCardDrag = (
+    cardIndex: number,
+    playerId: PlayerEnum
+  ) => {
+    const validMoves = calculateValidMoves(
+      cardIndex,
+      playerId,
+      boardState,
+      BOARD_SIZE,
+      firstMove[playerId],
+      players[playerId].hand,
+      STARTING_INDICES,
+      tieBreaker
+    );
+    setHighlightedCells(validMoves);
+  };
 
   const placeCardOnBoard = (index: number, cardIndex: number) => {
     if (firstMove[PlayerEnum.PLAYER1]) {
-      // For the first move, place the card face down
       const card = players[PlayerEnum.PLAYER1].hand[cardIndex];
       const faceDownCard = { ...card, faceDown: true };
       updateHandAndDrawCard(PlayerEnum.PLAYER1, cardIndex);
@@ -330,7 +295,6 @@ function App() {
         },
       }));
 
-      // Update the boardState to include the face-down card
       setBoardState((prevBoardState) => {
         const newBoardState = [...prevBoardState];
         newBoardState[cellIndex] = [
@@ -345,12 +309,10 @@ function App() {
         [PlayerEnum.PLAYER1]: false,
       }));
 
-      // **Set playerTurn to Player 2**
       setPlayerTurn(PlayerEnum.PLAYER2);
 
       setHighlightedCells([]);
     } else {
-      // Regular move
       playMove({ cellIndex: index, cardIndex }, PlayerEnum.PLAYER1);
       setHighlightedCells([]);
       setPlayerTurn(PlayerEnum.PLAYER2);
