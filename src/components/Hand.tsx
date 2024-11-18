@@ -1,10 +1,10 @@
 // Hand.tsx
 import React from 'react';
 import Cell from './Cell';
-import { Hand as HandType, PlayerEnum } from '../types';
+import { Cards, PlayerEnum } from '../types';
 
 interface HandProps {
-  cards: HandType;
+  cards: Cards;
   playerId: PlayerEnum;
   currentPlayerId: PlayerEnum;
   handleCardDrag?: (index: number, playerId: PlayerEnum) => void;
@@ -22,7 +22,7 @@ const Hand: React.FC<HandProps> = ({
     {cards.map((card, index) => (
       <Cell
         key={index}
-        stack={card ? [card] : []}
+        stack={[card]}
         index={index}
         playerId={playerId}
         currentPlayerId={currentPlayerId}

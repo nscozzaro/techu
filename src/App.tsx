@@ -45,7 +45,7 @@ function App() {
     (playerId: PlayerEnum, cardIndex: number) => {
       setPlayers((prevPlayers) => {
         const updatedPlayer = { ...prevPlayers[playerId] };
-        updatedPlayer.hand[cardIndex] = null;
+        updatedPlayer.hand.splice(cardIndex, 1);
         drawCardForPlayer(updatedPlayer);
         return { ...prevPlayers, [playerId]: updatedPlayer };
       });
@@ -56,7 +56,7 @@ function App() {
   const playMove = useCallback(
     (move: Move, playerId: PlayerEnum) => {
       const { cellIndex, cardIndex } = move;
-      const card = players[playerId].hand[cardIndex]!;
+      const card = players[playerId].hand[cardIndex];
 
       setBoardState((prevBoardState) => {
         const newBoardState = [...prevBoardState];
@@ -79,17 +79,15 @@ function App() {
       const player = players[playerId];
       const isFirst = firstMove[playerId];
       return player.hand.flatMap((card, cardIndex) =>
-        card
-          ? calculateValidMoves(
-              cardIndex,
-              playerId,
-              boardState,
-              BOARD_SIZE,
-              isFirst,
-              player.hand,
-              STARTING_INDICES
-            ).map((cellIndex) => ({ cellIndex, cardIndex }))
-          : []
+        calculateValidMoves(
+          cardIndex,
+          playerId,
+          boardState,
+          BOARD_SIZE,
+          isFirst,
+          player.hand,
+          STARTING_INDICES
+        ).map((cellIndex) => ({ cellIndex, cardIndex }))
       );
     },
     [players, boardState, firstMove]
@@ -98,10 +96,9 @@ function App() {
   const playForPlayer = useCallback(
     (playerId: PlayerEnum) => {
       const isFirst = firstMove[playerId];
-      const player = players[playerId];
 
       if (isFirst) {
-        const cardIndex = player.hand.findIndex((card) => card !== null);
+        const cardIndex = 0;
         playMove(
           { cellIndex: STARTING_INDICES[playerId], cardIndex },
           playerId
@@ -127,8 +124,8 @@ function App() {
           : PlayerEnum.PLAYER1
       );
     },
-    [firstMove, players, getValidMoves, playMove]
-  );
+    [firstMove, getValidMoves, playMove]
+  ); // Removed 'players' from the dependency array
 
   useEffect(() => {
     if (playerTurn === PlayerEnum.PLAYER2) {

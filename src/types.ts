@@ -1,4 +1,5 @@
 // types.ts
+import { Dispatch, SetStateAction } from 'react';
 
 export enum PlayerEnum {
   PLAYER1 = 'PLAYER1',
@@ -58,13 +59,12 @@ export interface Card {
 }
 
 export interface Player {
-  hand: Hand;
+  hand: Cards;
   deck: Cards;
   id: PlayerEnum;
 }
 
 export type Cards = Card[];
-export type Hand = (Card | null)[];
 
 export type BoardState = Cards[];
 
@@ -75,8 +75,8 @@ export interface Move {
 
 export type Moves = Move[];
 
-export type SetDeck = React.Dispatch<React.SetStateAction<Cards>>;
-export type SetHand = React.Dispatch<React.SetStateAction<Hand>>;
+export type SetDeck = Dispatch<SetStateAction<Cards>>;
+export type SetHand = Dispatch<SetStateAction<Cards>>;
 
 export const BOARD_SIZE = 5;
 
@@ -84,7 +84,8 @@ export type StartingIndices = {
   [key in PlayerEnum]: number;
 };
 
-export const STARTING_INDICES = {
-  [PlayerEnum.PLAYER1]: BOARD_SIZE * (BOARD_SIZE - 1) + Math.floor(BOARD_SIZE / 2),
+export const STARTING_INDICES: StartingIndices = {
+  [PlayerEnum.PLAYER1]:
+    BOARD_SIZE * (BOARD_SIZE - 1) + Math.floor(BOARD_SIZE / 2),
   [PlayerEnum.PLAYER2]: Math.floor(BOARD_SIZE / 2),
 };

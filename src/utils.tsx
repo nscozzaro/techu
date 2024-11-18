@@ -1,10 +1,8 @@
 // utils.tsx
-
 import {
   Card,
   ColorEnum,
   Cards,
-  Hand,
   Player,
   PlayerEnum,
   RankEnum,
@@ -21,7 +19,10 @@ export const shuffle = (deck: Cards): void => {
   }
 };
 
-export const getAdjacentIndices = (index: number, boardSize: number): number[] => {
+export const getAdjacentIndices = (
+  index: number,
+  boardSize: number
+): number[] => {
   const indices: number[] = [];
   const row = Math.floor(index / boardSize);
   const col = index % boardSize;
@@ -38,16 +39,24 @@ export const getCardRank = (rank: RankEnum): number => {
   return rankOrder[rank];
 };
 
-export const createDeck = (color: ColorEnum, owner: PlayerEnum): Cards => {
+export const createDeck = (
+  color: ColorEnum,
+  owner: PlayerEnum
+): Cards => {
   const suits =
-    color === ColorEnum.RED ? [SuitEnum.HEARTS, SuitEnum.DIAMONDS] : [SuitEnum.CLUBS, SuitEnum.SPADES];
+    color === ColorEnum.RED
+      ? [SuitEnum.HEARTS, SuitEnum.DIAMONDS]
+      : [SuitEnum.CLUBS, SuitEnum.SPADES];
   const ranks = Object.values(RankEnum);
   return suits.flatMap((suit) =>
     ranks.map((rank) => ({ suit, rank, color, owner }))
   );
 };
 
-export const initializePlayer = (color: ColorEnum, id: PlayerEnum): Player => {
+export const initializePlayer = (
+  color: ColorEnum,
+  id: PlayerEnum
+): Player => {
   const deck = createDeck(color, id);
   shuffle(deck);
   return {
@@ -58,17 +67,24 @@ export const initializePlayer = (color: ColorEnum, id: PlayerEnum): Player => {
 };
 
 export const drawCardForPlayer = (player: Player): void => {
-  const emptySlot = player.hand.findIndex((slot) => slot === null);
-  if (player.deck.length > 0 && emptySlot !== -1) {
-    player.hand[emptySlot] = player.deck.pop()!;
+  if (player.hand.length < 3 && player.deck.length > 0) {
+    player.hand.push(player.deck.pop()!);
   }
 };
 
-export const isSelectedCardGreaterThanTopCard = (selectedCard: Card, topCard?: Card): boolean => {
-  return !topCard || getCardRank(selectedCard.rank) > getCardRank(topCard.rank);
+export const isSelectedCardGreaterThanTopCard = (
+  selectedCard: Card,
+  topCard?: Card
+): boolean => {
+  return (
+    !topCard || getCardRank(selectedCard.rank) > getCardRank(topCard.rank)
+  );
 };
 
-export const getHomeRowIndices = (playerType: PlayerEnum, boardSize: number): number[] => {
+export const getHomeRowIndices = (
+  playerType: PlayerEnum,
+  boardSize: number
+): number[] => {
   const row = playerType === PlayerEnum.PLAYER1 ? boardSize - 1 : 0;
   return Array.from({ length: boardSize }, (_, i) => row * boardSize + i);
 };
@@ -86,7 +102,8 @@ export const exploreConnectedCells = (
     const currentIndex = queue.shift()!;
     for (const adjIndex of getAdjacentIndices(currentIndex, boardSize)) {
       if (!visited.has(adjIndex)) {
-        const topCard = boardState[adjIndex][boardState[adjIndex].length - 1];
+        const topCard =
+          boardState[adjIndex][boardState[adjIndex].length - 1];
         if (topCard && topCard.color === color) {
           visited.add(adjIndex);
           queue.push(adjIndex);
@@ -103,11 +120,16 @@ export const findConnectedCellsToHomeRow = (
   color: ColorEnum,
   boardSize: number
 ): number[] => {
-  const homeRowIndices = getHomeRowIndices(playerType, boardSize).filter((i) => {
-    const topCard = boardState[i][boardState[i].length - 1];
-    return topCard && topCard.color === color;
-  });
-  return Array.from(exploreConnectedCells(homeRowIndices, boardState, boardSize, color));
+  const homeRowIndices = getHomeRowIndices(playerType, boardSize).filter(
+    (i) => {
+      const topCard =
+        boardState[i][boardState[i].length - 1];
+      return topCard && topCard.color === color;
+    }
+  );
+  return Array.from(
+    exploreConnectedCells(homeRowIndices, boardState, boardSize, color)
+  );
 };
 
 export const getValidMoveIndices = (
@@ -116,7 +138,8 @@ export const getValidMoveIndices = (
   selectedCard: Card
 ): number[] => {
   return indices.filter((index) => {
-    const topCard = boardState[index][boardState[index].length - 1];
+    const topCard =
+      boardState[index][boardState[index].length - 1];
     return isSelectedCardGreaterThanTopCard(selectedCard, topCard);
   });
 };
@@ -127,16 +150,20 @@ export const calculateValidMoves = (
   boardState: BoardState,
   boardSize: number,
   isFirstMove: boolean,
-  hand: Hand,
+  hand: Cards,
   startingIndices: StartingIndices
 ): number[] => {
-  const selectedCard = hand[cardIndex]!;
+  const selectedCard = hand[cardIndex];
   if (isFirstMove) {
     return [startingIndices[playerType]];
   }
 
   const homeRowIndices = getHomeRowIndices(playerType, boardSize);
-  const homeRowValidIndices = getValidMoveIndices(homeRowIndices, boardState, selectedCard);
+  const homeRowValidIndices = getValidMoveIndices(
+    homeRowIndices,
+    boardState,
+    selectedCard
+  );
 
   const connectedCells = findConnectedCellsToHomeRow(
     playerType,
@@ -150,5 +177,7 @@ export const calculateValidMoves = (
     return getValidMoveIndices(adjacentIndices, boardState, selectedCard);
   });
 
-  return Array.from(new Set([...homeRowValidIndices, ...connectedValidIndices]));
+  return Array.from(
+    new Set([...homeRowValidIndices, ...connectedValidIndices])
+  );
 };

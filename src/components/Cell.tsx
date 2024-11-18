@@ -10,9 +10,9 @@ interface DropItem {
 interface CellProps {
   stack: Card[];
   index: number;
-  playerId?: PlayerEnum;         
-  currentPlayerId?: PlayerEnum;  
-  playerTurn?: boolean;          
+  playerId?: PlayerEnum;
+  currentPlayerId?: PlayerEnum;
+  playerTurn?: boolean;
   handleCardDrag?: (cardIndex: number, playerId: PlayerEnum) => void;
   clearHighlights?: () => void;
   placeCardOnBoard?: (index: number, cardIndex: number) => void;
@@ -45,14 +45,12 @@ const Cell: React.FC<CellProps> = ({
   >({
     type: 'CARD',
     item: () => {
-      if (handleCardDrag && playerId !== undefined) handleCardDrag(index, playerId);
+      if (handleCardDrag && playerId !== undefined)
+        handleCardDrag(index, playerId);
       return { cardIndex: index };
     },
     canDrag:
-      isHandCell &&
-      playerId === currentPlayerId &&
-      !!topCard &&
-      !!handleCardDrag,
+      isHandCell && playerId === currentPlayerId && !!handleCardDrag,
     collect: (monitor: DragSourceMonitor) => ({
       isDragging: monitor.isDragging(),
     }),
@@ -77,7 +75,7 @@ const Cell: React.FC<CellProps> = ({
   // Determine refs
   const cellRef = isBoardCell
     ? dropRef
-    : playerId === currentPlayerId && topCard
+    : playerId === currentPlayerId
     ? dragRef
     : null;
 
