@@ -8,8 +8,7 @@ interface DropItem {
 }
 
 interface CellProps {
-  stack?: Card[];         // For board cells
-  card?: Card | null;     // For hand cells
+  stack: Card[];
   index: number;
   isBot?: boolean;
   playerTurn: boolean;
@@ -22,7 +21,6 @@ interface CellProps {
 const Cell: React.FC<CellProps> = (props) => {
   const {
     stack,
-    card,
     index,
     isBot,
     playerTurn,
@@ -32,21 +30,24 @@ const Cell: React.FC<CellProps> = (props) => {
     highlightedCells,
   } = props;
 
-  const topCard = stack ? stack[stack.length - 1] : card;
-  const isEmpty = !topCard;
+  const topCard = stack[stack.length - 1];
+  const isEmpty = stack.length === 0;
   const isHighlighted = highlightedCells && highlightedCells.includes(index);
+
+  const isBoardCell = !!placeCardOnBoard;
+  const isHandCell = !isBoardCell;
 
   // useDrag Hook for hand cells
   const [{ isDragging }, drag] = useDrag(
     () => ({
       type: 'CARD',
       item: (): DropItem => {
-        if (!isBot && card && playerTurn && calculateValidMoves) {
+        if (isHandCell && !isBot && topCard && playerTurn && calculateValidMoves) {
           calculateValidMoves(index);
         }
         return { cardIndex: index };
       },
-      canDrag: !isBot && !!card && playerTurn && !!calculateValidMoves,
+      canDrag: isHandCell && !isBot && !!topCard && playerTurn && !!calculateValidMoves,
       collect: (monitor) => ({
         isDragging: !!monitor.isDragging(),
       }),
@@ -56,22 +57,22 @@ const Cell: React.FC<CellProps> = (props) => {
         }
       },
     }),
-    [card, isBot, playerTurn, index, calculateValidMoves, clearHighlights]
+    [topCard, isBot, playerTurn, index, calculateValidMoves, clearHighlights, isHandCell]
   );
 
   // useDrop Hook for board cells
   const [, drop] = useDrop({
     accept: 'CARD',
-    canDrop: () => playerTurn && !!highlightedCells && highlightedCells.includes(index),
+    canDrop: () => isBoardCell && playerTurn && !!highlightedCells && highlightedCells.includes(index),
     drop: (item: DropItem) => {
-      if (playerTurn && placeCardOnBoard) {
+      if (isBoardCell && playerTurn && placeCardOnBoard) {
         placeCardOnBoard(index, item.cardIndex);
       }
     },
   });
 
   // Determine refs
-  const cellRef = stack ? drop : card && !isBot ? drag : null;
+  const cellRef = isBoardCell ? drop : (!isBot && topCard ? drag : null);
 
   return (
     <div

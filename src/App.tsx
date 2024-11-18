@@ -144,7 +144,6 @@ function App() {
         clearHighlights={() => setHighlightedCells([])}
       />
       <Board
-        boardSize={boardSize}
         boardState={boardState}
         playerTurn={playerTurn}
         placeCardOnBoard={placeCardOnBoard}

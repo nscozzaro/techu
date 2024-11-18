@@ -202,10 +202,6 @@ body {
   box-shadow: 0 0 10px yellow;
 }
 
-.cell {
-  opacity: 1;
-}
-
 .cell.dragging {
   opacity: 0.5;
 }

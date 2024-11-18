@@ -3,7 +3,6 @@ import Cell from './Cell';
 import { BoardState } from '../types';
 
 interface BoardProps {
-  boardSize: number;
   boardState: BoardState;
   playerTurn: boolean;
   placeCardOnBoard: (index: number, cardIndex: number) => void;
@@ -11,7 +10,6 @@ interface BoardProps {
 }
 
 const Board: React.FC<BoardProps> = ({
-  boardSize,
   boardState,
   playerTurn,
   placeCardOnBoard,

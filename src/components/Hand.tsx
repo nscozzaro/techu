@@ -23,7 +23,7 @@ const Hand: React.FC<HandProps> = ({
       {cards.map((card, index) => (
         <Cell
           key={index}
-          card={card}
+          stack={card ? [card] : []}
           index={index}
           isBot={isBot}
           playerTurn={playerTurn}
