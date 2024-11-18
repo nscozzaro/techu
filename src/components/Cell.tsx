@@ -5,6 +5,7 @@ import { Card, PlayerEnum } from '../types';
 
 interface DropItem {
   cardIndex: number;
+  playerId: PlayerEnum;
 }
 
 interface CellProps {
@@ -17,6 +18,7 @@ interface CellProps {
   clearHighlights?: () => void;
   placeCardOnBoard?: (index: number, cardIndex: number) => void;
   highlightedCells?: number[];
+  setIsDraggingCard?: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const Cell: React.FC<CellProps> = ({
@@ -29,6 +31,7 @@ const Cell: React.FC<CellProps> = ({
   clearHighlights,
   placeCardOnBoard,
   highlightedCells,
+  setIsDraggingCard,
 }) => {
   const topCard = stack[stack.length - 1];
   const isEmpty = stack.length === 0;
@@ -39,7 +42,7 @@ const Cell: React.FC<CellProps> = ({
 
   // useDrag Hook for hand cells
   const [{ isDragging }, dragRef] = useDrag<
-    { cardIndex: number },
+    DropItem,
     void,
     { isDragging: boolean }
   >({
@@ -47,7 +50,8 @@ const Cell: React.FC<CellProps> = ({
     item: () => {
       if (handleCardDrag && playerId !== undefined)
         handleCardDrag(index, playerId);
-      return { cardIndex: index };
+      if (setIsDraggingCard) setIsDraggingCard(true);
+      return { cardIndex: index, playerId: playerId! };
     },
     canDrag:
       isHandCell && playerId === currentPlayerId && !!handleCardDrag,
@@ -56,6 +60,7 @@ const Cell: React.FC<CellProps> = ({
     }),
     end: () => {
       if (clearHighlights) clearHighlights();
+      if (setIsDraggingCard) setIsDraggingCard(false);
     },
   });
 

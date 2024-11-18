@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import Board from './components/Board';
 import Hand from './components/Hand';
+import DiscardPile from './components/DiscardPile'; // Import DiscardPile
 import {
   drawCardForPlayer,
   calculateValidMoves,
@@ -45,7 +46,18 @@ function App() {
   }>({});
   const [tieBreaker, setTieBreaker] = useState(false);
 
+  const [isDraggingCard, setIsDraggingCard] = useState(false); // New state
+
   const updateHandAndDrawCard = (playerId: PlayerEnum, cardIndex: number) => {
+    setPlayers((prevPlayers) => {
+      const updatedPlayer = { ...prevPlayers[playerId] };
+      updatedPlayer.hand.splice(cardIndex, 1);
+      drawCardForPlayer(updatedPlayer);
+      return { ...prevPlayers, [playerId]: updatedPlayer };
+    });
+  };
+
+  const handleCardDiscard = (cardIndex: number, playerId: PlayerEnum) => {
     setPlayers((prevPlayers) => {
       const updatedPlayer = { ...prevPlayers[playerId] };
       updatedPlayer.hand.splice(cardIndex, 1);
@@ -332,12 +344,16 @@ function App() {
         placeCardOnBoard={placeCardOnBoard}
         highlightedCells={highlightedCells}
       />
+      {isDraggingCard && (
+        <DiscardPile handleCardDiscard={handleCardDiscard} />
+      )}
       <Hand
         cards={players[PlayerEnum.PLAYER1].hand}
         playerId={PlayerEnum.PLAYER1}
         currentPlayerId={playerTurn}
         handleCardDrag={handleCardDrag}
         clearHighlights={() => setHighlightedCells([])}
+        setIsDraggingCard={setIsDraggingCard} // Pass setIsDraggingCard
       />
     </div>
   );
