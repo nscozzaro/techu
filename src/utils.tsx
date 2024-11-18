@@ -102,8 +102,7 @@ export const exploreConnectedCells = (
     const currentIndex = queue.shift()!;
     for (const adjIndex of getAdjacentIndices(currentIndex, boardSize)) {
       if (!visited.has(adjIndex)) {
-        const topCard =
-          boardState[adjIndex][boardState[adjIndex].length - 1];
+        const topCard = boardState[adjIndex][boardState[adjIndex].length - 1];
         if (topCard && topCard.color === color) {
           visited.add(adjIndex);
           queue.push(adjIndex);
@@ -122,8 +121,7 @@ export const findConnectedCellsToHomeRow = (
 ): number[] => {
   const homeRowIndices = getHomeRowIndices(playerType, boardSize).filter(
     (i) => {
-      const topCard =
-        boardState[i][boardState[i].length - 1];
+      const topCard = boardState[i][boardState[i].length - 1];
       return topCard && topCard.color === color;
     }
   );
@@ -138,8 +136,7 @@ export const getValidMoveIndices = (
   selectedCard: Card
 ): number[] => {
   return indices.filter((index) => {
-    const topCard =
-      boardState[index][boardState[index].length - 1];
+    const topCard = boardState[index][boardState[index].length - 1];
     return isSelectedCardGreaterThanTopCard(selectedCard, topCard);
   });
 };
@@ -158,10 +155,11 @@ export const calculateValidMoves = (
 
   if (isFirstMove) {
     if (isTieBreaker) {
+      // During tie-breaker, allow any valid move in the home row
       const homeRowIndices = getHomeRowIndices(playerType, boardSize);
-      const cellIndex = homeRowIndices[Math.floor(boardSize / 2)];
-      return [cellIndex];
+      return getValidMoveIndices(homeRowIndices, boardState, selectedCard);
     }
+    // Non-tie-breaker first move: only starting index
     return [startingIndices[playerType]];
   }
 
