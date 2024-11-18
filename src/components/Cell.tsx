@@ -88,11 +88,17 @@ const Cell: React.FC<CellProps> = ({
       style={{ opacity: isDragging ? 0.5 : 1 }}
     >
       {topCard && (
-        <div className={`card-content ${topCard.color.toLowerCase()}`}>
-          <div className="top-left">{topCard.rank}</div>
-          <div className="suit">{topCard.suit}</div>
-          <div className="bottom-right">{topCard.rank}</div>
-        </div>
+        topCard.faceDown ? (
+          <div className="card-back">
+            {/* Design for the back of the card */}
+          </div>
+        ) : (
+          <div className={`card-content ${topCard.color.toLowerCase()}`}>
+            <div className="top-left">{topCard.rank}</div>
+            <div className="suit">{topCard.suit}</div>
+            <div className="bottom-right">{topCard.rank}</div>
+          </div>
+        )
       )}
     </div>
   );

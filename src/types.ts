@@ -56,6 +56,7 @@ export interface Card {
   rank: RankEnum;
   color: ColorEnum;
   owner: PlayerEnum;
+  faceDown?: boolean;
 }
 
 export interface Player {

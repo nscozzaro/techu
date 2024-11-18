@@ -1,4 +1,4 @@
-// utils.tsx
+// utils.ts
 import {
   Card,
   ColorEnum,
@@ -151,10 +151,17 @@ export const calculateValidMoves = (
   boardSize: number,
   isFirstMove: boolean,
   hand: Cards,
-  startingIndices: StartingIndices
+  startingIndices: StartingIndices,
+  isTieBreaker?: boolean
 ): number[] => {
   const selectedCard = hand[cardIndex];
+
   if (isFirstMove) {
+    if (isTieBreaker) {
+      const homeRowIndices = getHomeRowIndices(playerType, boardSize);
+      const cellIndex = homeRowIndices[Math.floor(boardSize / 2)];
+      return [cellIndex];
+    }
     return [startingIndices[playerType]];
   }
 

@@ -52,6 +52,14 @@ body {
   padding: 5px;
 }
 
+.card-back {
+  background-color: blue;
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  /* Add any design for the back of the card */
+}
+
 .top-left,
 .bottom-right {
   position: absolute;
