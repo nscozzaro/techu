@@ -1,5 +1,5 @@
 // App.tsx
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Board from './components/Board';
 import Hand from './components/Hand';
 import {
@@ -93,7 +93,7 @@ function App() {
           : []
       );
     },
-    [players, boardState, BOARD_SIZE, firstMove, STARTING_INDICES]
+    [players, boardState, firstMove]
   );
 
   const playForPlayer = useCallback(
@@ -128,7 +128,7 @@ function App() {
           : PlayerEnum.PLAYER1
       );
     },
-    [firstMove, players, getValidMoves, playMove, STARTING_INDICES]
+    [firstMove, players, getValidMoves, playMove]
   );
 
   useEffect(() => {

@@ -66,7 +66,7 @@ export interface Player {
 export type Cards = Card[];
 export type Hand = (Card | null)[];
 
-export type BoardState = Card[][];
+export type BoardState = Cards[];
 
 export interface Move {
   cellIndex: number;
