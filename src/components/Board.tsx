@@ -1,3 +1,4 @@
+// Board.tsx
 import React from 'react';
 import Cell from './Cell';
 import { BoardState } from '../types';
@@ -14,9 +15,9 @@ const Board: React.FC<BoardProps> = ({
   playerTurn,
   placeCardOnBoard,
   highlightedCells,
-}) => {
-  const renderCells = () => {
-    return boardState.map((cellStack, index) => (
+}) => (
+  <div className="board">
+    {boardState.map((cellStack, index) => (
       <Cell
         key={index}
         stack={cellStack}
@@ -25,10 +26,8 @@ const Board: React.FC<BoardProps> = ({
         placeCardOnBoard={placeCardOnBoard}
         highlightedCells={highlightedCells}
       />
-    ));
-  };
-
-  return <div className="board">{renderCells()}</div>;
-};
+    ))}
+  </div>
+);
 
 export default Board;

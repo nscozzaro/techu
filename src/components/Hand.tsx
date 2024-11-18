@@ -17,22 +17,20 @@ const Hand: React.FC<HandProps> = ({
   playerTurn,
   calculateValidMoves,
   clearHighlights,
-}) => {
-  return (
-    <div className="hand">
-      {cards.map((card, index) => (
-        <Cell
-          key={index}
-          stack={card ? [card] : []}
-          index={index}
-          isBot={isBot}
-          playerTurn={playerTurn}
-          calculateValidMoves={calculateValidMoves}
-          clearHighlights={clearHighlights}
-        />
-      ))}
-    </div>
-  );
-};
+}) => (
+  <div className="hand">
+    {cards.map((card, index) => (
+      <Cell
+        key={index}
+        stack={card ? [card] : []}
+        index={index}
+        isBot={isBot}
+        playerTurn={playerTurn}
+        calculateValidMoves={calculateValidMoves}
+        clearHighlights={clearHighlights}
+      />
+    ))}
+  </div>
+);
 
 export default Hand;

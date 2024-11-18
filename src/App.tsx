@@ -1,68 +1,63 @@
-import React, { useState, useEffect, useCallback } from 'react';
+// App.tsx
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Board from './components/Board';
 import Hand from './components/Hand';
-
 import {
   drawCardForPlayer,
   calculateValidMoves,
   initializePlayer,
 } from './utils';
-
 import {
-  Player,
-  BoardState,
-  Move,
-  Moves,
   PlayerEnum,
   ColorEnum,
+  Move,
+  BoardState,
 } from './types';
 
 function App() {
   const boardSize = 5;
-  const startingCellIndexPlayer1 = boardSize * (boardSize - 1) + Math.floor(boardSize / 2);
-  const startingCellIndexPlayer2 = Math.floor(boardSize / 2);
 
-  const [player1, setPlayer1] = useState<Player>(initializePlayer(ColorEnum.RED, PlayerEnum.PLAYER1));
-  const [player2, setPlayer2] = useState<Player>(initializePlayer(ColorEnum.BLACK, PlayerEnum.PLAYER2));
-  const [boardState, setBoardState] = useState<BoardState>(
-    Array.from({ length: boardSize * boardSize }, () => [])
+  // Moved startingIndices into useMemo to prevent it from changing on every render
+  const startingIndices = useMemo(
+    () => ({
+      [PlayerEnum.PLAYER1]: boardSize * (boardSize - 1) + Math.floor(boardSize / 2),
+      [PlayerEnum.PLAYER2]: Math.floor(boardSize / 2),
+    }),
+    [boardSize]
   );
-  const [playerTurn, setPlayerTurn] = useState(true);
-  const [isFirstMove, setIsFirstMove] = useState(true);
-  const [isPlayer2FirstMove, setIsPlayer2FirstMove] = useState(true);
+
+  const [players, setPlayers] = useState({
+    [PlayerEnum.PLAYER1]: initializePlayer(ColorEnum.RED, PlayerEnum.PLAYER1),
+    [PlayerEnum.PLAYER2]: initializePlayer(ColorEnum.BLACK, PlayerEnum.PLAYER2),
+  });
+
+  const [boardState, setBoardState] = useState<BoardState>(
+    Array(boardSize * boardSize).fill([])
+  );
+
+  const [playerTurn, setPlayerTurn] = useState<PlayerEnum>(PlayerEnum.PLAYER1);
+  const [firstMove, setFirstMove] = useState({
+    [PlayerEnum.PLAYER1]: true,
+    [PlayerEnum.PLAYER2]: true,
+  });
   const [highlightedCells, setHighlightedCells] = useState<number[]>([]);
 
-  const updateHandAndDrawCard = (player: Player, setPlayer: React.Dispatch<React.SetStateAction<Player>>, cardIndex: number) => {
-    const updatedPlayer = { ...player };
-    updatedPlayer.hand[cardIndex] = null;
-    drawCardForPlayer(updatedPlayer);
-    setPlayer(updatedPlayer);
-  };
-
-  const getValidMoves = useCallback(
-    (player: Player, playerType: PlayerEnum, isFirstMove: boolean): Moves => {
-      return player.hand.flatMap((card, cardIndex) =>
-        card
-          ? calculateValidMoves(
-              cardIndex,
-              playerType,
-              boardState,
-              boardSize,
-              isFirstMove,
-              player.hand,
-              startingCellIndexPlayer1,
-              startingCellIndexPlayer2
-            ).map((cellIndex) => ({ cellIndex, cardIndex }))
-          : []
-      );
+  const updateHandAndDrawCard = useCallback(
+    (playerId: PlayerEnum, cardIndex: number) => {
+      setPlayers((prevPlayers) => {
+        const updatedPlayer = { ...prevPlayers[playerId] };
+        updatedPlayer.hand[cardIndex] = null;
+        drawCardForPlayer(updatedPlayer);
+        return { ...prevPlayers, [playerId]: updatedPlayer };
+      });
     },
-    [boardState, boardSize, startingCellIndexPlayer1, startingCellIndexPlayer2]
+    []
   );
 
   const playMove = useCallback(
-    (move: Move, player: Player, setPlayer: React.Dispatch<React.SetStateAction<Player>>) => {
+    (move: Move, playerId: PlayerEnum) => {
       const { cellIndex, cardIndex } = move;
-      const card = player.hand[cardIndex]!;
+      const card = players[playerId].hand[cardIndex]!;
 
       setBoardState((prevBoardState) => {
         const newBoardState = [...prevBoardState];
@@ -70,47 +65,75 @@ function App() {
         return newBoardState;
       });
 
-      updateHandAndDrawCard(player, setPlayer, cardIndex);
+      updateHandAndDrawCard(playerId, cardIndex);
+
+      setFirstMove((prevFirstMove) => ({
+        ...prevFirstMove,
+        [playerId]: false,
+      }));
     },
-    []
+    [players, updateHandAndDrawCard]
   );
 
-  const playForPlayer2 = useCallback(() => {
-    if (isPlayer2FirstMove) {
-      playMove(
-        {
-          cellIndex: startingCellIndexPlayer2,
-          cardIndex: player2.hand.findIndex((card) => card !== null),
-        },
-        player2,
-        setPlayer2
+  const getValidMoves = useCallback(
+    (playerId: PlayerEnum): Move[] => {
+      const player = players[playerId];
+      const isFirst = firstMove[playerId];
+      return player.hand.flatMap((card, cardIndex) =>
+        card
+          ? calculateValidMoves(
+              cardIndex,
+              playerId,
+              boardState,
+              boardSize,
+              isFirst,
+              player.hand,
+              startingIndices
+            ).map((cellIndex) => ({ cellIndex, cardIndex }))
+          : []
       );
-      setIsPlayer2FirstMove(false);
-    } else {
-      const validMoves = getValidMoves(player2, PlayerEnum.PLAYER2, isPlayer2FirstMove);
-      if (validMoves.length > 0) {
-        playMove(validMoves[Math.floor(Math.random() * validMoves.length)], player2, setPlayer2);
+    },
+    [players, boardState, boardSize, firstMove, startingIndices]
+  );
+
+  const playForPlayer = useCallback(
+    (playerId: PlayerEnum) => {
+      const isFirst = firstMove[playerId];
+      const player = players[playerId];
+
+      if (isFirst) {
+        const cardIndex = player.hand.findIndex((card) => card !== null);
+        playMove(
+          { cellIndex: startingIndices[playerId], cardIndex },
+          playerId
+        );
       } else {
-        const updatedPlayer = { ...player2 };
-        drawCardForPlayer(updatedPlayer);
-        setPlayer2(updatedPlayer);
+        const validMoves = getValidMoves(playerId);
+        if (validMoves.length > 0) {
+          const randomMove =
+            validMoves[Math.floor(Math.random() * validMoves.length)];
+          playMove(randomMove, playerId);
+        } else {
+          setPlayers((prevPlayers) => {
+            const updatedPlayer = { ...prevPlayers[playerId] };
+            drawCardForPlayer(updatedPlayer);
+            return { ...prevPlayers, [playerId]: updatedPlayer };
+          });
+        }
       }
+
+      setPlayerTurn(
+        playerId === PlayerEnum.PLAYER1 ? PlayerEnum.PLAYER2 : PlayerEnum.PLAYER1
+      );
+    },
+    [firstMove, players, getValidMoves, playMove, startingIndices]
+  );
+
+  useEffect(() => {
+    if (playerTurn === PlayerEnum.PLAYER2) {
+      setTimeout(() => playForPlayer(PlayerEnum.PLAYER2), 500);
     }
-    setPlayerTurn(true);
-  }, [player2, getValidMoves, playMove, isPlayer2FirstMove, startingCellIndexPlayer2]);
-
-  const initializeGame = useCallback(() => {
-    setPlayer1(initializePlayer(ColorEnum.RED, PlayerEnum.PLAYER1));
-    setPlayer2(initializePlayer(ColorEnum.BLACK, PlayerEnum.PLAYER2));
-  }, []);
-
-  useEffect(() => {
-    initializeGame();
-  }, [initializeGame]);
-
-  useEffect(() => {
-    if (!playerTurn) setTimeout(playForPlayer2, 500);
-  }, [playerTurn, playForPlayer2]);
+  }, [playerTurn, playForPlayer]);
 
   const calculatePlayerValidMoves = (cardIndex: number) => {
     setHighlightedCells(
@@ -119,40 +142,38 @@ function App() {
         PlayerEnum.PLAYER1,
         boardState,
         boardSize,
-        isFirstMove,
-        player1.hand,
-        startingCellIndexPlayer1,
-        startingCellIndexPlayer2
+        firstMove[PlayerEnum.PLAYER1],
+        players[PlayerEnum.PLAYER1].hand,
+        startingIndices
       )
     );
   };
 
   const placeCardOnBoard = (index: number, cardIndex: number) => {
-    playMove({ cellIndex: index, cardIndex }, player1, setPlayer1);
-    setIsFirstMove(false);
+    playMove({ cellIndex: index, cardIndex }, PlayerEnum.PLAYER1);
     setHighlightedCells([]);
-    setPlayerTurn(false);
+    setPlayerTurn(PlayerEnum.PLAYER2);
   };
 
   return (
     <div className="App">
       <Hand
-        cards={player2.hand}
+        cards={players[PlayerEnum.PLAYER2].hand}
         isBot
-        playerTurn={playerTurn}
-        calculateValidMoves={calculatePlayerValidMoves}
-        clearHighlights={() => setHighlightedCells([])}
+        playerTurn={playerTurn === PlayerEnum.PLAYER2}
+        calculateValidMoves={() => {}}
+        clearHighlights={() => {}}
       />
       <Board
         boardState={boardState}
-        playerTurn={playerTurn}
+        playerTurn={playerTurn === PlayerEnum.PLAYER1}
         placeCardOnBoard={placeCardOnBoard}
         highlightedCells={highlightedCells}
       />
       <Hand
-        cards={player1.hand}
+        cards={players[PlayerEnum.PLAYER1].hand}
         isBot={false}
-        playerTurn={playerTurn}
+        playerTurn={playerTurn === PlayerEnum.PLAYER1}
         calculateValidMoves={calculatePlayerValidMoves}
         clearHighlights={() => setHighlightedCells([])}
       />

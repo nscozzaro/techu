@@ -1,3 +1,4 @@
+// utils.tsx
 import {
   Card,
   ColorEnum,
@@ -63,7 +64,7 @@ export const initializePlayer = (color: ColorEnum, id: PlayerEnum): Player => {
   shuffle(deck);
   return {
     id,
-    hand: [deck[0], deck[1], deck[2]],
+    hand: deck.slice(0, 3),
     deck: deck.slice(3),
   };
 };
@@ -71,19 +72,17 @@ export const initializePlayer = (color: ColorEnum, id: PlayerEnum): Player => {
 export const drawCardForPlayer = (player: Player): void => {
   const emptySlot = player.hand.findIndex((slot) => slot === null);
   if (player.deck.length > 0 && emptySlot !== -1) {
-    const card = player.deck.pop()!;
-    player.hand[emptySlot] = card;
+    player.hand[emptySlot] = player.deck.pop()!;
   }
 };
 
-export const isSelectedCardGreaterThanTopCard = (selectedCard: Card, topCard: Card | undefined): boolean => {
+export const isSelectedCardGreaterThanTopCard = (selectedCard: Card, topCard?: Card): boolean => {
   return !topCard || getCardRank(selectedCard.rank) > getCardRank(topCard.rank);
 };
 
-export const getHomeRowIndices = (playerType: PlayerEnum, boardSize: number): { start: number; end: number } => {
-  return playerType === PlayerEnum.PLAYER1
-    ? { start: boardSize * (boardSize - 1), end: boardSize * boardSize }
-    : { start: 0, end: boardSize };
+export const getHomeRowIndices = (playerType: PlayerEnum, boardSize: number): number[] => {
+  const row = playerType === PlayerEnum.PLAYER1 ? boardSize - 1 : 0;
+  return Array.from({ length: boardSize }, (_, i) => row * boardSize + i);
 };
 
 export const exploreConnectedCells = (
@@ -92,25 +91,21 @@ export const exploreConnectedCells = (
   boardSize: number,
   color: ColorEnum
 ): Set<number> => {
-  const visited = new Set<number>();
+  const visited = new Set<number>(initialCells);
   const queue = [...initialCells];
-  initialCells.forEach((cell) => visited.add(cell));
 
-  while (queue.length > 0) {
+  while (queue.length) {
     const currentIndex = queue.shift()!;
-    const adjacentIndices = getAdjacentIndices(currentIndex, boardSize);
-    adjacentIndices.forEach((adjIndex) => {
-      if (adjIndex >= 0 && adjIndex < boardSize * boardSize && !visited.has(adjIndex)) {
-        const stack = boardState[adjIndex];
-        const topCard = stack[stack.length - 1];
+    for (const adjIndex of getAdjacentIndices(currentIndex, boardSize)) {
+      if (!visited.has(adjIndex)) {
+        const topCard = boardState[adjIndex][boardState[adjIndex].length - 1];
         if (topCard && topCard.color === color) {
           visited.add(adjIndex);
           queue.push(adjIndex);
         }
       }
-    });
+    }
   }
-
   return visited;
 };
 
@@ -120,13 +115,11 @@ export const findConnectedCellsToHomeRow = (
   color: ColorEnum,
   boardSize: number
 ): number[] => {
-  const { start, end } = getHomeRowIndices(playerType, boardSize);
-  const initialCells = Array.from({ length: end - start }, (_, i) => start + i).filter((i) => {
+  const homeRowIndices = getHomeRowIndices(playerType, boardSize).filter((i) => {
     const topCard = boardState[i][boardState[i].length - 1];
     return topCard && topCard.color === color;
   });
-
-  return Array.from(exploreConnectedCells(initialCells, boardState, boardSize, color));
+  return Array.from(exploreConnectedCells(homeRowIndices, boardState, boardSize, color));
 };
 
 export const getValidMoveIndices = (
@@ -135,8 +128,7 @@ export const getValidMoveIndices = (
   selectedCard: Card
 ): number[] => {
   return indices.filter((index) => {
-    const stack = boardState[index];
-    const topCard = stack[stack.length - 1];
+    const topCard = boardState[index][boardState[index].length - 1];
     return isSelectedCardGreaterThanTopCard(selectedCard, topCard);
   });
 };
@@ -148,32 +140,27 @@ export const calculateValidMoves = (
   boardSize: number,
   isFirstMove: boolean,
   hand: Hand,
-  middleHomeRowIndexPlayer1: number,
-  middleHomeRowIndexPlayer2: number
+  startingIndices: { [key in PlayerEnum]: number }
 ): number[] => {
-  const isPlayer2 = playerType === PlayerEnum.PLAYER2;
   const selectedCard = hand[cardIndex]!;
-  const middleHomeRowIndex = isPlayer2 ? middleHomeRowIndexPlayer2 : middleHomeRowIndexPlayer1;
-
   if (isFirstMove) {
-    return [middleHomeRowIndex];
+    return [startingIndices[playerType]];
   }
 
-  const { start: homeRowStart, end: homeRowEnd } = getHomeRowIndices(playerType, boardSize);
-
-  const homeRowIndices = Array.from({ length: homeRowEnd - homeRowStart }, (_, i) => homeRowStart + i);
+  const homeRowIndices = getHomeRowIndices(playerType, boardSize);
   const homeRowValidIndices = getValidMoveIndices(homeRowIndices, boardState, selectedCard);
 
   const connectedCells = findConnectedCellsToHomeRow(
     playerType,
     boardState,
-    playerType === PlayerEnum.PLAYER1 ? ColorEnum.RED : ColorEnum.BLACK,
+    selectedCard.color,
     boardSize
   );
+
   const connectedValidIndices = connectedCells.flatMap((index) => {
     const adjacentIndices = getAdjacentIndices(index, boardSize);
     return getValidMoveIndices(adjacentIndices, boardState, selectedCard);
   });
 
-  return [...homeRowValidIndices, ...connectedValidIndices];
+  return Array.from(new Set([...homeRowValidIndices, ...connectedValidIndices]));
 };
