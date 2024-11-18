@@ -1,9 +1,10 @@
+// Hand.tsx
 import React from 'react';
-import CardSlot from './CardSlot';
+import Cell from './Cell';
 import { Hand as HandType } from '../types';
 
 interface HandProps {
-  cards: HandType; // Updated to use the Hand type from types.ts
+  cards: HandType;
   isBot: boolean;
   playerTurn: boolean;
   calculateValidMoves: (index: number) => void;
@@ -20,7 +21,7 @@ const Hand: React.FC<HandProps> = ({
   return (
     <div className="hand">
       {cards.map((card, index) => (
-        <CardSlot
+        <Cell
           key={index}
           card={card}
           index={index}

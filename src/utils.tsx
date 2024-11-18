@@ -10,7 +10,6 @@ import {
   BoardState,
 } from './types';
 
-// Shuffle function for a deck
 export const shuffle = (deck: Deck): void => {
   for (let i = deck.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -18,7 +17,6 @@ export const shuffle = (deck: Deck): void => {
   }
 };
 
-// Get adjacent indices on the board
 export const getAdjacentIndices = (index: number, boardSize: number): number[] => {
   const indices: number[] = [];
   const row = Math.floor(index / boardSize);
@@ -32,7 +30,6 @@ export const getAdjacentIndices = (index: number, boardSize: number): number[] =
   return indices;
 };
 
-// Map rank enum to numerical values
 export const getCardRank = (rank: RankEnum): number => {
   const rankOrder: { [key in RankEnum]: number } = {
     [RankEnum.TWO]: 2,
@@ -52,7 +49,6 @@ export const getCardRank = (rank: RankEnum): number => {
   return rankOrder[rank];
 };
 
-// Create a deck for a player
 export const createDeck = (color: ColorEnum, owner: PlayerEnum): Deck => {
   const suits =
     color === ColorEnum.RED ? [SuitEnum.HEARTS, SuitEnum.DIAMONDS] : [SuitEnum.CLUBS, SuitEnum.SPADES];
@@ -62,7 +58,6 @@ export const createDeck = (color: ColorEnum, owner: PlayerEnum): Deck => {
   );
 };
 
-// Initialize a player with a deck and a hand
 export const initializePlayer = (color: ColorEnum, id: PlayerEnum): Player => {
   const deck = createDeck(color, id);
   shuffle(deck);
@@ -73,7 +68,6 @@ export const initializePlayer = (color: ColorEnum, id: PlayerEnum): Player => {
   };
 };
 
-// Draw a card for a player
 export const drawCardForPlayer = (player: Player): void => {
   const emptySlot = player.hand.findIndex((slot) => slot === null);
   if (player.deck.length > 0 && emptySlot !== -1) {
@@ -82,19 +76,16 @@ export const drawCardForPlayer = (player: Player): void => {
   }
 };
 
-// Check if a card outranks another card
 export const isSelectedCardGreaterThanTopCard = (selectedCard: Card, topCard: Card | undefined): boolean => {
   return !topCard || getCardRank(selectedCard.rank) > getCardRank(topCard.rank);
 };
 
-// Get the indices for the home row of a player
 export const getHomeRowIndices = (playerType: PlayerEnum, boardSize: number): { start: number; end: number } => {
   return playerType === PlayerEnum.PLAYER1
     ? { start: boardSize * (boardSize - 1), end: boardSize * boardSize }
     : { start: 0, end: boardSize };
 };
 
-// Explore cells connected to the initial cells and sharing the same color
 export const exploreConnectedCells = (
   initialCells: number[],
   boardState: BoardState,
@@ -123,7 +114,6 @@ export const exploreConnectedCells = (
   return visited;
 };
 
-// Find cells connected to the home row for a player
 export const findConnectedCellsToHomeRow = (
   playerType: PlayerEnum,
   boardState: BoardState,
@@ -139,7 +129,6 @@ export const findConnectedCellsToHomeRow = (
   return Array.from(exploreConnectedCells(initialCells, boardState, boardSize, color));
 };
 
-// Get valid move indices where the selected card outranks the top card
 export const getValidMoveIndices = (
   indices: number[],
   boardState: BoardState,
@@ -152,7 +141,6 @@ export const getValidMoveIndices = (
   });
 };
 
-// Calculate valid moves for a card
 export const calculateValidMoves = (
   cardIndex: number,
   playerType: PlayerEnum,
@@ -173,11 +161,9 @@ export const calculateValidMoves = (
 
   const { start: homeRowStart, end: homeRowEnd } = getHomeRowIndices(playerType, boardSize);
 
-  // Home row valid moves
   const homeRowIndices = Array.from({ length: homeRowEnd - homeRowStart }, (_, i) => homeRowStart + i);
   const homeRowValidIndices = getValidMoveIndices(homeRowIndices, boardState, selectedCard);
 
-  // Connected cells valid moves
   const connectedCells = findConnectedCellsToHomeRow(
     playerType,
     boardState,
