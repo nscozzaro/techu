@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import Board from './components/Board';
 import Hand from './components/Hand';
-import DiscardPile from './components/DiscardPile'; // Import DiscardPile
+import DiscardPile from './components/DiscardPile';
 import {
   drawCardForPlayer,
   calculateValidMoves,
@@ -46,7 +46,14 @@ function App() {
   }>({});
   const [tieBreaker, setTieBreaker] = useState(false);
 
-  const [isDraggingCard, setIsDraggingCard] = useState(false); // New state
+  const [isDraggingCard, setIsDraggingCard] = useState(false);
+
+  const [scores, setScores] = useState({
+    [PlayerEnum.PLAYER1]: 0,
+    [PlayerEnum.PLAYER2]: 0,
+  });
+
+  const [gameOver, setGameOver] = useState(false);
 
   const updateHandAndDrawCard = (playerId: PlayerEnum, cardIndex: number) => {
     setPlayers((prevPlayers) => {
@@ -58,18 +65,25 @@ function App() {
   };
 
   const handleCardDiscard = (cardIndex: number, playerId: PlayerEnum) => {
+    if (gameOver) return;
     setPlayers((prevPlayers) => {
       const updatedPlayer = { ...prevPlayers[playerId] };
       updatedPlayer.hand.splice(cardIndex, 1);
       drawCardForPlayer(updatedPlayer);
       return { ...prevPlayers, [playerId]: updatedPlayer };
     });
+    setPlayerTurn(
+      playerId === PlayerEnum.PLAYER1
+        ? PlayerEnum.PLAYER2
+        : PlayerEnum.PLAYER1
+    );
   };
 
   const playMove = (
     move: Move,
     playerId: PlayerEnum
   ) => {
+    if (gameOver) return;
     const { cellIndex, cardIndex } = move;
     const card = players[playerId].hand[cardIndex];
 
@@ -105,6 +119,7 @@ function App() {
   };
 
   const playForPlayer = (playerId: PlayerEnum) => {
+    if (gameOver) return;
     const isFirst = firstMove[playerId];
 
     if (isFirst) {
@@ -187,6 +202,16 @@ function App() {
           : PlayerEnum.PLAYER1
       );
     }
+
+    // Check if game is over
+    if (
+      players[PlayerEnum.PLAYER1].hand.length === 0 &&
+      players[PlayerEnum.PLAYER1].deck.length === 0 &&
+      players[PlayerEnum.PLAYER2].hand.length === 0 &&
+      players[PlayerEnum.PLAYER2].deck.length === 0
+    ) {
+      setGameOver(true);
+    }
   };
 
   useEffect(() => {
@@ -264,7 +289,7 @@ function App() {
   }, [initialFaceDownCards]);
 
   useEffect(() => {
-    if (playerTurn === PlayerEnum.PLAYER2) {
+    if (playerTurn === PlayerEnum.PLAYER2 && !gameOver) {
       if (!firstMove[PlayerEnum.PLAYER2]) {
         setTimeout(() => playForPlayer(PlayerEnum.PLAYER2), 500);
       } else {
@@ -274,10 +299,27 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playerTurn]);
 
+  useEffect(() => {
+    // Calculate scores
+    const newScores = { [PlayerEnum.PLAYER1]: 0, [PlayerEnum.PLAYER2]: 0 };
+    boardState.forEach((cellStack) => {
+      if (cellStack.length > 0) {
+        const topCard = cellStack[cellStack.length - 1];
+        if (topCard.color === ColorEnum.RED) {
+          newScores[PlayerEnum.PLAYER1]++;
+        } else if (topCard.color === ColorEnum.BLACK) {
+          newScores[PlayerEnum.PLAYER2]++;
+        }
+      }
+    });
+    setScores(newScores);
+  }, [boardState]);
+
   const handleCardDrag = (
     cardIndex: number,
     playerId: PlayerEnum
   ) => {
+    if (gameOver) return;
     const validMoves = calculateValidMoves(
       cardIndex,
       playerId,
@@ -292,6 +334,7 @@ function App() {
   };
 
   const placeCardOnBoard = (index: number, cardIndex: number) => {
+    if (gameOver) return;
     if (firstMove[PlayerEnum.PLAYER1]) {
       const card = players[PlayerEnum.PLAYER1].hand[cardIndex];
       const faceDownCard = { ...card, faceDown: true };
@@ -329,10 +372,36 @@ function App() {
       setHighlightedCells([]);
       setPlayerTurn(PlayerEnum.PLAYER2);
     }
+
+    // Check if game is over
+    if (
+      players[PlayerEnum.PLAYER1].hand.length === 0 &&
+      players[PlayerEnum.PLAYER1].deck.length === 0 &&
+      players[PlayerEnum.PLAYER2].hand.length === 0 &&
+      players[PlayerEnum.PLAYER2].deck.length === 0
+    ) {
+      setGameOver(true);
+    }
   };
+
+  let winner = '';
+  if (gameOver) {
+    if (scores[PlayerEnum.PLAYER1] > scores[PlayerEnum.PLAYER2]) {
+      winner = 'Player 1 wins!';
+    } else if (scores[PlayerEnum.PLAYER1] < scores[PlayerEnum.PLAYER2]) {
+      winner = 'Player 2 wins!';
+    } else {
+      winner = 'It\'s a tie!';
+    }
+  }
 
   return (
     <div className="App">
+      <div className="scoreboard">
+        <div>Player 1 Score: {scores[PlayerEnum.PLAYER1]}</div>
+        <div>Player 2 Score: {scores[PlayerEnum.PLAYER2]}</div>
+        {gameOver && <div className="winner">{winner}</div>}
+      </div>
       <Hand
         cards={players[PlayerEnum.PLAYER2].hand}
         playerId={PlayerEnum.PLAYER2}
@@ -340,7 +409,7 @@ function App() {
       />
       <Board
         boardState={boardState}
-        isPlayerTurn={playerTurn === PlayerEnum.PLAYER1}
+        isPlayerTurn={playerTurn === PlayerEnum.PLAYER1 && !gameOver}
         placeCardOnBoard={placeCardOnBoard}
         highlightedCells={highlightedCells}
       />
@@ -353,7 +422,7 @@ function App() {
         currentPlayerId={playerTurn}
         handleCardDrag={handleCardDrag}
         clearHighlights={() => setHighlightedCells([])}
-        setIsDraggingCard={setIsDraggingCard} // Pass setIsDraggingCard
+        setIsDraggingCard={setIsDraggingCard}
       />
     </div>
   );
