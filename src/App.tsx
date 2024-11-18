@@ -1,4 +1,5 @@
 // App.tsx
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Board from './components/Board';
 import Hand from './components/Hand';
@@ -12,13 +13,14 @@ import {
   ColorEnum,
   Move,
   BoardState,
+  StartingIndices,
 } from './types';
 
 function App() {
   const boardSize = 5;
 
   // Moved startingIndices into useMemo to prevent it from changing on every render
-  const startingIndices = useMemo(
+  const startingIndices = useMemo<StartingIndices>(
     () => ({
       [PlayerEnum.PLAYER1]: boardSize * (boardSize - 1) + Math.floor(boardSize / 2),
       [PlayerEnum.PLAYER2]: Math.floor(boardSize / 2),

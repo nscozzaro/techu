@@ -1,4 +1,5 @@
 // utils.tsx
+
 import {
   Card,
   ColorEnum,
@@ -9,6 +10,8 @@ import {
   RankEnum,
   SuitEnum,
   BoardState,
+  rankOrder,
+  StartingIndices,
 } from './types';
 
 export const shuffle = (deck: Deck): void => {
@@ -32,21 +35,6 @@ export const getAdjacentIndices = (index: number, boardSize: number): number[] =
 };
 
 export const getCardRank = (rank: RankEnum): number => {
-  const rankOrder: { [key in RankEnum]: number } = {
-    [RankEnum.TWO]: 2,
-    [RankEnum.THREE]: 3,
-    [RankEnum.FOUR]: 4,
-    [RankEnum.FIVE]: 5,
-    [RankEnum.SIX]: 6,
-    [RankEnum.SEVEN]: 7,
-    [RankEnum.EIGHT]: 8,
-    [RankEnum.NINE]: 9,
-    [RankEnum.TEN]: 10,
-    [RankEnum.JACK]: 11,
-    [RankEnum.QUEEN]: 12,
-    [RankEnum.KING]: 13,
-    [RankEnum.ACE]: 14,
-  };
   return rankOrder[rank];
 };
 
@@ -140,7 +128,7 @@ export const calculateValidMoves = (
   boardSize: number,
   isFirstMove: boolean,
   hand: Hand,
-  startingIndices: { [key in PlayerEnum]: number }
+  startingIndices: StartingIndices
 ): number[] => {
   const selectedCard = hand[cardIndex]!;
   if (isFirstMove) {

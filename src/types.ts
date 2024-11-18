@@ -1,3 +1,5 @@
+// types.ts
+
 export enum PlayerEnum {
   PLAYER1 = 'PLAYER1',
   PLAYER2 = 'PLAYER2',
@@ -31,6 +33,23 @@ export enum RankEnum {
   ACE = 'A',
 }
 
+// Rank order mapping
+export const rankOrder: { [key in RankEnum]: number } = {
+  [RankEnum.TWO]: 2,
+  [RankEnum.THREE]: 3,
+  [RankEnum.FOUR]: 4,
+  [RankEnum.FIVE]: 5,
+  [RankEnum.SIX]: 6,
+  [RankEnum.SEVEN]: 7,
+  [RankEnum.EIGHT]: 8,
+  [RankEnum.NINE]: 9,
+  [RankEnum.TEN]: 10,
+  [RankEnum.JACK]: 11,
+  [RankEnum.QUEEN]: 12,
+  [RankEnum.KING]: 13,
+  [RankEnum.ACE]: 14,
+};
+
 export interface Card {
   suit: SuitEnum;
   rank: RankEnum;
@@ -58,3 +77,8 @@ export type Moves = Move[];
 
 export type SetDeck = React.Dispatch<React.SetStateAction<Deck>>;
 export type SetHand = React.Dispatch<React.SetStateAction<Hand>>;
+
+// Starting indices for players
+export type StartingIndices = {
+  [key in PlayerEnum]: number;
+};
