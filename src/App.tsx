@@ -12,21 +12,11 @@ import {
   ColorEnum,
   Move,
   BoardState,
-  StartingIndices,
+  STARTING_INDICES,
+  BOARD_SIZE,
 } from './types';
 
 function App() {
-  const boardSize = 5;
-
-  // Starting indices for players
-  const startingIndices = useMemo<StartingIndices>(
-    () => ({
-      [PlayerEnum.PLAYER1]:
-        boardSize * (boardSize - 1) + Math.floor(boardSize / 2),
-      [PlayerEnum.PLAYER2]: Math.floor(boardSize / 2),
-    }),
-    [boardSize]
-  );
 
   const [players, setPlayers] = useState({
     [PlayerEnum.PLAYER1]: initializePlayer(
@@ -40,7 +30,7 @@ function App() {
   });
 
   const [boardState, setBoardState] = useState<BoardState>(
-    Array(boardSize * boardSize).fill([])
+    Array(BOARD_SIZE * BOARD_SIZE).fill([])
   );
 
   const [playerTurn, setPlayerTurn] = useState<PlayerEnum>(
@@ -95,15 +85,15 @@ function App() {
               cardIndex,
               playerId,
               boardState,
-              boardSize,
+              BOARD_SIZE,
               isFirst,
               player.hand,
-              startingIndices
+              STARTING_INDICES
             ).map((cellIndex) => ({ cellIndex, cardIndex }))
           : []
       );
     },
-    [players, boardState, boardSize, firstMove, startingIndices]
+    [players, boardState, BOARD_SIZE, firstMove, STARTING_INDICES]
   );
 
   const playForPlayer = useCallback(
@@ -114,7 +104,7 @@ function App() {
       if (isFirst) {
         const cardIndex = player.hand.findIndex((card) => card !== null);
         playMove(
-          { cellIndex: startingIndices[playerId], cardIndex },
+          { cellIndex: STARTING_INDICES[playerId], cardIndex },
           playerId
         );
       } else {
@@ -138,7 +128,7 @@ function App() {
           : PlayerEnum.PLAYER1
       );
     },
-    [firstMove, players, getValidMoves, playMove, startingIndices]
+    [firstMove, players, getValidMoves, playMove, STARTING_INDICES]
   );
 
   useEffect(() => {
@@ -153,10 +143,10 @@ function App() {
         cardIndex,
         PlayerEnum.PLAYER1,
         boardState,
-        boardSize,
+        BOARD_SIZE,
         firstMove[PlayerEnum.PLAYER1],
         players[PlayerEnum.PLAYER1].hand,
-        startingIndices
+        STARTING_INDICES
       )
     );
   };

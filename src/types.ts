@@ -78,7 +78,13 @@ export type Moves = Move[];
 export type SetDeck = React.Dispatch<React.SetStateAction<Cards>>;
 export type SetHand = React.Dispatch<React.SetStateAction<Hand>>;
 
-// Starting indices for players
+export const BOARD_SIZE = 5;
+
 export type StartingIndices = {
   [key in PlayerEnum]: number;
+};
+
+export const STARTING_INDICES = {
+  [PlayerEnum.PLAYER1]: BOARD_SIZE * (BOARD_SIZE - 1) + Math.floor(BOARD_SIZE / 2),
+  [PlayerEnum.PLAYER2]: Math.floor(BOARD_SIZE / 2),
 };
