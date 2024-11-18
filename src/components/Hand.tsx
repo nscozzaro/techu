@@ -1,20 +1,20 @@
 // Hand.tsx
 import React from 'react';
 import Cell from './Cell';
-import { Hand as HandType } from '../types';
+import { Hand as HandType, PlayerEnum } from '../types';
 
 interface HandProps {
   cards: HandType;
-  isBot: boolean;
-  playerTurn: boolean;
-  calculateValidMoves: (index: number) => void;
-  clearHighlights: () => void;
+  playerId: PlayerEnum;
+  currentPlayerId: PlayerEnum;
+  calculateValidMoves?: (index: number) => void;
+  clearHighlights?: () => void;
 }
 
 const Hand: React.FC<HandProps> = ({
   cards,
-  isBot,
-  playerTurn,
+  playerId,
+  currentPlayerId,
   calculateValidMoves,
   clearHighlights,
 }) => (
@@ -24,8 +24,8 @@ const Hand: React.FC<HandProps> = ({
         key={index}
         stack={card ? [card] : []}
         index={index}
-        isBot={isBot}
-        playerTurn={playerTurn}
+        playerId={playerId}
+        currentPlayerId={currentPlayerId}
         calculateValidMoves={calculateValidMoves}
         clearHighlights={clearHighlights}
       />

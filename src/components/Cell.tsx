@@ -1,7 +1,7 @@
 // Cell.tsx
 import React from 'react';
 import { useDrag, useDrop, DragSourceMonitor, DropTargetMonitor } from 'react-dnd';
-import { Card } from '../types';
+import { Card, PlayerEnum } from '../types';
 
 interface DropItem {
   cardIndex: number;
@@ -10,8 +10,9 @@ interface DropItem {
 interface CellProps {
   stack: Card[];
   index: number;
-  isBot?: boolean;
-  playerTurn: boolean;
+  playerId?: PlayerEnum;         // For hand cells
+  currentPlayerId?: PlayerEnum;  // To determine if it's the player's turn
+  playerTurn?: boolean;          // For board cells
   calculateValidMoves?: (index: number) => void;
   clearHighlights?: () => void;
   placeCardOnBoard?: (index: number, cardIndex: number) => void;
@@ -21,7 +22,8 @@ interface CellProps {
 const Cell: React.FC<CellProps> = ({
   stack,
   index,
-  isBot,
+  playerId,
+  currentPlayerId,
   playerTurn,
   calculateValidMoves,
   clearHighlights,
@@ -30,23 +32,27 @@ const Cell: React.FC<CellProps> = ({
 }) => {
   const topCard = stack[stack.length - 1];
   const isEmpty = stack.length === 0;
-  const isHighlighted = highlightedCells?.includes(index);
+  const isHighlighted = highlightedCells?.includes(index) || false;
 
   const isBoardCell = !!placeCardOnBoard;
   const isHandCell = !isBoardCell;
 
   // useDrag Hook for hand cells
   const [{ isDragging }, dragRef] = useDrag<
-    { cardIndex: number }, // DragObject
-    void,                  // DropResult
-    { isDragging: boolean } // CollectedProps
+    { cardIndex: number },
+    void,
+    { isDragging: boolean }
   >({
     type: 'CARD',
     item: () => {
       if (calculateValidMoves) calculateValidMoves(index);
       return { cardIndex: index };
     },
-    canDrag: isHandCell && !isBot && !!topCard && playerTurn && !!calculateValidMoves,
+    canDrag:
+      isHandCell &&
+      playerId === currentPlayerId &&
+      !!topCard &&
+      !!calculateValidMoves,
     collect: (monitor: DragSourceMonitor) => ({
       isDragging: monitor.isDragging(),
     }),
@@ -56,14 +62,10 @@ const Cell: React.FC<CellProps> = ({
   });
 
   // useDrop Hook for board cells
-  const [, dropRef] = useDrop<
-    DropItem,
-    void,
-    unknown
-  >({
+  const [, dropRef] = useDrop<DropItem, void, unknown>({
     accept: 'CARD',
     canDrop: (item: DropItem, monitor: DropTargetMonitor) => {
-      return playerTurn && isBoardCell && !!isHighlighted;
+      return Boolean(playerTurn && isBoardCell && isHighlighted);
     },
     drop: (item: DropItem) => {
       if (placeCardOnBoard) {
@@ -73,12 +75,18 @@ const Cell: React.FC<CellProps> = ({
   });
 
   // Determine refs
-  const cellRef = isBoardCell ? dropRef : (!isBot && topCard ? dragRef : null);
+  const cellRef = isBoardCell
+    ? dropRef
+    : playerId === currentPlayerId && topCard
+    ? dragRef
+    : null;
 
   return (
     <div
       ref={cellRef}
-      className={`cell ${isEmpty ? 'empty' : ''} ${isHighlighted ? 'highlight' : ''}`}
+      className={`cell ${isEmpty ? 'empty' : ''} ${
+        isHighlighted ? 'highlight' : ''
+      }`}
       style={{ opacity: isDragging ? 0.5 : 1 }}
     >
       {topCard && (

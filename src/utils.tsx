@@ -3,7 +3,7 @@
 import {
   Card,
   ColorEnum,
-  Deck,
+  Cards,
   Hand,
   Player,
   PlayerEnum,
@@ -14,7 +14,7 @@ import {
   StartingIndices,
 } from './types';
 
-export const shuffle = (deck: Deck): void => {
+export const shuffle = (deck: Cards): void => {
   for (let i = deck.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [deck[i], deck[j]] = [deck[j], deck[i]];
@@ -38,7 +38,7 @@ export const getCardRank = (rank: RankEnum): number => {
   return rankOrder[rank];
 };
 
-export const createDeck = (color: ColorEnum, owner: PlayerEnum): Deck => {
+export const createDeck = (color: ColorEnum, owner: PlayerEnum): Cards => {
   const suits =
     color === ColorEnum.RED ? [SuitEnum.HEARTS, SuitEnum.DIAMONDS] : [SuitEnum.CLUBS, SuitEnum.SPADES];
   const ranks = Object.values(RankEnum);

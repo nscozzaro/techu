@@ -1,5 +1,4 @@
 // App.tsx
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Board from './components/Board';
 import Hand from './components/Hand';
@@ -19,25 +18,34 @@ import {
 function App() {
   const boardSize = 5;
 
-  // Moved startingIndices into useMemo to prevent it from changing on every render
+  // Starting indices for players
   const startingIndices = useMemo<StartingIndices>(
     () => ({
-      [PlayerEnum.PLAYER1]: boardSize * (boardSize - 1) + Math.floor(boardSize / 2),
+      [PlayerEnum.PLAYER1]:
+        boardSize * (boardSize - 1) + Math.floor(boardSize / 2),
       [PlayerEnum.PLAYER2]: Math.floor(boardSize / 2),
     }),
     [boardSize]
   );
 
   const [players, setPlayers] = useState({
-    [PlayerEnum.PLAYER1]: initializePlayer(ColorEnum.RED, PlayerEnum.PLAYER1),
-    [PlayerEnum.PLAYER2]: initializePlayer(ColorEnum.BLACK, PlayerEnum.PLAYER2),
+    [PlayerEnum.PLAYER1]: initializePlayer(
+      ColorEnum.RED,
+      PlayerEnum.PLAYER1
+    ),
+    [PlayerEnum.PLAYER2]: initializePlayer(
+      ColorEnum.BLACK,
+      PlayerEnum.PLAYER2
+    ),
   });
 
   const [boardState, setBoardState] = useState<BoardState>(
     Array(boardSize * boardSize).fill([])
   );
 
-  const [playerTurn, setPlayerTurn] = useState<PlayerEnum>(PlayerEnum.PLAYER1);
+  const [playerTurn, setPlayerTurn] = useState<PlayerEnum>(
+    PlayerEnum.PLAYER1
+  );
   const [firstMove, setFirstMove] = useState({
     [PlayerEnum.PLAYER1]: true,
     [PlayerEnum.PLAYER2]: true,
@@ -125,7 +133,9 @@ function App() {
       }
 
       setPlayerTurn(
-        playerId === PlayerEnum.PLAYER1 ? PlayerEnum.PLAYER2 : PlayerEnum.PLAYER1
+        playerId === PlayerEnum.PLAYER1
+          ? PlayerEnum.PLAYER2
+          : PlayerEnum.PLAYER1
       );
     },
     [firstMove, players, getValidMoves, playMove, startingIndices]
@@ -161,21 +171,19 @@ function App() {
     <div className="App">
       <Hand
         cards={players[PlayerEnum.PLAYER2].hand}
-        isBot
-        playerTurn={playerTurn === PlayerEnum.PLAYER2}
-        calculateValidMoves={() => {}}
-        clearHighlights={() => {}}
+        playerId={PlayerEnum.PLAYER2}
+        currentPlayerId={playerTurn}
       />
       <Board
         boardState={boardState}
-        playerTurn={playerTurn === PlayerEnum.PLAYER1}
+        isPlayerTurn={playerTurn === PlayerEnum.PLAYER1}
         placeCardOnBoard={placeCardOnBoard}
         highlightedCells={highlightedCells}
       />
       <Hand
         cards={players[PlayerEnum.PLAYER1].hand}
-        isBot={false}
-        playerTurn={playerTurn === PlayerEnum.PLAYER1}
+        playerId={PlayerEnum.PLAYER1}
+        currentPlayerId={playerTurn}
         calculateValidMoves={calculatePlayerValidMoves}
         clearHighlights={() => setHighlightedCells([])}
       />

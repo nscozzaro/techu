@@ -59,11 +59,11 @@ export interface Card {
 
 export interface Player {
   hand: Hand;
-  deck: Deck;
+  deck: Cards;
   id: PlayerEnum;
 }
 
-export type Deck = Card[];
+export type Cards = Card[];
 export type Hand = (Card | null)[];
 
 export type BoardState = Card[][];
@@ -75,7 +75,7 @@ export interface Move {
 
 export type Moves = Move[];
 
-export type SetDeck = React.Dispatch<React.SetStateAction<Deck>>;
+export type SetDeck = React.Dispatch<React.SetStateAction<Cards>>;
 export type SetHand = React.Dispatch<React.SetStateAction<Hand>>;
 
 // Starting indices for players

@@ -5,14 +5,14 @@ import { BoardState } from '../types';
 
 interface BoardProps {
   boardState: BoardState;
-  playerTurn: boolean;
+  isPlayerTurn: boolean;
   placeCardOnBoard: (index: number, cardIndex: number) => void;
   highlightedCells: number[];
 }
 
 const Board: React.FC<BoardProps> = ({
   boardState,
-  playerTurn,
+  isPlayerTurn,
   placeCardOnBoard,
   highlightedCells,
 }) => (
@@ -22,7 +22,7 @@ const Board: React.FC<BoardProps> = ({
         key={index}
         stack={cellStack}
         index={index}
-        playerTurn={playerTurn}
+        playerTurn={isPlayerTurn}
         placeCardOnBoard={placeCardOnBoard}
         highlightedCells={highlightedCells}
       />
