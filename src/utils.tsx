@@ -1,4 +1,4 @@
-// utils.ts
+// utils.tsx
 import {
   Card,
   ColorEnum,
@@ -10,6 +10,7 @@ import {
   BoardState,
   rankOrder,
   StartingIndices,
+  Move,
 } from './types';
 
 export const shuffle = (deck: Cards): void => {
@@ -184,5 +185,80 @@ export const calculateValidMoves = (
 
   return Array.from(
     new Set([...homeRowValidIndices, ...connectedValidIndices])
+  );
+};
+
+export const updatePlayerHandAndDrawCard = (
+  player: Player,
+  cardIndex: number
+): Player => {
+  const updatedPlayer = { ...player };
+  updatedPlayer.hand = [...updatedPlayer.hand];
+  updatedPlayer.hand.splice(cardIndex, 1);
+  drawCardForPlayer(updatedPlayer);
+  return updatedPlayer;
+};
+
+export const applyMoveToBoardState = (
+  boardState: BoardState,
+  cellIndex: number,
+  card: Card
+): BoardState => {
+  const newBoardState = [...boardState];
+  newBoardState[cellIndex] = [...newBoardState[cellIndex], card];
+  return newBoardState;
+};
+
+export const getNextPlayerTurn = (currentPlayer: PlayerEnum): PlayerEnum => {
+  return currentPlayer === PlayerEnum.PLAYER1
+    ? PlayerEnum.PLAYER2
+    : PlayerEnum.PLAYER1;
+};
+
+export const calculateScores = (
+  boardState: BoardState
+): { [key in PlayerEnum]: number } => {
+  const newScores = { [PlayerEnum.PLAYER1]: 0, [PlayerEnum.PLAYER2]: 0 };
+  boardState.forEach((cellStack) => {
+    if (cellStack.length > 0) {
+      const topCard = cellStack[cellStack.length - 1];
+      if (topCard.color === ColorEnum.RED) {
+        newScores[PlayerEnum.PLAYER1]++;
+      } else if (topCard.color === ColorEnum.BLACK) {
+        newScores[PlayerEnum.PLAYER2]++;
+      }
+    }
+  });
+  return newScores;
+};
+
+export const isGameOver = (players: {
+  [key in PlayerEnum]: Player;
+}): boolean => {
+  return Object.values(players).every(
+    (player) => player.hand.length === 0 && player.deck.length === 0
+  );
+};
+
+export const getValidMoves = (
+  player: Player,
+  playerId: PlayerEnum,
+  boardState: BoardState,
+  boardSize: number,
+  isFirst: boolean,
+  startingIndices: StartingIndices,
+  tieBreaker: boolean
+): Move[] => {
+  return player.hand.flatMap((card, cardIndex) =>
+    calculateValidMoves(
+      cardIndex,
+      playerId,
+      boardState,
+      boardSize,
+      isFirst,
+      player.hand,
+      startingIndices,
+      tieBreaker
+    ).map((cellIndex) => ({ cellIndex, cardIndex }))
   );
 };

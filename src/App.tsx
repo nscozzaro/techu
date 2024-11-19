@@ -10,6 +10,12 @@ import {
   getCardRank,
   getHomeRowIndices,
   getValidMoveIndices,
+  updatePlayerHandAndDrawCard,
+  applyMoveToBoardState,
+  getNextPlayerTurn,
+  calculateScores,
+  isGameOver,
+  getValidMoves,
 } from './utils';
 import {
   PlayerEnum,
@@ -57,41 +63,28 @@ function App() {
 
   const updateHandAndDrawCard = (playerId: PlayerEnum, cardIndex: number) => {
     setPlayers((prevPlayers) => {
-      const updatedPlayer = { ...prevPlayers[playerId] };
-      updatedPlayer.hand.splice(cardIndex, 1);
-      drawCardForPlayer(updatedPlayer);
+      const updatedPlayer = updatePlayerHandAndDrawCard(
+        prevPlayers[playerId],
+        cardIndex
+      );
       return { ...prevPlayers, [playerId]: updatedPlayer };
     });
   };
 
   const handleCardDiscard = (cardIndex: number, playerId: PlayerEnum) => {
     if (gameOver) return;
-    setPlayers((prevPlayers) => {
-      const updatedPlayer = { ...prevPlayers[playerId] };
-      updatedPlayer.hand.splice(cardIndex, 1);
-      drawCardForPlayer(updatedPlayer);
-      return { ...prevPlayers, [playerId]: updatedPlayer };
-    });
-    setPlayerTurn(
-      playerId === PlayerEnum.PLAYER1
-        ? PlayerEnum.PLAYER2
-        : PlayerEnum.PLAYER1
-    );
+    updateHandAndDrawCard(playerId, cardIndex);
+    setPlayerTurn(getNextPlayerTurn(playerId));
   };
 
-  const playMove = (
-    move: Move,
-    playerId: PlayerEnum
-  ) => {
+  const playMove = (move: Move, playerId: PlayerEnum) => {
     if (gameOver) return;
     const { cellIndex, cardIndex } = move;
     const card = players[playerId].hand[cardIndex];
 
-    setBoardState((prevBoardState) => {
-      const newBoardState = [...prevBoardState];
-      newBoardState[cellIndex] = [...newBoardState[cellIndex], card];
-      return newBoardState;
-    });
+    setBoardState((prevBoardState) =>
+      applyMoveToBoardState(prevBoardState, cellIndex, card)
+    );
 
     updateHandAndDrawCard(playerId, cardIndex);
 
@@ -101,20 +94,17 @@ function App() {
     }));
   };
 
-  const getValidMoves = (playerId: PlayerEnum): Move[] => {
+  const getValidMovesForPlayer = (playerId: PlayerEnum): Move[] => {
     const player = players[playerId];
     const isFirst = firstMove[playerId];
-    return player.hand.flatMap((card, cardIndex) =>
-      calculateValidMoves(
-        cardIndex,
-        playerId,
-        boardState,
-        BOARD_SIZE,
-        isFirst,
-        player.hand,
-        STARTING_INDICES,
-        tieBreaker
-      ).map((cellIndex) => ({ cellIndex, cardIndex }))
+    return getValidMoves(
+      player,
+      playerId,
+      boardState,
+      BOARD_SIZE,
+      isFirst,
+      STARTING_INDICES,
+      tieBreaker
     );
   };
 
@@ -156,14 +146,9 @@ function App() {
           },
         }));
 
-        setBoardState((prevBoardState) => {
-          const newBoardState = [...prevBoardState];
-          newBoardState[move.cellIndex] = [
-            ...newBoardState[move.cellIndex],
-            faceDownCard,
-          ];
-          return newBoardState;
-        });
+        setBoardState((prevBoardState) =>
+          applyMoveToBoardState(prevBoardState, move.cellIndex, faceDownCard)
+        );
       } else {
         setPlayers((prevPlayers) => {
           const updatedPlayer = { ...prevPlayers[playerId] };
@@ -177,13 +162,11 @@ function App() {
         [playerId]: false,
       }));
 
-      setPlayerTurn(
-        playerId === PlayerEnum.PLAYER1
-          ? PlayerEnum.PLAYER2
-          : PlayerEnum.PLAYER1
-      );
+      setPlayerTurn(getNextPlayerTurn(playerId));
+
+      setHighlightedCells([]);
     } else {
-      const validMoves = getValidMoves(playerId);
+      const validMoves = getValidMovesForPlayer(playerId);
       if (validMoves.length > 0) {
         const randomMove =
           validMoves[Math.floor(Math.random() * validMoves.length)];
@@ -196,20 +179,10 @@ function App() {
         });
       }
 
-      setPlayerTurn(
-        playerId === PlayerEnum.PLAYER1
-          ? PlayerEnum.PLAYER2
-          : PlayerEnum.PLAYER1
-      );
+      setPlayerTurn(getNextPlayerTurn(playerId));
     }
 
-    // Check if game is over
-    if (
-      players[PlayerEnum.PLAYER1].hand.length === 0 &&
-      players[PlayerEnum.PLAYER1].deck.length === 0 &&
-      players[PlayerEnum.PLAYER2].hand.length === 0 &&
-      players[PlayerEnum.PLAYER2].deck.length === 0
-    ) {
+    if (isGameOver(players)) {
       setGameOver(true);
     }
   };
@@ -300,25 +273,10 @@ function App() {
   }, [playerTurn]);
 
   useEffect(() => {
-    // Calculate scores
-    const newScores = { [PlayerEnum.PLAYER1]: 0, [PlayerEnum.PLAYER2]: 0 };
-    boardState.forEach((cellStack) => {
-      if (cellStack.length > 0) {
-        const topCard = cellStack[cellStack.length - 1];
-        if (topCard.color === ColorEnum.RED) {
-          newScores[PlayerEnum.PLAYER1]++;
-        } else if (topCard.color === ColorEnum.BLACK) {
-          newScores[PlayerEnum.PLAYER2]++;
-        }
-      }
-    });
-    setScores(newScores);
+    setScores(calculateScores(boardState));
   }, [boardState]);
 
-  const handleCardDrag = (
-    cardIndex: number,
-    playerId: PlayerEnum
-  ) => {
+  const handleCardDrag = (cardIndex: number, playerId: PlayerEnum) => {
     if (gameOver) return;
     const validMoves = calculateValidMoves(
       cardIndex,
@@ -350,14 +308,9 @@ function App() {
         },
       }));
 
-      setBoardState((prevBoardState) => {
-        const newBoardState = [...prevBoardState];
-        newBoardState[cellIndex] = [
-          ...newBoardState[cellIndex],
-          faceDownCard,
-        ];
-        return newBoardState;
-      });
+      setBoardState((prevBoardState) =>
+        applyMoveToBoardState(prevBoardState, cellIndex, faceDownCard)
+      );
 
       setFirstMove((prevFirstMove) => ({
         ...prevFirstMove,
@@ -373,13 +326,7 @@ function App() {
       setPlayerTurn(PlayerEnum.PLAYER2);
     }
 
-    // Check if game is over
-    if (
-      players[PlayerEnum.PLAYER1].hand.length === 0 &&
-      players[PlayerEnum.PLAYER1].deck.length === 0 &&
-      players[PlayerEnum.PLAYER2].hand.length === 0 &&
-      players[PlayerEnum.PLAYER2].deck.length === 0
-    ) {
+    if (isGameOver(players)) {
       setGameOver(true);
     }
   };
