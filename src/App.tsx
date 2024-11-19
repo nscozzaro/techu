@@ -1,4 +1,3 @@
-// src/App.tsx
 import React, { useState, useEffect } from 'react';
 import Board from './components/Board';
 import PlayerArea from './components/PlayerArea';
@@ -114,10 +113,11 @@ function App() {
       setPlayers(result.updatedPlayers);
       setBoardState(result.newBoardState);
       setPlayerTurn(result.nextPlayerTurn);
-    }
-
-    if (isGameOver(players)) {
-      setGameOver(true);
+      const { moveMade } = result;
+      if (!moveMade && playerId === PlayerEnum.PLAYER2) {
+        // Discard the first card (index 0) for Player 2
+        handleCardDiscard(0, PlayerEnum.PLAYER2);
+      }
     }
   };
 
@@ -150,7 +150,7 @@ function App() {
     setPlayerTurn(result.nextPlayerTurn);
     setHighlightedCells([]);
 
-    if (isGameOver(players)) {
+    if (isGameOver(result.updatedPlayers)) {
       setGameOver(true);
     }
   };
@@ -202,6 +202,12 @@ function App() {
     const newScores = calculateScores(boardState);
     setScores(newScores);
   }, [boardState]);
+
+  useEffect(() => {
+    if (isGameOver(players)) {
+      setGameOver(true);
+    }
+  }, [players]);
 
   const winner = gameOver
     ? scores[PlayerEnum.PLAYER1] > scores[PlayerEnum.PLAYER2]

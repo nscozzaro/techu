@@ -1,4 +1,3 @@
-// types.ts
 import { Dispatch, SetStateAction } from 'react';
 
 export enum PlayerEnum {

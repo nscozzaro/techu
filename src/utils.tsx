@@ -1,4 +1,3 @@
-// utils.tsx
 import {
   Card,
   ColorEnum,
@@ -341,6 +340,7 @@ export const performRegularMoveForPlayer = (
   updatedPlayers: { [key in PlayerEnum]: Player };
   newBoardState: BoardState;
   nextPlayerTurn: PlayerEnum;
+  moveMade: boolean;
 } => {
   const validMoves = getValidMoves(
     players[playerId],
@@ -354,18 +354,19 @@ export const performRegularMoveForPlayer = (
 
   let newBoardState = [...boardState];
   let updatedPlayers = { ...players };
+  let moveMade = false;
 
   if (validMoves.length > 0) {
     const move = selectRandomMove(validMoves);
     const result = applyMoveToBoardState(boardState, players, move, playerId);
     newBoardState = result.newBoardState;
     updatedPlayers = result.updatedPlayers;
-  } else {
-    updatedPlayers = updatePlayerHandAndDrawCard(players, playerId, -1);
+    moveMade = true;
   }
 
   const nextPlayerTurn = getNextPlayerTurn(playerId);
-  return { updatedPlayers, newBoardState, nextPlayerTurn };
+
+  return { updatedPlayers, newBoardState, nextPlayerTurn, moveMade };
 };
 
 // Function to handle card drag logic

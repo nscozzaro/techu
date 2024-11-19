@@ -1,4 +1,3 @@
-// src/components/PlayerArea.tsx
 import React from 'react';
 import Cell from './Cell';
 import { Card, PlayerEnum } from '../types';
@@ -42,40 +41,81 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
 
   return (
     <div className="player-area">
-      {/* Deck Cell */}
-      <Cell
-        type="deck"
-        count={deckCount}
-        playerId={playerId}
-        isFaceDown={false} // Deck is always face-down
-        clearHighlights={clearHighlights}
-      />
+      {playerId === PlayerEnum.PLAYER1 ? (
+        <>
+          {/* Deck Cell */}
+          <Cell
+            type="deck"
+            count={deckCount}
+            playerId={playerId}
+            isFaceDown={false} // Deck is always face-down
+            clearHighlights={clearHighlights}
+          />
 
-      {/* Hand Cells */}
-      {handSlots.map((card, index) => (
-        <Cell
-          key={index}
-          type="hand"
-          card={card}
-          index={index}
-          playerId={playerId}
-          handleCardDrag={handleCardDrag}
-          highlightedCells={highlightedCells}
-          clearHighlights={clearHighlights}
-          onDragStart={() => handleDragStart(playerId)}
-          onDragEnd={handleDragEnd}
-        />
-      ))}
+          {/* Hand Cells */}
+          {handSlots.map((card, index) => (
+            <Cell
+              key={index}
+              type="hand"
+              card={card}
+              index={index}
+              playerId={playerId}
+              handleCardDrag={handleCardDrag}
+              highlightedCells={highlightedCells}
+              clearHighlights={clearHighlights}
+              onDragStart={() => handleDragStart(playerId)}
+              onDragEnd={handleDragEnd}
+            />
+          ))}
 
-      {/* Discard Pile Cell */}
-      <Cell
-        type="discard"
-        stack={discardPile}
-        playerId={playerId}
-        isVisible={isDragging && !firstMove}
-        handleCardDiscard={handleCardDiscard}
-        clearHighlights={clearHighlights}
-      />
+          {/* Discard Pile Cell */}
+          <Cell
+            type="discard"
+            stack={discardPile}
+            playerId={playerId}
+            isVisible={isDragging && !firstMove}
+            handleCardDiscard={handleCardDiscard}
+            clearHighlights={clearHighlights}
+          />
+        </>
+      ) : (
+        <>
+          {/* Discard Pile Cell */}
+          <Cell
+            type="discard"
+            stack={discardPile}
+            playerId={playerId}
+            isVisible={isDragging && !firstMove}
+            handleCardDiscard={handleCardDiscard}
+            clearHighlights={clearHighlights}
+          />
+
+          {/* Hand Cells (reversed) */}
+          {handSlots.slice().reverse().map((card, index) => (
+            <Cell
+              key={index}
+              type="hand"
+              card={card}
+              index={index}
+              playerId={playerId}
+              handleCardDrag={handleCardDrag}
+              highlightedCells={highlightedCells}
+              clearHighlights={clearHighlights}
+              onDragStart={() => handleDragStart(playerId)}
+              onDragEnd={handleDragEnd}
+            />
+          ))}
+
+          {/* Deck Cell */}
+          <Cell
+            type="deck"
+            count={deckCount}
+            playerId={playerId}
+            isFaceDown={false} // Deck is always face-down
+            clearHighlights={clearHighlights}
+          />
+        </>
+      )}
     </div>
   );
 };
