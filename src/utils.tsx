@@ -475,7 +475,7 @@ export const flipInitialCardsLogic = (
     firstMove = { [PlayerEnum.PLAYER1]: true, [PlayerEnum.PLAYER2]: true };
   } else {
     nextPlayerTurn =
-      rank1 > rank2 ? PlayerEnum.PLAYER1 : PlayerEnum.PLAYER2;
+      rank1 < rank2 ? PlayerEnum.PLAYER1 : PlayerEnum.PLAYER2;
   }
 
   return { newBoardState, nextPlayerTurn, tieBreaker, firstMove };
