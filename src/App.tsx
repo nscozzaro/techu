@@ -1,11 +1,9 @@
-// App.tsx
+// src/App.tsx
 import React, { useState, useEffect } from 'react';
 import Board from './components/Board';
-import Hand from './components/Hand';
-import DiscardPile from './components/DiscardPile';
+import PlayerArea from './components/PlayerArea';
 import {
   initializePlayer,
-  updatePlayerHandAndDrawCard,
   getNextPlayerTurn,
   calculateScores,
   isGameOver,
@@ -55,19 +53,39 @@ function App() {
 
   const [gameOver, setGameOver] = useState(false);
 
-  const updateHandAndDrawCard = (playerId: PlayerEnum, cardIndex: number) => {
-    const updatedPlayers = updatePlayerHandAndDrawCard(
-      players,
-      playerId,
-      cardIndex
-    );
-    setPlayers(updatedPlayers);
-  };
+  // State for discard piles
+  const [discardPiles, setDiscardPiles] = useState<{ [key in PlayerEnum]: Card[] }>({
+    [PlayerEnum.PLAYER1]: [],
+    [PlayerEnum.PLAYER2]: [],
+  });
+
+  // State to track which player is currently dragging
+  const [draggingPlayer, setDraggingPlayer] = useState<PlayerEnum | null>(null);
 
   const handleCardDiscard = (cardIndex: number, playerId: PlayerEnum) => {
     if (gameOver) return;
-    updateHandAndDrawCard(playerId, cardIndex);
-    setPlayerTurn(getNextPlayerTurn(playerId));
+
+    const updatedPlayers = { ...players };
+    const player = updatedPlayers[playerId];
+
+    if (cardIndex >= 0 && cardIndex < player.hand.length) {
+      const discardedCard = player.hand[cardIndex];
+      // Remove the card from player's hand
+      player.hand.splice(cardIndex, 1);
+      // Add the card to the discard pile
+      setDiscardPiles((prev) => ({
+        ...prev,
+        [playerId]: [...prev[playerId], discardedCard],
+      }));
+      // Draw a new card if possible
+      if (player.deck.length > 0) {
+        player.hand.push(player.deck.pop()!);
+      }
+      setPlayers(updatedPlayers);
+      setPlayerTurn(getNextPlayerTurn(playerId));
+      // Clear highlighted cells
+      setHighlightedCells([]);
+    }
   };
 
   const playForPlayer = (playerId: PlayerEnum) => {
@@ -137,6 +155,19 @@ function App() {
     }
   };
 
+  const clearHighlights = () => {
+    setHighlightedCells([]);
+  };
+
+  const handleDragStart = (playerId: PlayerEnum) => {
+    setDraggingPlayer(playerId);
+  };
+
+  const handleDragEnd = () => {
+    setDraggingPlayer(null);
+    clearHighlights();
+  };
+
   useEffect(() => {
     if (
       initialFaceDownCards[PlayerEnum.PLAYER1] &&
@@ -187,28 +218,47 @@ function App() {
         <div>Player 2 Score: {scores[PlayerEnum.PLAYER2]}</div>
         {gameOver && <div className="winner">{winner}</div>}
       </div>
-      <Hand
-        cards={players[PlayerEnum.PLAYER2].hand}
+
+      {/* Player 2 Area */}
+      <PlayerArea
         playerId={PlayerEnum.PLAYER2}
-        currentPlayerId={playerTurn}
+        deckCount={players[PlayerEnum.PLAYER2].deck.length}
+        handCards={players[PlayerEnum.PLAYER2].hand}
+        discardPile={discardPiles[PlayerEnum.PLAYER2]}
+        isDragging={draggingPlayer === PlayerEnum.PLAYER2}
+        handleCardDrag={handleCardDrag}
+        handleCardDiscard={handleCardDiscard}
+        placeCardOnBoard={placeCardOnBoard}
+        highlightedCells={highlightedCells}
+        firstMove={firstMove[PlayerEnum.PLAYER2]}
+        clearHighlights={clearHighlights}
+        handleDragStart={handleDragStart}
+        handleDragEnd={handleDragEnd}
       />
+
       <Board
         boardState={boardState}
         isPlayerTurn={playerTurn === PlayerEnum.PLAYER1 && !gameOver}
         placeCardOnBoard={placeCardOnBoard}
         highlightedCells={highlightedCells}
       />
-      
-      <div className="player1-hand-container">
-        <Hand
-          cards={players[PlayerEnum.PLAYER1].hand}
-          playerId={PlayerEnum.PLAYER1}
-          currentPlayerId={playerTurn}
-          handleCardDrag={handleCardDrag}
-          clearHighlights={() => setHighlightedCells([])}
-        />
-        <DiscardPile handleCardDiscard={handleCardDiscard} />
-      </div>
+
+      {/* Player 1 Area */}
+      <PlayerArea
+        playerId={PlayerEnum.PLAYER1}
+        deckCount={players[PlayerEnum.PLAYER1].deck.length}
+        handCards={players[PlayerEnum.PLAYER1].hand}
+        discardPile={discardPiles[PlayerEnum.PLAYER1]}
+        isDragging={draggingPlayer === PlayerEnum.PLAYER1}
+        handleCardDrag={handleCardDrag}
+        handleCardDiscard={handleCardDiscard}
+        placeCardOnBoard={placeCardOnBoard}
+        highlightedCells={highlightedCells}
+        firstMove={firstMove[PlayerEnum.PLAYER1]}
+        clearHighlights={clearHighlights}
+        handleDragStart={handleDragStart}
+        handleDragEnd={handleDragEnd}
+      />
     </div>
   );
 }

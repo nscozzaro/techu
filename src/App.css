@@ -1,4 +1,4 @@
-/* App.css */
+/* src/App.css */
 
 body {
   font-family: Arial, sans-serif;
@@ -28,10 +28,10 @@ body {
   font-weight: bold;
 }
 
-/* Hand component styles */
-.hand {
+/* Player Area styles */
+.player-area {
   display: flex;
-  justify-content: center;
+  justify-content: space-between; /* Evenly space the cells */
   gap: 10px;
   margin: 10px;
 }
@@ -44,15 +44,6 @@ body {
   margin: 20px auto;
 }
 
-/* Player 1 Hand and Discard Pile Container */
-.player1-hand-container {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 10px; /* Adjust spacing as needed */
-  margin: 10px;
-}
-
 /* Cell styles */
 .cell {
   width: 80px;
@@ -61,6 +52,10 @@ body {
   border-radius: 8px;
   position: relative;
   box-sizing: border-box;
+  border: 1px solid #555;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .cell.empty {
@@ -83,7 +78,22 @@ body {
   width: 100%;
   height: 100%;
   border-radius: 8px;
-  /* Add any design for the back of the card */
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.deck-count {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  color: white;
+  font-size: 18px;
+}
+
+.empty-deck {
+  background-color: #555; /* Darker blue when empty */
 }
 
 .top-left,
@@ -133,6 +143,15 @@ body {
   opacity: 0.5;
 }
 
+/* Empty Placeholder styles */
+.empty-placeholder {
+  width: 80px;
+  height: 120px;
+  background-color: #444;
+  border: 2px dashed #777;
+  border-radius: 8px;
+}
+
 /* Discard Pile styles */
 .discard-pile {
   width: 80px;
@@ -151,8 +170,9 @@ body {
   border-color: gold;
 }
 
+/* Responsive Design */
 @media (max-width: 768px) {
-  .player1-hand-container {
+  .player-area {
     flex-direction: column;
     align-items: center;
   }
