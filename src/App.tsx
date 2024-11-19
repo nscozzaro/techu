@@ -48,8 +48,6 @@ function App() {
   }>({});
   const [tieBreaker, setTieBreaker] = useState(false);
 
-  // Removed isDraggingCard and setIsDraggingCard
-
   const [scores, setScores] = useState({
     [PlayerEnum.PLAYER1]: 0,
     [PlayerEnum.PLAYER2]: 0,
@@ -189,15 +187,11 @@ function App() {
         <div>Player 2 Score: {scores[PlayerEnum.PLAYER2]}</div>
         {gameOver && <div className="winner">{winner}</div>}
       </div>
-      
-      {/* Player 2's Hand */}
       <Hand
         cards={players[PlayerEnum.PLAYER2].hand}
         playerId={PlayerEnum.PLAYER2}
         currentPlayerId={playerTurn}
       />
-      
-      {/* Board */}
       <Board
         boardState={boardState}
         isPlayerTurn={playerTurn === PlayerEnum.PLAYER1 && !gameOver}
@@ -205,7 +199,6 @@ function App() {
         highlightedCells={highlightedCells}
       />
       
-      {/* Player 1's Hand and Discard Pile */}
       <div className="player1-hand-container">
         <Hand
           cards={players[PlayerEnum.PLAYER1].hand}
@@ -213,7 +206,6 @@ function App() {
           currentPlayerId={playerTurn}
           handleCardDrag={handleCardDrag}
           clearHighlights={() => setHighlightedCells([])}
-          // Removed setIsDraggingCard
         />
         <DiscardPile handleCardDiscard={handleCardDiscard} />
       </div>
