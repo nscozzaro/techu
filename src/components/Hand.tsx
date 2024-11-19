@@ -9,7 +9,7 @@ interface HandProps {
   currentPlayerId: PlayerEnum;
   handleCardDrag?: (index: number, playerId: PlayerEnum) => void;
   clearHighlights?: () => void;
-  setIsDraggingCard?: React.Dispatch<React.SetStateAction<boolean>>;
+  // Removed setIsDraggingCard as it's no longer needed
 }
 
 const Hand: React.FC<HandProps> = ({
@@ -18,7 +18,6 @@ const Hand: React.FC<HandProps> = ({
   currentPlayerId,
   handleCardDrag,
   clearHighlights,
-  setIsDraggingCard,
 }) => (
   <div className="hand">
     {cards.map((card, index) => (
@@ -30,7 +29,7 @@ const Hand: React.FC<HandProps> = ({
         currentPlayerId={currentPlayerId}
         handleCardDrag={handleCardDrag}
         clearHighlights={clearHighlights}
-        setIsDraggingCard={setIsDraggingCard}
+        // Removed setIsDraggingCard
       />
     ))}
   </div>
