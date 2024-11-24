@@ -13,6 +13,12 @@ import {
   Move,
   BOARD_SIZE,
   STARTING_INDICES,
+  Players,
+  PlayerBooleans,
+  Scores,
+  DiscardPiles,
+  InitialFaceDownCards,
+  initialFirstMove,
 } from './types';
 
 // Function to shuffle a deck
@@ -44,10 +50,32 @@ export const initializePlayer = (
   shuffle(deck);
   return {
     id,
-    hand: deck.slice(0, 3), // Initialize with 3 cards
+    hand: deck.slice(0, 3),
     deck: deck.slice(3),
   };
 };
+
+// Initialize players
+export const initialPlayers = (): Players => ({
+  [PlayerEnum.PLAYER1]: initializePlayer(ColorEnum.RED, PlayerEnum.PLAYER1),
+  [PlayerEnum.PLAYER2]: initializePlayer(ColorEnum.BLACK, PlayerEnum.PLAYER2),
+});
+
+// Initialize board state
+export const initialBoardState = (): BoardState =>
+  Array(BOARD_SIZE * BOARD_SIZE).fill([]) as BoardState;
+
+// Initialize scores
+export const initialScores = (): Scores => ({
+  [PlayerEnum.PLAYER1]: 0,
+  [PlayerEnum.PLAYER2]: 0,
+});
+
+// Initialize discard piles
+export const initialDiscardPiles = (): DiscardPiles => ({
+  [PlayerEnum.PLAYER1]: [],
+  [PlayerEnum.PLAYER2]: [],
+});
 
 // Function to draw a card for a player and place it in the first empty slot
 export const drawCardForPlayer = (player: Player): void => {
@@ -57,22 +85,19 @@ export const drawCardForPlayer = (player: Player): void => {
     if (firstEmpty !== -1) {
       player.hand[firstEmpty] = newCard;
     }
-    // If no empty slot, do not draw the card
   }
 };
 
 // Function to update player's hand by removing a card and drawing a new one
 export const updatePlayerHandAndDrawCard = (
-  players: { [key in PlayerEnum]: Player },
+  players: Players,
   playerId: PlayerEnum,
   cardIndex: number,
   insertSlot?: number
-): { [key in PlayerEnum]: Player } => {
+): Players => {
   const updatedPlayer = { ...players[playerId] };
   if (cardIndex >= 0 && cardIndex < updatedPlayer.hand.length) {
-    // Remove the card from hand by setting it to undefined
     updatedPlayer.hand[cardIndex] = undefined;
-    // Draw a new card if possible
     if (updatedPlayer.deck.length > 0) {
       const newCard = updatedPlayer.deck.pop()!;
       if (
@@ -82,12 +107,10 @@ export const updatePlayerHandAndDrawCard = (
       ) {
         updatedPlayer.hand[insertSlot] = newCard;
       } else {
-        // Insert into first empty slot
         const firstEmpty = updatedPlayer.hand.findIndex(card => card === undefined);
         if (firstEmpty !== -1) {
           updatedPlayer.hand[firstEmpty] = newCard;
         }
-        // If no empty slot, do not insert the card
       }
     }
   }
@@ -97,15 +120,14 @@ export const updatePlayerHandAndDrawCard = (
 // Function to apply a board move to the board state
 export const applyMoveToBoardState = (
   boardState: BoardState,
-  players: { [key in PlayerEnum]: Player },
+  players: Players,
   move: Move,
   playerId: PlayerEnum
 ): {
   newBoardState: BoardState;
-  updatedPlayers: { [key in PlayerEnum]: Player };
+  updatedPlayers: Players;
 } => {
   if (move.type !== 'board' || move.cellIndex === undefined) {
-    // Not a board move; do nothing
     return { newBoardState: boardState, updatedPlayers: players };
   }
 
@@ -115,12 +137,11 @@ export const applyMoveToBoardState = (
   const newBoardState = [...boardState];
   newBoardState[move.cellIndex] = [...boardState[move.cellIndex], card];
 
-  // Update player's hand by removing the card and placing the new card in the same slot
   const updatedPlayers = updatePlayerHandAndDrawCard(
     players,
     playerId,
     move.cardIndex,
-    move.cardIndex // Insert into the same slot
+    move.cardIndex
   );
 
   return { newBoardState, updatedPlayers };
@@ -136,7 +157,7 @@ export const getNextPlayerTurn = (currentPlayer: PlayerEnum): PlayerEnum => {
 // Function to calculate scores based on board state
 export const calculateScores = (
   boardState: BoardState
-): { [key in PlayerEnum]: number } => {
+): Scores => {
   const scores = { [PlayerEnum.PLAYER1]: 0, [PlayerEnum.PLAYER2]: 0 };
   boardState.forEach((cellStack) => {
     if (cellStack.length > 0) {
@@ -149,9 +170,7 @@ export const calculateScores = (
 };
 
 // Function to check if the game is over
-export const isGameOver = (players: {
-  [key in PlayerEnum]: Player;
-}): boolean => {
+export const isGameOver = (players: Players): boolean => {
   return Object.values(players).every(
     (player) => player.hand.every(card => card === undefined) && player.deck.length === 0
   );
@@ -306,17 +325,15 @@ export const findConnectedCellsToHomeRow = (
 
 // Function to perform first move for a player
 export const performFirstMoveForPlayer = (
-  players: { [key in PlayerEnum]: Player },
+  players: Players,
   playerId: PlayerEnum,
   boardState: BoardState,
   tieBreaker: boolean,
-  setInitialFaceDownCards: React.Dispatch<
-    React.SetStateAction<{ [key in PlayerEnum]?: Card & { cellIndex: number } }>
-  >
+  setInitialFaceDownCards: React.Dispatch<React.SetStateAction<InitialFaceDownCards>>
 ): {
-  updatedPlayers: { [key in PlayerEnum]: Player };
+  updatedPlayers: Players;
   newBoardState: BoardState;
-  newFirstMove: { [key in PlayerEnum]: boolean };
+  newFirstMove: PlayerBooleans;
   nextPlayerTurn: PlayerEnum;
 } => {
   const cardIndex = 0;
@@ -324,12 +341,12 @@ export const performFirstMoveForPlayer = (
   if (!card) return { updatedPlayers: players, newBoardState: boardState, newFirstMove: initialFirstMove(), nextPlayerTurn: getNextPlayerTurn(playerId) };
 
   const faceDownCard = { ...card, faceDown: true };
-  // Update player's hand by removing the card and placing new card in the same slot
+
   const updatedPlayers = updatePlayerHandAndDrawCard(
     players,
     playerId,
     cardIndex,
-    cardIndex // Insert into the same slot
+    cardIndex
   );
 
   const validMoves = getValidFirstMoves(
@@ -345,7 +362,7 @@ export const performFirstMoveForPlayer = (
   if (validMoves.length > 0) {
     const move = selectRandomMove(validMoves);
     if (move.type === 'board' && move.cellIndex !== undefined) {
-      setInitialFaceDownCards((prev) => ({
+      setInitialFaceDownCards((prev: InitialFaceDownCards) => ({
         ...prev,
         [playerId]: { ...faceDownCard, cellIndex: move.cellIndex },
       }));
@@ -358,7 +375,7 @@ export const performFirstMoveForPlayer = (
     }
   }
 
-  const newFirstMove: { [key in PlayerEnum]: boolean } = {
+  const newFirstMove: PlayerBooleans = {
     ...initialFirstMove(),
     [playerId]: false,
   };
@@ -388,13 +405,13 @@ const selectRandomMove = (validMoves: Move[]): Move => {
   return validMoves[Math.floor(Math.random() * validMoves.length)];
 };
 
-// Function to perform regular move for a player, now handling 'discard' moves
+// Function to perform regular move for a player
 export const performRegularMoveForPlayer = (
-  players: { [key in PlayerEnum]: Player },
+  players: Players,
   playerId: PlayerEnum,
   boardState: BoardState
 ): {
-  updatedPlayers: { [key in PlayerEnum]: Player };
+  updatedPlayers: Players;
   newBoardState: BoardState;
   nextPlayerTurn: PlayerEnum;
   moveMade: boolean;
@@ -423,7 +440,6 @@ export const performRegularMoveForPlayer = (
       updatedPlayers = result.updatedPlayers;
       moveMade = true;
     } else if (selectedMove.type === 'discard') {
-      // Discard will be handled in App.tsx
       moveMade = true;
     }
   }
@@ -438,8 +454,8 @@ export const handleCardDragLogic = (
   cardIndex: number,
   playerId: PlayerEnum,
   boardState: BoardState,
-  players: { [key in PlayerEnum]: Player },
-  firstMove: { [key in PlayerEnum]: boolean },
+  players: Players,
+  firstMove: PlayerBooleans,
   tieBreaker: boolean
 ): number[] => {
   return calculateValidMoves(
@@ -458,16 +474,14 @@ export const handleCardDragLogic = (
 export const placeCardOnBoardLogic = (
   index: number,
   cardIndex: number,
-  players: { [key in PlayerEnum]: Player },
+  players: Players,
   boardState: BoardState,
-  firstMove: { [key in PlayerEnum]: boolean },
-  setInitialFaceDownCards: React.Dispatch<
-    React.SetStateAction<{ [key in PlayerEnum]?: Card & { cellIndex: number } }>
-  >
+  firstMove: PlayerBooleans,
+  setInitialFaceDownCards: React.Dispatch<React.SetStateAction<InitialFaceDownCards>>
 ): {
-  updatedPlayers: { [key in PlayerEnum]: Player };
+  updatedPlayers: Players;
   newBoardState: BoardState;
-  newFirstMove: { [key in PlayerEnum]: boolean };
+  newFirstMove: PlayerBooleans;
   nextPlayerTurn: PlayerEnum;
 } => {
   const playerId = PlayerEnum.PLAYER1;
@@ -475,18 +489,18 @@ export const placeCardOnBoardLogic = (
   if (!card) return { updatedPlayers: players, newBoardState: boardState, newFirstMove: firstMove, nextPlayerTurn: getNextPlayerTurn(playerId) };
 
   const faceDownCard = { ...card, faceDown: true };
-  // Update player's hand by removing the card and placing new card in the same slot
+
   const updatedPlayers = updatePlayerHandAndDrawCard(
     players,
     playerId,
     cardIndex,
-    cardIndex // Insert into the same slot
+    cardIndex
   );
 
   let newBoardState = [...boardState];
 
   if (firstMove[playerId]) {
-    setInitialFaceDownCards((prev) => ({
+    setInitialFaceDownCards((prev: InitialFaceDownCards) => ({
       ...prev,
       [playerId]: { ...faceDownCard, cellIndex: index },
     }));
@@ -495,7 +509,7 @@ export const placeCardOnBoardLogic = (
     newBoardState[index] = [...newBoardState[index], card];
   }
 
-  const newFirstMove: { [key in PlayerEnum]: boolean } = {
+  const newFirstMove: PlayerBooleans = {
     ...firstMove,
     [playerId]: false,
   };
@@ -506,20 +520,18 @@ export const placeCardOnBoardLogic = (
 
 // Function to flip initial cards
 export const flipInitialCardsLogic = (
-  initialFaceDownCards: {
-    [key in PlayerEnum]?: Card & { cellIndex: number };
-  },
+  initialFaceDownCards: InitialFaceDownCards,
   boardState: BoardState
 ): {
   newBoardState: BoardState;
   nextPlayerTurn: PlayerEnum;
   tieBreaker: boolean;
-  firstMove: { [key in PlayerEnum]: boolean };
+  firstMove: PlayerBooleans;
 } => {
   let newBoardState = [...boardState];
   let nextPlayerTurn = PlayerEnum.PLAYER1;
   let tieBreaker = false;
-  let firstMove: { [key in PlayerEnum]: boolean } = {
+  let firstMove: PlayerBooleans = {
     [PlayerEnum.PLAYER1]: false,
     [PlayerEnum.PLAYER2]: false,
   };
@@ -541,7 +553,7 @@ export const flipInitialCardsLogic = (
 
   if (rank1 === rank2) {
     tieBreaker = true;
-    firstMove = { [PlayerEnum.PLAYER1]: true, [PlayerEnum.PLAYER2]: true };
+    firstMove = initialFirstMove();
   } else {
     nextPlayerTurn =
       rank1 < rank2 ? PlayerEnum.PLAYER1 : PlayerEnum.PLAYER2;
@@ -566,9 +578,3 @@ export const getAdjacentIndices = (
 
   return indices;
 };
-
-// Helper function to initialize firstMove state
-const initialFirstMove = (): { [key in PlayerEnum]: boolean } => ({
-  [PlayerEnum.PLAYER1]: true,
-  [PlayerEnum.PLAYER2]: true,
-});

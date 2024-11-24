@@ -91,3 +91,22 @@ export const STARTING_INDICES: StartingIndices = {
     BOARD_SIZE * (BOARD_SIZE - 1) + Math.floor(BOARD_SIZE / 2),
   [PlayerEnum.PLAYER2]: Math.floor(BOARD_SIZE / 2),
 };
+
+export type Players = { [key in PlayerEnum]: Player };
+
+export type PlayerBooleans = { [key in PlayerEnum]: boolean };
+
+export type Scores = { [key in PlayerEnum]: number };
+
+export interface FaceDownCard extends Card {
+  cellIndex: number;
+}
+
+export type InitialFaceDownCards = { [key in PlayerEnum]?: FaceDownCard };
+
+export type DiscardPiles = { [key in PlayerEnum]: Card[] };
+
+export const initialFirstMove = (): PlayerBooleans => ({
+  [PlayerEnum.PLAYER1]: true,
+  [PlayerEnum.PLAYER2]: true,
+});
