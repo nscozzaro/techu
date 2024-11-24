@@ -104,10 +104,11 @@ const Cell: React.FC<CellProps> = ({
 
   const [{ canDrop, isOver }, dropRef] = useDrop<DropItem, void, { canDrop: boolean; isOver: boolean }>({
     accept: 'CARD',
-    canDrop: () => {
+    canDrop: (item: DropItem) => {
       if (isDisabled) return false; // **Disable dropping if disabled**
       if (type === 'discard') {
-        return true;
+        // **Only allow dropping if the card belongs to the owner of the discard pile**
+        return item.playerId === playerId;
       } else if (type === 'board' && playerTurn && isCellHighlighted) {
         return true;
       }
