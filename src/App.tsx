@@ -62,6 +62,9 @@ function App() {
   // State to track which player is currently dragging
   const [draggingPlayer, setDraggingPlayer] = useState<PlayerEnum | null>(null);
 
+  // **New State for Highlighting Discard Pile**
+  const [highlightDiscardPile, setHighlightDiscardPile] = useState<boolean>(false);
+
   const handleCardDiscard = (cardIndex: number, playerId: PlayerEnum) => {
     if (gameOver) return;
 
@@ -72,10 +75,11 @@ function App() {
     const player = updatedPlayers[playerId];
 
     if (cardIndex >= 0 && cardIndex < player.hand.length) {
-      const discardedCard = player.hand[cardIndex];
+      // **Set faceDown to true for the discarded card**
+      const discardedCard = { ...player.hand[cardIndex], faceDown: true };
       // Remove the card from player's hand
       player.hand.splice(cardIndex, 1);
-      // Add the card to the discard pile
+      // Add the face-down card to the discard pile
       setDiscardPiles((prev) => ({
         ...prev,
         [playerId]: [...prev[playerId], discardedCard],
@@ -88,6 +92,8 @@ function App() {
       setPlayerTurn(getNextPlayerTurn(playerId));
       // Clear highlighted cells
       setHighlightedCells([]);
+      // **After Discarding, Discard Pile is a Valid Target**
+      setHighlightDiscardPile(false); // Reset highlight after discard
     }
   };
 
@@ -136,6 +142,8 @@ function App() {
       tieBreaker
     );
     setHighlightedCells(validMoves);
+    // **Set Highlight for Discard Pile if Not First Move**
+    setHighlightDiscardPile(!firstMove[playerId]);
   };
 
   const placeCardOnBoard = (index: number, cardIndex: number) => {
@@ -161,6 +169,8 @@ function App() {
 
   const clearHighlights = () => {
     setHighlightedCells([]);
+    // **Clear Highlight for Discard Pile**
+    setHighlightDiscardPile(false);
   };
 
   const handleDragStart = (playerId: PlayerEnum) => {
@@ -170,6 +180,8 @@ function App() {
   const handleDragEnd = () => {
     setDraggingPlayer(null);
     clearHighlights();
+    // **Ensure Discard Pile Highlight is Cleared on Drag End**
+    setHighlightDiscardPile(false);
   };
 
   useEffect(() => {
@@ -245,6 +257,8 @@ function App() {
         handleDragStart={handleDragStart}
         handleDragEnd={handleDragEnd}
         isCurrentPlayer={playerTurn === PlayerEnum.PLAYER2}
+        // **Pass Highlight Discard Pile Prop**
+        isDiscardPileHighlighted={highlightDiscardPile && playerTurn === PlayerEnum.PLAYER2}
       />
 
       <Board
@@ -270,6 +284,8 @@ function App() {
         handleDragStart={handleDragStart}
         handleDragEnd={handleDragEnd}
         isCurrentPlayer={playerTurn === PlayerEnum.PLAYER1}
+        // **Pass Highlight Discard Pile Prop**
+        isDiscardPileHighlighted={highlightDiscardPile && playerTurn === PlayerEnum.PLAYER1}
       />
     </div>
   );

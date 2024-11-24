@@ -19,6 +19,7 @@ interface PlayerAreaProps {
   handleDragStart: (playerId: PlayerEnum) => void;
   handleDragEnd: () => void;
   isCurrentPlayer: boolean; // New Prop
+  isDiscardPileHighlighted: boolean; // **New Prop**
 }
 
 const PlayerArea: React.FC<PlayerAreaProps> = ({
@@ -36,6 +37,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
   handleDragStart,
   handleDragEnd,
   isCurrentPlayer,
+  isDiscardPileHighlighted, // **Destructure New Prop**
 }) => {
   // Define the number of hand slots
   const HAND_SIZE = 3;
@@ -84,6 +86,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
             clearHighlights={clearHighlights}
             isCurrentPlayer={isCurrentPlayer} // Pass down
             isDisabled={firstMove} // **Disable discard during first move**
+            isHighlighted={isDiscardPileHighlighted} // **Pass Highlight Prop**
           />
         </>
       ) : (
@@ -98,6 +101,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
             clearHighlights={clearHighlights}
             isCurrentPlayer={isCurrentPlayer} // Pass down
             isDisabled={firstMove} // **Disable discard during first move**
+            isHighlighted={isDiscardPileHighlighted} // **Pass Highlight Prop**
           />
 
           {/* Hand Cells (reversed) */}

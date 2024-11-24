@@ -32,6 +32,7 @@ interface CellProps {
   onDragEnd?: () => void;
   isCurrentPlayer?: boolean;
   isDisabled?: boolean; // **New Prop**
+  isHighlighted?: boolean; // **New Prop**
 }
 
 const Cell: React.FC<CellProps> = ({
@@ -53,6 +54,7 @@ const Cell: React.FC<CellProps> = ({
   onDragEnd,
   isCurrentPlayer = false,
   isDisabled = false, // **Default to false**
+  isHighlighted = false, // **Default to false**
 }) => {
   const isDeck = type === 'deck';
   const isHand = type === 'hand';
@@ -62,7 +64,7 @@ const Cell: React.FC<CellProps> = ({
   const isEmpty = isHand ? !card : isDiscard ? (stack?.length === 0) : isBoard ? (stack?.length === 0) : false;
   const topCard = isHand ? card : isDiscard ? stack![stack!.length - 1] : isBoard ? stack![stack!.length - 1] : null;
 
-  const isHighlighted = highlightedCells?.includes(index ?? -1) || false;
+  const isCellHighlighted = isHighlighted || (highlightedCells?.includes(index ?? -1) || false);
 
   let cardBackImage: string | undefined;
   if (topCard && topCard.faceDown) {
@@ -106,7 +108,7 @@ const Cell: React.FC<CellProps> = ({
       if (isDisabled) return false; // **Disable dropping if disabled**
       if (type === 'discard') {
         return true;
-      } else if (type === 'board' && playerTurn && isHighlighted) {
+      } else if (type === 'board' && playerTurn && isCellHighlighted) {
         return true;
       }
       return false;
@@ -138,8 +140,8 @@ const Cell: React.FC<CellProps> = ({
     <div
       ref={cellRef}
       className={`cell ${isEmpty ? 'empty' : ''} ${
-        isHighlighted || isActive ? 'highlight' : ''
-      } ${isDisabled ? 'disabled' : ''}`} // **Add 'disabled' class if disabled**
+        isCellHighlighted || isActive ? 'highlight' : ''
+      } ${isDisabled ? 'disabled' : ''}`} // **Apply Highlight and Disabled Classes**
       style={{ opacity: isDragging ? 0.5 : 1 }}
     >
       {isDeck && count !== undefined && (
