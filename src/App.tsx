@@ -160,7 +160,6 @@ function App() {
     setBoardState(result.newBoardState);
     setFirstMove(result.newFirstMove);
     setPlayerTurn(result.nextPlayerTurn);
-    setHighlightedCells([]);
 
     if (isGameOver(result.updatedPlayers)) {
       setGameOver(true);
@@ -182,6 +181,34 @@ function App() {
     clearHighlights();
     // **Ensure Discard Pile Highlight is Cleared on Drag End**
     setHighlightDiscardPile(false);
+  };
+
+  // **New Function to Swap Cards in Player 1's Hand**
+  const swapCardsInHand = (playerId: PlayerEnum, sourceIndex: number, targetIndex: number) => {
+    if (playerId !== PlayerEnum.PLAYER1) return; // Only allow swapping for Player 1
+
+    const player = players[playerId];
+    if (
+      sourceIndex < 0 ||
+      sourceIndex >= player.hand.length ||
+      targetIndex < 0 ||
+      targetIndex >= player.hand.length
+    ) {
+      return;
+    }
+
+    const updatedHand = [...player.hand];
+    const temp = updatedHand[sourceIndex];
+    updatedHand[sourceIndex] = updatedHand[targetIndex];
+    updatedHand[targetIndex] = temp;
+
+    setPlayers({
+      ...players,
+      [playerId]: {
+        ...player,
+        hand: updatedHand,
+      },
+    });
   };
 
   useEffect(() => {
@@ -286,6 +313,8 @@ function App() {
         isCurrentPlayer={playerTurn === PlayerEnum.PLAYER1}
         // **Pass Highlight Discard Pile Prop**
         isDiscardPileHighlighted={highlightDiscardPile && playerTurn === PlayerEnum.PLAYER1}
+        // **Pass swapCardsInHand Prop**
+        swapCardsInHand={swapCardsInHand}
       />
     </div>
   );

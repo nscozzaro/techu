@@ -1,5 +1,4 @@
 // src/components/PlayerArea.tsx
-
 import React from 'react';
 import Cell from './Cell';
 import { Card, PlayerEnum } from '../types';
@@ -20,6 +19,7 @@ interface PlayerAreaProps {
   handleDragEnd: () => void;
   isCurrentPlayer: boolean; // New Prop
   isDiscardPileHighlighted: boolean; // **New Prop**
+  swapCardsInHand?: (playerId: PlayerEnum, sourceIndex: number, targetIndex: number) => void; // **New Prop**
 }
 
 const PlayerArea: React.FC<PlayerAreaProps> = ({
@@ -38,6 +38,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
   handleDragEnd,
   isCurrentPlayer,
   isDiscardPileHighlighted, // **Destructure New Prop**
+  swapCardsInHand, // **Destructure New Prop**
 }) => {
   // Define the number of hand slots
   const HAND_SIZE = 3;
@@ -73,6 +74,8 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
               onDragStart={() => handleDragStart(playerId)}
               onDragEnd={handleDragEnd}
               isCurrentPlayer={isCurrentPlayer} // Pass down
+              // **Pass swapCardsInHand Prop**
+              swapCardsInHand={swapCardsInHand}
             />
           ))}
 
