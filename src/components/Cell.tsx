@@ -1,6 +1,10 @@
+// src/components/Cell.tsx
+
 import React from 'react';
 import { useDrag, useDrop, DragSourceMonitor } from 'react-dnd';
 import { Card, PlayerEnum } from '../types';
+import cardBackRed from '../assets/card-back-red.png';
+import cardBackBlue from '../assets/card-back-blue.png';
 
 interface DropItem {
   cardIndex: number;
@@ -11,18 +15,18 @@ type CellType = 'deck' | 'hand' | 'discard' | 'board';
 
 interface CellProps {
   type: CellType;
-  card?: Card; // For hand cells
-  index?: number; // For hand cells and board cells
+  card?: Card;
+  index?: number;
   playerId?: PlayerEnum;
   handleCardDrag?: (cardIndex: number, playerId: PlayerEnum) => void;
-  stack?: Card[]; // For discard pile and board cells
-  isVisible?: boolean; // For discard pile
+  stack?: Card[];
+  isVisible?: boolean;
   handleCardDiscard?: (cardIndex: number, playerId: PlayerEnum) => void;
-  count?: number; // For deck
-  isFaceDown?: boolean; // For deck
+  count?: number;
+  isFaceDown?: boolean;
   highlightedCells?: number[];
   placeCardOnBoard?: (index: number, cardIndex: number) => void;
-  playerTurn?: boolean; // For board cells
+  playerTurn?: boolean;
   clearHighlights?: () => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;
@@ -56,7 +60,13 @@ const Cell: React.FC<CellProps> = ({
 
   const isHighlighted = highlightedCells?.includes(index ?? -1) || false;
 
-  // useDrag Hook for hand cells
+  let cardBackImage: string | undefined;
+  if (topCard && topCard.faceDown) {
+    cardBackImage = topCard.owner === PlayerEnum.PLAYER1 ? cardBackRed : cardBackBlue;
+  } else if (isHand && card && card.faceDown) {
+    cardBackImage = card.owner === PlayerEnum.PLAYER1 ? cardBackRed : cardBackBlue;
+  }
+
   const [{ isDragging }, dragRef] = useDrag<
     DropItem,
     void,
@@ -86,14 +96,13 @@ const Cell: React.FC<CellProps> = ({
     },
   });
 
-  // useDrop Hook for discard and board cells
   const [{ canDrop, isOver }, dropRef] = useDrop<DropItem, void, { canDrop: boolean; isOver: boolean }>({
     accept: 'CARD',
     canDrop: () => {
       if (type === 'discard') {
-        return true; // Allow dropping to discard pile
+        return true;
       } else if (type === 'board' && playerTurn && isHighlighted) {
-        return true; // Allow dropping to board if it's player's turn and cell is highlighted
+        return true;
       }
       return false;
     },
@@ -112,7 +121,6 @@ const Cell: React.FC<CellProps> = ({
 
   const isActive = canDrop && isOver;
 
-  // Determine refs
   let cellRef: React.Ref<any> | null = null;
   if (isHand) {
     cellRef = dragRef;
@@ -128,29 +136,43 @@ const Cell: React.FC<CellProps> = ({
       }`}
       style={{ opacity: isDragging ? 0.5 : 1 }}
     >
-      {/* Deck Cell */}
       {isDeck && count !== undefined && (
         <>
           {count > 0 ? (
-            <div className="card-back">
-              {/* Blue background for deck */}
+            <div
+              className="card-back deck-back"
+              style={{
+                backgroundImage: `url(${playerId === PlayerEnum.PLAYER1 ? cardBackRed : cardBackBlue})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }} // Updated to use playerId for deck back image
+            >
               <div className="deck-count">{count}</div>
             </div>
           ) : (
-            <div className="card-back empty-deck">
+            <div
+              className="card-back empty-deck"
+              style={{
+                backgroundColor: playerId === PlayerEnum.PLAYER1 ? '#800000' : '#000080', // Optional: Differentiate empty decks
+              }}
+            >
               <div className="deck-count">0</div>
             </div>
           )}
         </>
       )}
 
-      {/* Hand Cell */}
       {isHand && (
         card ? (
           card.faceDown ? (
-            <div className="card-back">
-              {/* Design for the back of the card */}
-            </div>
+            <div
+              className="card-back"
+              style={{
+                backgroundImage: `url(${cardBackImage})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }}
+            />
           ) : (
             <div className={`card-content ${card.color.toLowerCase()}`}>
               <div className="top-left">{card.rank}</div>
@@ -159,19 +181,21 @@ const Cell: React.FC<CellProps> = ({
             </div>
           )
         ) : (
-          <div className="empty-placeholder">
-            {/* Empty placeholder for hand slot */}
-          </div>
+          <div className="empty-placeholder"></div>
         )
       )}
 
-      {/* Discard Pile Cell */}
       {isDiscard && isVisible && (
         stack && stack.length > 0 ? (
           stack[stack.length - 1].faceDown ? (
-            <div className="card-back">
-              {/* Design for the back of the card */}
-            </div>
+            <div
+              className="card-back"
+              style={{
+                backgroundImage: `url(${stack[stack.length - 1].owner === PlayerEnum.PLAYER1 ? cardBackRed : cardBackBlue})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }}
+            />
           ) : (
             <div className={`card-content ${stack[stack.length - 1].color.toLowerCase()}`}>
               <div className="top-left">{stack[stack.length - 1].rank}</div>
@@ -184,14 +208,18 @@ const Cell: React.FC<CellProps> = ({
         )
       )}
 
-      {/* Board Cell */}
       {isBoard && (
         <>
           {topCard && (
             topCard.faceDown ? (
-              <div className="card-back">
-                {/* Design for the back of the card */}
-              </div>
+              <div
+                className="card-back"
+                style={{
+                  backgroundImage: `url(${topCard.owner === PlayerEnum.PLAYER1 ? cardBackRed : cardBackBlue})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                }}
+              />
             ) : (
               <div className={`card-content ${topCard.color.toLowerCase()}`}>
                 <div className="top-left">{topCard.rank}</div>
