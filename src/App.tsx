@@ -129,10 +129,23 @@ function App() {
       setPlayers(result.updatedPlayers);
       setBoardState(result.newBoardState);
       setPlayerTurn(result.nextPlayerTurn);
-      const { moveMade } = result;
+      const { moveMade, move } = result;
+
+      if (moveMade && move) {
+        if (move.type === 'discard' && playerId === PlayerEnum.PLAYER2) {
+          // Execute discard for Player 2
+          handleCardDiscard(move.cardIndex, PlayerEnum.PLAYER2);
+        }
+      }
+
       if (!moveMade && playerId === PlayerEnum.PLAYER2) {
-        // Discard the first card (index 0) for Player 2
-        handleCardDiscard(0, PlayerEnum.PLAYER2);
+        // If no move was made and Player 2 is involved, ensure they discard
+        // This should not happen as 'discard' is always a valid move now
+        // But added as a safety net
+        const firstDiscardableIndex = players[PlayerEnum.PLAYER2].hand.findIndex(card => card !== undefined);
+        if (firstDiscardableIndex !== -1) {
+          handleCardDiscard(firstDiscardableIndex, PlayerEnum.PLAYER2);
+        }
       }
     }
   };

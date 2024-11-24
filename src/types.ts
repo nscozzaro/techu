@@ -70,7 +70,8 @@ export type Cards = (Card | undefined)[];
 export type BoardState = Cards[];
 
 export interface Move {
-  cellIndex: number;
+  type: 'board' | 'discard';
+  cellIndex?: number;
   cardIndex: number;
 }
 

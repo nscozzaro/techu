@@ -94,7 +94,7 @@ export const updatePlayerHandAndDrawCard = (
   return { ...players, [playerId]: updatedPlayer };
 };
 
-// Function to apply a move to the board state
+// Function to apply a board move to the board state
 export const applyMoveToBoardState = (
   boardState: BoardState,
   players: { [key in PlayerEnum]: Player },
@@ -104,11 +104,16 @@ export const applyMoveToBoardState = (
   newBoardState: BoardState;
   updatedPlayers: { [key in PlayerEnum]: Player };
 } => {
+  if (move.type !== 'board' || move.cellIndex === undefined) {
+    // Not a board move; do nothing
+    return { newBoardState: boardState, updatedPlayers: players };
+  }
+
   const card = players[playerId].hand[move.cardIndex];
   if (!card) return { newBoardState: boardState, updatedPlayers: players };
 
   const newBoardState = [...boardState];
-  newBoardState[move.cellIndex] = [...newBoardState[move.cellIndex], card];
+  newBoardState[move.cellIndex] = [...boardState[move.cellIndex], card];
 
   // Update player's hand by removing the card and placing the new card in the same slot
   const updatedPlayers = updatePlayerHandAndDrawCard(
@@ -152,7 +157,7 @@ export const isGameOver = (players: {
   );
 };
 
-// Function to get valid moves for a player
+// Function to get valid moves for a player, including discards
 export const getValidMoves = (
   player: Player,
   playerId: PlayerEnum,
@@ -162,7 +167,7 @@ export const getValidMoves = (
   startingIndices: StartingIndices,
   tieBreaker: boolean
 ): Move[] => {
-  return player.hand.flatMap((card, cardIndex) =>
+  const boardMoves: Move[] = player.hand.flatMap((card, cardIndex) =>
     card
       ? calculateValidMoves(
           cardIndex,
@@ -173,9 +178,18 @@ export const getValidMoves = (
           player.hand,
           startingIndices,
           tieBreaker
-        ).map((cellIndex) => ({ cellIndex, cardIndex }))
+        ).map((cellIndex) => ({ type: 'board', cellIndex, cardIndex }))
       : []
   );
+
+  if (!isFirst) {
+    const discardMoves: Move[] = player.hand
+      .map((card, cardIndex) => (card ? { type: 'discard', cardIndex } : null))
+      .filter((move): move is Move => move !== null);
+    return [...boardMoves, ...discardMoves];
+  }
+
+  return boardMoves;
 };
 
 // Function to calculate valid move indices for a card
@@ -330,14 +344,18 @@ export const performFirstMoveForPlayer = (
 
   if (validMoves.length > 0) {
     const move = selectRandomMove(validMoves);
-    setInitialFaceDownCards((prev) => ({
-      ...prev,
-      [playerId]: { ...faceDownCard, cellIndex: move.cellIndex },
-    }));
-    newBoardState[move.cellIndex] = [
-      ...newBoardState[move.cellIndex],
-      faceDownCard,
-    ];
+    if (move.type === 'board' && move.cellIndex !== undefined) {
+      setInitialFaceDownCards((prev) => ({
+        ...prev,
+        [playerId]: { ...faceDownCard, cellIndex: move.cellIndex },
+      }));
+      newBoardState[move.cellIndex] = [
+        ...newBoardState[move.cellIndex],
+        faceDownCard,
+      ];
+    } else {
+      console.error('Invalid move type or missing cellIndex during first move.');
+    }
   }
 
   const newFirstMove: { [key in PlayerEnum]: boolean } = {
@@ -360,9 +378,9 @@ const getValidFirstMoves = (
   if (tieBreaker) {
     const homeRowIndices = getHomeRowIndices(playerId, BOARD_SIZE);
     const validIndices = getValidMoveIndices(homeRowIndices, boardState, card);
-    return validIndices.map((cellIndex) => ({ cellIndex, cardIndex }));
+    return validIndices.map((cellIndex) => ({ type: 'board', cellIndex, cardIndex }));
   }
-  return [{ cellIndex: STARTING_INDICES[playerId], cardIndex }];
+  return [{ type: 'board', cellIndex: STARTING_INDICES[playerId], cardIndex }];
 };
 
 // Helper function to select a random move from valid moves
@@ -370,7 +388,7 @@ const selectRandomMove = (validMoves: Move[]): Move => {
   return validMoves[Math.floor(Math.random() * validMoves.length)];
 };
 
-// Function to perform regular move for a player
+// Function to perform regular move for a player, now handling 'discard' moves
 export const performRegularMoveForPlayer = (
   players: { [key in PlayerEnum]: Player },
   playerId: PlayerEnum,
@@ -380,6 +398,7 @@ export const performRegularMoveForPlayer = (
   newBoardState: BoardState;
   nextPlayerTurn: PlayerEnum;
   moveMade: boolean;
+  move?: Move;
 } => {
   const validMoves = getValidMoves(
     players[playerId],
@@ -394,18 +413,24 @@ export const performRegularMoveForPlayer = (
   let newBoardState = [...boardState];
   let updatedPlayers = { ...players };
   let moveMade = false;
+  let selectedMove: Move | undefined;
 
   if (validMoves.length > 0) {
-    const move = selectRandomMove(validMoves);
-    const result = applyMoveToBoardState(boardState, players, move, playerId);
-    newBoardState = result.newBoardState;
-    updatedPlayers = result.updatedPlayers;
-    moveMade = true;
+    selectedMove = selectRandomMove(validMoves);
+    if (selectedMove.type === 'board') {
+      const result = applyMoveToBoardState(boardState, players, selectedMove, playerId);
+      newBoardState = result.newBoardState;
+      updatedPlayers = result.updatedPlayers;
+      moveMade = true;
+    } else if (selectedMove.type === 'discard') {
+      // Discard will be handled in App.tsx
+      moveMade = true;
+    }
   }
 
   const nextPlayerTurn = getNextPlayerTurn(playerId);
 
-  return { updatedPlayers, newBoardState, nextPlayerTurn, moveMade };
+  return { updatedPlayers, newBoardState, nextPlayerTurn, moveMade, move: selectedMove };
 };
 
 // Function to handle card drag logic
