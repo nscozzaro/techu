@@ -30,7 +30,8 @@ interface CellProps {
   clearHighlights?: () => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;
-  isCurrentPlayer?: boolean; // Made optional
+  isCurrentPlayer?: boolean;
+  isDisabled?: boolean; // **New Prop**
 }
 
 const Cell: React.FC<CellProps> = ({
@@ -50,7 +51,8 @@ const Cell: React.FC<CellProps> = ({
   clearHighlights,
   onDragStart,
   onDragEnd,
-  isCurrentPlayer = false, // Default to false if not provided
+  isCurrentPlayer = false,
+  isDisabled = false, // **Default to false**
 }) => {
   const isDeck = type === 'deck';
   const isHand = type === 'hand';
@@ -84,7 +86,7 @@ const Cell: React.FC<CellProps> = ({
       }
       return { cardIndex: index!, playerId: playerId! };
     },
-    canDrag: isHand && isCurrentPlayer && playerId !== undefined && !!handleCardDrag && !!card, // Updated condition
+    canDrag: isHand && isCurrentPlayer && playerId !== undefined && !!handleCardDrag && !!card && !isDisabled, // **Prevent dragging if disabled**
     collect: (monitor: DragSourceMonitor) => ({
       isDragging: monitor.isDragging(),
     }),
@@ -101,6 +103,7 @@ const Cell: React.FC<CellProps> = ({
   const [{ canDrop, isOver }, dropRef] = useDrop<DropItem, void, { canDrop: boolean; isOver: boolean }>({
     accept: 'CARD',
     canDrop: () => {
+      if (isDisabled) return false; // **Disable dropping if disabled**
       if (type === 'discard') {
         return true;
       } else if (type === 'board' && playerTurn && isHighlighted) {
@@ -109,6 +112,7 @@ const Cell: React.FC<CellProps> = ({
       return false;
     },
     drop: (item: DropItem) => {
+      if (isDisabled) return; // **Do nothing if disabled**
       if (type === 'discard' && handleCardDiscard) {
         handleCardDiscard(item.cardIndex, item.playerId);
       } else if (type === 'board' && placeCardOnBoard && index !== undefined) {
@@ -135,7 +139,7 @@ const Cell: React.FC<CellProps> = ({
       ref={cellRef}
       className={`cell ${isEmpty ? 'empty' : ''} ${
         isHighlighted || isActive ? 'highlight' : ''
-      }`}
+      } ${isDisabled ? 'disabled' : ''}`} // **Add 'disabled' class if disabled**
       style={{ opacity: isDragging ? 0.5 : 1 }}
     >
       {isDeck && count !== undefined && (

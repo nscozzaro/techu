@@ -65,6 +65,9 @@ function App() {
   const handleCardDiscard = (cardIndex: number, playerId: PlayerEnum) => {
     if (gameOver) return;
 
+    // **Prevent discarding during first move**
+    if (firstMove[playerId]) return;
+
     const updatedPlayers = { ...players };
     const player = updatedPlayers[playerId];
 

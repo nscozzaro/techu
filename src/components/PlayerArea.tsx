@@ -35,7 +35,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
   clearHighlights,
   handleDragStart,
   handleDragEnd,
-  isCurrentPlayer, // New Prop
+  isCurrentPlayer,
 }) => {
   // Define the number of hand slots
   const HAND_SIZE = 3;
@@ -79,10 +79,11 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
             type="discard"
             stack={discardPile}
             playerId={playerId}
-            isVisible={isDragging && !firstMove}
+            isVisible={true} // Always visible
             handleCardDiscard={handleCardDiscard}
             clearHighlights={clearHighlights}
             isCurrentPlayer={isCurrentPlayer} // Pass down
+            isDisabled={firstMove} // **Disable discard during first move**
           />
         </>
       ) : (
@@ -92,10 +93,11 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
             type="discard"
             stack={discardPile}
             playerId={playerId}
-            isVisible={isDragging && !firstMove}
+            isVisible={true} // Always visible
             handleCardDiscard={handleCardDiscard}
             clearHighlights={clearHighlights}
             isCurrentPlayer={isCurrentPlayer} // Pass down
+            isDisabled={firstMove} // **Disable discard during first move**
           />
 
           {/* Hand Cells (reversed) */}
