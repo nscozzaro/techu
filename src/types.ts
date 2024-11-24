@@ -1,3 +1,4 @@
+// types.ts
 import { Dispatch, SetStateAction } from 'react';
 
 export enum PlayerEnum {
@@ -64,7 +65,7 @@ export interface Player {
   id: PlayerEnum;
 }
 
-export type Cards = Card[];
+export type Cards = (Card | undefined)[];
 
 export type BoardState = Cards[];
 

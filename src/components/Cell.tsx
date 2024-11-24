@@ -18,7 +18,7 @@ interface CellProps {
   index?: number;
   playerId?: PlayerEnum;
   handleCardDrag?: (cardIndex: number, playerId: PlayerEnum) => void;
-  stack?: Card[];
+  stack?: (Card | undefined)[]; // Updated to accept undefined
   isVisible?: boolean;
   handleCardDiscard?: (cardIndex: number, playerId: PlayerEnum) => void;
   count?: number;
@@ -62,7 +62,7 @@ const Cell: React.FC<CellProps> = ({
   const isDiscard = type === 'discard';
   const isBoard = type === 'board';
 
-  const isEmpty = isHand ? !card : isDiscard ? (stack?.length === 0) : isBoard ? (stack?.length === 0) : false;
+  const isEmpty = isHand ? card === undefined : isDiscard ? (stack?.length === 0) : isBoard ? (stack?.length === 0) : false;
   const topCard = isHand ? card : isDiscard ? stack![stack!.length - 1] : isBoard ? stack![stack!.length - 1] : null;
 
   // **Determine if the cell should be highlighted**
@@ -215,21 +215,25 @@ const Cell: React.FC<CellProps> = ({
 
       {isDiscard && isVisible && (
         stack && stack.length > 0 ? (
-          stack[stack.length - 1].faceDown ? (
-            <div
-              className="card-back"
-              style={{
-                backgroundImage: `url(${stack[stack.length - 1].owner === PlayerEnum.PLAYER1 ? cardBackRed : cardBackBlue})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-              }}
-            />
+          stack[stack.length - 1] ? ( // Check if the last card is not undefined
+            stack[stack.length - 1]!.faceDown ? (
+              <div
+                className="card-back"
+                style={{
+                  backgroundImage: `url(${stack[stack.length - 1]!.owner === PlayerEnum.PLAYER1 ? cardBackRed : cardBackBlue})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                }}
+              />
+            ) : (
+              <div className={`card-content ${stack[stack.length - 1]!.color.toLowerCase()}`}>
+                <div className="top-left">{stack[stack.length - 1]!.rank}</div>
+                <div className="suit">{stack[stack.length - 1]!.suit}</div>
+                <div className="bottom-right">{stack[stack.length - 1]!.rank}</div>
+              </div>
+            )
           ) : (
-            <div className={`card-content ${stack[stack.length - 1].color.toLowerCase()}`}>
-              <div className="top-left">{stack[stack.length - 1].rank}</div>
-              <div className="suit">{stack[stack.length - 1].suit}</div>
-              <div className="bottom-right">{stack[stack.length - 1].rank}</div>
-            </div>
+            <span>Discard</span>
           )
         ) : (
           <span>Discard</span>

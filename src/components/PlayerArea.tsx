@@ -6,7 +6,7 @@ import { Card, PlayerEnum } from '../types';
 interface PlayerAreaProps {
   playerId: PlayerEnum;
   deckCount: number;
-  handCards: Card[];
+  handCards: (Card | undefined)[]; // Updated to accept undefined
   discardPile: Card[];
   isDragging: boolean;
   handleCardDrag?: (index: number, playerId: PlayerEnum) => void;

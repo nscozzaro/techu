@@ -1,4 +1,4 @@
-// src/App.tsx
+// App.tsx
 import React, { useState, useEffect } from 'react';
 import Board from './components/Board';
 import PlayerArea from './components/PlayerArea';
@@ -12,6 +12,7 @@ import {
   handleCardDragLogic,
   placeCardOnBoardLogic,
   flipInitialCardsLogic,
+  updatePlayerHandAndDrawCard, // Import the updated function
 } from './utils';
 import {
   PlayerEnum,
@@ -28,7 +29,7 @@ function App() {
   });
 
   const [boardState, setBoardState] = useState<BoardState>(
-    Array(BOARD_SIZE * BOARD_SIZE).fill([])
+    Array(BOARD_SIZE * BOARD_SIZE).fill([]) as BoardState
   );
 
   const [playerTurn, setPlayerTurn] = useState<PlayerEnum>(
@@ -75,20 +76,25 @@ function App() {
     const player = updatedPlayers[playerId];
 
     if (cardIndex >= 0 && cardIndex < player.hand.length) {
-      // **Set faceDown to true for the discarded card**
-      const discardedCard = { ...player.hand[cardIndex], faceDown: true };
-      // Remove the card from player's hand
-      player.hand.splice(cardIndex, 1);
-      // Add the face-down card to the discard pile
+      const cardToDiscard = player.hand[cardIndex];
+      if (!cardToDiscard) return; // Nothing to discard
+
+      // **Add the face-down card to the discard pile**
+      const discardedCard = { ...cardToDiscard, faceDown: true };
       setDiscardPiles((prev) => ({
         ...prev,
         [playerId]: [...prev[playerId], discardedCard],
       }));
-      // Draw a new card if possible
-      if (player.deck.length > 0) {
-        player.hand.push(player.deck.pop()!);
-      }
-      setPlayers(updatedPlayers);
+
+      // **Remove the card from player's hand by setting it to undefined and draw a new card into the same slot**
+      const newPlayers = updatePlayerHandAndDrawCard(
+        updatedPlayers,
+        playerId,
+        cardIndex,
+        cardIndex // Insert into the same slot
+      );
+
+      setPlayers(newPlayers);
       setPlayerTurn(getNextPlayerTurn(playerId));
       // Clear highlighted cells
       setHighlightedCells([]);

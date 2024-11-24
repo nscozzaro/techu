@@ -1,3 +1,4 @@
+// utils.tsx
 import {
   Card,
   ColorEnum,
@@ -31,7 +32,7 @@ const createDeck = (color: ColorEnum, owner: PlayerEnum): Cards => {
   const ranks = Object.values(RankEnum);
   return suits.flatMap((suit) =>
     ranks.map((rank) => ({ suit, rank, color, owner }))
-  );
+  ) as Cards;
 };
 
 // Function to initialize a player
@@ -43,15 +44,20 @@ export const initializePlayer = (
   shuffle(deck);
   return {
     id,
-    hand: deck.slice(0, 3),
+    hand: deck.slice(0, 3), // Initialize with 3 cards
     deck: deck.slice(3),
   };
 };
 
-// Function to draw a card for a player
+// Function to draw a card for a player and place it in the first empty slot
 export const drawCardForPlayer = (player: Player): void => {
-  if (player.hand.length < 3 && player.deck.length > 0) {
-    player.hand.push(player.deck.pop()!);
+  if (player.deck.length > 0) {
+    const newCard = player.deck.pop()!;
+    const firstEmpty = player.hand.findIndex(card => card === undefined);
+    if (firstEmpty !== -1) {
+      player.hand[firstEmpty] = newCard;
+    }
+    // If no empty slot, do not draw the card
   }
 };
 
@@ -59,13 +65,32 @@ export const drawCardForPlayer = (player: Player): void => {
 export const updatePlayerHandAndDrawCard = (
   players: { [key in PlayerEnum]: Player },
   playerId: PlayerEnum,
-  cardIndex: number
+  cardIndex: number,
+  insertSlot?: number
 ): { [key in PlayerEnum]: Player } => {
   const updatedPlayer = { ...players[playerId] };
   if (cardIndex >= 0 && cardIndex < updatedPlayer.hand.length) {
-    updatedPlayer.hand.splice(cardIndex, 1);
+    // Remove the card from hand by setting it to undefined
+    updatedPlayer.hand[cardIndex] = undefined;
+    // Draw a new card if possible
+    if (updatedPlayer.deck.length > 0) {
+      const newCard = updatedPlayer.deck.pop()!;
+      if (
+        insertSlot !== undefined &&
+        insertSlot >= 0 &&
+        insertSlot < updatedPlayer.hand.length
+      ) {
+        updatedPlayer.hand[insertSlot] = newCard;
+      } else {
+        // Insert into first empty slot
+        const firstEmpty = updatedPlayer.hand.findIndex(card => card === undefined);
+        if (firstEmpty !== -1) {
+          updatedPlayer.hand[firstEmpty] = newCard;
+        }
+        // If no empty slot, do not insert the card
+      }
+    }
   }
-  drawCardForPlayer(updatedPlayer);
   return { ...players, [playerId]: updatedPlayer };
 };
 
@@ -80,13 +105,19 @@ export const applyMoveToBoardState = (
   updatedPlayers: { [key in PlayerEnum]: Player };
 } => {
   const card = players[playerId].hand[move.cardIndex];
+  if (!card) return { newBoardState: boardState, updatedPlayers: players };
+
   const newBoardState = [...boardState];
   newBoardState[move.cellIndex] = [...newBoardState[move.cellIndex], card];
+
+  // Update player's hand by removing the card and placing the new card in the same slot
   const updatedPlayers = updatePlayerHandAndDrawCard(
     players,
     playerId,
-    move.cardIndex
+    move.cardIndex,
+    move.cardIndex // Insert into the same slot
   );
+
   return { newBoardState, updatedPlayers };
 };
 
@@ -105,8 +136,8 @@ export const calculateScores = (
   boardState.forEach((cellStack) => {
     if (cellStack.length > 0) {
       const topCard = cellStack[cellStack.length - 1];
-      if (topCard.color === ColorEnum.RED) scores[PlayerEnum.PLAYER1]++;
-      else if (topCard.color === ColorEnum.BLACK) scores[PlayerEnum.PLAYER2]++;
+      if (topCard && topCard.color === ColorEnum.RED) scores[PlayerEnum.PLAYER1]++;
+      else if (topCard && topCard.color === ColorEnum.BLACK) scores[PlayerEnum.PLAYER2]++;
     }
   });
   return scores;
@@ -117,7 +148,7 @@ export const isGameOver = (players: {
   [key in PlayerEnum]: Player;
 }): boolean => {
   return Object.values(players).every(
-    (player) => player.hand.length === 0 && player.deck.length === 0
+    (player) => player.hand.every(card => card === undefined) && player.deck.length === 0
   );
 };
 
@@ -132,16 +163,18 @@ export const getValidMoves = (
   tieBreaker: boolean
 ): Move[] => {
   return player.hand.flatMap((card, cardIndex) =>
-    calculateValidMoves(
-      cardIndex,
-      playerId,
-      boardState,
-      boardSize,
-      isFirst,
-      player.hand,
-      startingIndices,
-      tieBreaker
-    ).map((cellIndex) => ({ cellIndex, cardIndex }))
+    card
+      ? calculateValidMoves(
+          cardIndex,
+          playerId,
+          boardState,
+          boardSize,
+          isFirst,
+          player.hand,
+          startingIndices,
+          tieBreaker
+        ).map((cellIndex) => ({ cellIndex, cardIndex }))
+      : []
   );
 };
 
@@ -157,6 +190,8 @@ export const calculateValidMoves = (
   isTieBreaker?: boolean
 ): number[] => {
   const selectedCard = hand[cardIndex];
+
+  if (!selectedCard) return [];
 
   if (isFirstMove) {
     if (isTieBreaker) {
@@ -272,11 +307,15 @@ export const performFirstMoveForPlayer = (
 } => {
   const cardIndex = 0;
   const card = players[playerId].hand[cardIndex];
+  if (!card) return { updatedPlayers: players, newBoardState: boardState, newFirstMove: initialFirstMove(), nextPlayerTurn: getNextPlayerTurn(playerId) };
+
   const faceDownCard = { ...card, faceDown: true };
+  // Update player's hand by removing the card and placing new card in the same slot
   const updatedPlayers = updatePlayerHandAndDrawCard(
     players,
     playerId,
-    cardIndex
+    cardIndex,
+    cardIndex // Insert into the same slot
   );
 
   const validMoves = getValidFirstMoves(
@@ -408,12 +447,17 @@ export const placeCardOnBoardLogic = (
 } => {
   const playerId = PlayerEnum.PLAYER1;
   const card = players[playerId].hand[cardIndex];
+  if (!card) return { updatedPlayers: players, newBoardState: boardState, newFirstMove: firstMove, nextPlayerTurn: getNextPlayerTurn(playerId) };
+
   const faceDownCard = { ...card, faceDown: true };
+  // Update player's hand by removing the card and placing new card in the same slot
   const updatedPlayers = updatePlayerHandAndDrawCard(
     players,
     playerId,
-    cardIndex
+    cardIndex,
+    cardIndex // Insert into the same slot
   );
+
   let newBoardState = [...boardState];
 
   if (firstMove[playerId]) {
