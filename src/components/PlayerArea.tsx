@@ -1,3 +1,5 @@
+// src/components/PlayerArea.tsx
+
 import React from 'react';
 import Cell from './Cell';
 import { Card, PlayerEnum } from '../types';
@@ -8,7 +10,7 @@ interface PlayerAreaProps {
   handCards: Card[];
   discardPile: Card[];
   isDragging: boolean;
-  handleCardDrag: (index: number, playerId: PlayerEnum) => void;
+  handleCardDrag?: (index: number, playerId: PlayerEnum) => void;
   handleCardDiscard: (cardIndex: number, playerId: PlayerEnum) => void;
   placeCardOnBoard: (index: number, cardIndex: number) => void;
   highlightedCells: number[];
@@ -16,6 +18,7 @@ interface PlayerAreaProps {
   clearHighlights: () => void;
   handleDragStart: (playerId: PlayerEnum) => void;
   handleDragEnd: () => void;
+  isCurrentPlayer: boolean; // New Prop
 }
 
 const PlayerArea: React.FC<PlayerAreaProps> = ({
@@ -32,6 +35,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
   clearHighlights,
   handleDragStart,
   handleDragEnd,
+  isCurrentPlayer, // New Prop
 }) => {
   // Define the number of hand slots
   const HAND_SIZE = 3;
@@ -50,6 +54,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
             playerId={playerId}
             isFaceDown={false} // Deck is always face-down
             clearHighlights={clearHighlights}
+            isCurrentPlayer={isCurrentPlayer} // Pass down
           />
 
           {/* Hand Cells */}
@@ -65,6 +70,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
               clearHighlights={clearHighlights}
               onDragStart={() => handleDragStart(playerId)}
               onDragEnd={handleDragEnd}
+              isCurrentPlayer={isCurrentPlayer} // Pass down
             />
           ))}
 
@@ -76,6 +82,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
             isVisible={isDragging && !firstMove}
             handleCardDiscard={handleCardDiscard}
             clearHighlights={clearHighlights}
+            isCurrentPlayer={isCurrentPlayer} // Pass down
           />
         </>
       ) : (
@@ -88,6 +95,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
             isVisible={isDragging && !firstMove}
             handleCardDiscard={handleCardDiscard}
             clearHighlights={clearHighlights}
+            isCurrentPlayer={isCurrentPlayer} // Pass down
           />
 
           {/* Hand Cells (reversed) */}
@@ -103,6 +111,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
               clearHighlights={clearHighlights}
               onDragStart={() => handleDragStart(playerId)}
               onDragEnd={handleDragEnd}
+              isCurrentPlayer={isCurrentPlayer} // Pass down
             />
           ))}
 
@@ -113,6 +122,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
             playerId={playerId}
             isFaceDown={false} // Deck is always face-down
             clearHighlights={clearHighlights}
+            isCurrentPlayer={isCurrentPlayer} // Pass down
           />
         </>
       )}

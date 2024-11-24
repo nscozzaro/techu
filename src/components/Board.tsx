@@ -1,3 +1,5 @@
+// src/components/Board.tsx
+
 import React from 'react';
 import Cell from './Cell';
 import { BoardState } from '../types';
@@ -25,6 +27,7 @@ const Board: React.FC<BoardProps> = ({
         playerTurn={isPlayerTurn}
         placeCardOnBoard={placeCardOnBoard}
         highlightedCells={highlightedCells}
+        isCurrentPlayer={false} // Added prop
       />
     ))}
   </div>

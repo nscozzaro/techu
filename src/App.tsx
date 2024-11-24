@@ -1,3 +1,4 @@
+// src/App.tsx
 import React, { useState, useEffect } from 'react';
 import Board from './components/Board';
 import PlayerArea from './components/PlayerArea';
@@ -232,7 +233,7 @@ function App() {
         handCards={players[PlayerEnum.PLAYER2].hand}
         discardPile={discardPiles[PlayerEnum.PLAYER2]}
         isDragging={draggingPlayer === PlayerEnum.PLAYER2}
-        handleCardDrag={handleCardDrag}
+        handleCardDrag={playerTurn === PlayerEnum.PLAYER2 ? handleCardDrag : undefined}
         handleCardDiscard={handleCardDiscard}
         placeCardOnBoard={placeCardOnBoard}
         highlightedCells={highlightedCells}
@@ -240,6 +241,7 @@ function App() {
         clearHighlights={clearHighlights}
         handleDragStart={handleDragStart}
         handleDragEnd={handleDragEnd}
+        isCurrentPlayer={playerTurn === PlayerEnum.PLAYER2}
       />
 
       <Board
@@ -256,7 +258,7 @@ function App() {
         handCards={players[PlayerEnum.PLAYER1].hand}
         discardPile={discardPiles[PlayerEnum.PLAYER1]}
         isDragging={draggingPlayer === PlayerEnum.PLAYER1}
-        handleCardDrag={handleCardDrag}
+        handleCardDrag={playerTurn === PlayerEnum.PLAYER1 ? handleCardDrag : undefined}
         handleCardDiscard={handleCardDiscard}
         placeCardOnBoard={placeCardOnBoard}
         highlightedCells={highlightedCells}
@@ -264,6 +266,7 @@ function App() {
         clearHighlights={clearHighlights}
         handleDragStart={handleDragStart}
         handleDragEnd={handleDragEnd}
+        isCurrentPlayer={playerTurn === PlayerEnum.PLAYER1}
       />
     </div>
   );

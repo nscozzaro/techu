@@ -30,6 +30,7 @@ interface CellProps {
   clearHighlights?: () => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;
+  isCurrentPlayer?: boolean; // Made optional
 }
 
 const Cell: React.FC<CellProps> = ({
@@ -49,6 +50,7 @@ const Cell: React.FC<CellProps> = ({
   clearHighlights,
   onDragStart,
   onDragEnd,
+  isCurrentPlayer = false, // Default to false if not provided
 }) => {
   const isDeck = type === 'deck';
   const isHand = type === 'hand';
@@ -82,7 +84,7 @@ const Cell: React.FC<CellProps> = ({
       }
       return { cardIndex: index!, playerId: playerId! };
     },
-    canDrag: isHand && playerId !== undefined && !!handleCardDrag && !!card,
+    canDrag: isHand && isCurrentPlayer && playerId !== undefined && !!handleCardDrag && !!card, // Updated condition
     collect: (monitor: DragSourceMonitor) => ({
       isDragging: monitor.isDragging(),
     }),
