@@ -62,10 +62,13 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
   // State for Dealing Card Position
   const [dealingCardStyle, setDealingCardStyle] = useState<React.CSSProperties | null>(null);
 
+  // **Update the useEffect to handle both dealing and drawing cards**
   useEffect(() => {
-    if ((isDealingCard || drawingCard) && deckRef.current && dealingHandIndex !== undefined) {
+    const isAnimatingCard = isDealingCard || (!!drawingCard && drawingCard.playerId === playerId);
+
+    if (isAnimatingCard && deckRef.current) {
       const deckRect = deckRef.current.getBoundingClientRect();
-      const targetHandIndex = drawingCard ? drawingCard.handIndex : dealingHandIndex;
+      const targetHandIndex = isDealingCard ? dealingHandIndex! : drawingCard!.handIndex;
       const handRect = handSlotRefs.current[targetHandIndex]?.getBoundingClientRect();
 
       if (handRect) {
@@ -91,16 +94,18 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
         }, 50); // Slight delay
       }
     }
-  }, [isDealingCard, dealingHandIndex, drawingCard]);
+  }, [isDealingCard, dealingHandIndex, drawingCard, playerId]);
 
   useEffect(() => {
-    if (!isDealingCard && !drawingCard) {
+    const isAnimatingCard = isDealingCard || (!!drawingCard && drawingCard.playerId === playerId);
+
+    if (!isAnimatingCard) {
       // Remove dealing card after animation
       setTimeout(() => {
         setDealingCardStyle(null);
       }, 1000); // Match transition duration
     }
-  }, [isDealingCard, drawingCard]);
+  }, [isDealingCard, drawingCard, playerId]);
 
   return (
     <div className="player-area" style={{ position: 'relative' }}>
