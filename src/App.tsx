@@ -1,4 +1,5 @@
 // App.tsx
+
 import React, { useState, useEffect } from 'react';
 import Board from './components/Board';
 import PlayerArea from './components/PlayerArea';
@@ -12,7 +13,6 @@ import {
   handleCardDragLogic,
   placeCardOnBoardLogic,
   flipInitialCardsLogic,
-  updatePlayerHandAndDrawCard, // Import the updated function
 } from './utils';
 import {
   PlayerEnum,
@@ -63,13 +63,26 @@ function App() {
   // State to track which player is currently dragging
   const [draggingPlayer, setDraggingPlayer] = useState<PlayerEnum | null>(null);
 
-  // **New State for Highlighting Discard Pile**
+  // New State for Highlighting Discard Pile
   const [highlightDiscardPile, setHighlightDiscardPile] = useState<boolean>(false);
+
+  // New State for Dealing Cards
+  const [dealing, setDealing] = useState<boolean>(true);
+  const [dealingCardToPlayer, setDealingCardToPlayer] = useState<{
+    playerId: PlayerEnum;
+    handIndex: number;
+  } | null>(null);
+
+  // **New State for Cards Being Drawn During the Game**
+  const [drawingCard, setDrawingCard] = useState<{
+    playerId: PlayerEnum;
+    handIndex: number;
+  } | null>(null);
 
   const handleCardDiscard = (cardIndex: number, playerId: PlayerEnum) => {
     if (gameOver) return;
 
-    // **Prevent discarding during first move**
+    // Prevent discarding during first move
     if (firstMove[playerId]) return;
 
     const updatedPlayers = { ...players };
@@ -79,28 +92,45 @@ function App() {
       const cardToDiscard = player.hand[cardIndex];
       if (!cardToDiscard) return; // Nothing to discard
 
-      // **Add the face-down card to the discard pile**
+      // Add the face-down card to the discard pile
       const discardedCard = { ...cardToDiscard, faceDown: true };
       setDiscardPiles((prev) => ({
         ...prev,
         [playerId]: [...prev[playerId], discardedCard],
       }));
 
-      // **Remove the card from player's hand by setting it to undefined and draw a new card into the same slot**
-      const newPlayers = updatePlayerHandAndDrawCard(
-        updatedPlayers,
-        playerId,
-        cardIndex,
-        cardIndex // Insert into the same slot
-      );
+      // Remove the card from player's hand by setting it to undefined
+      updatedPlayers[playerId].hand[cardIndex] = undefined;
 
-      setPlayers(newPlayers);
-      setPlayerTurn(getNextPlayerTurn(playerId));
-      // Clear highlighted cells
-      setHighlightedCells([]);
-      // **After Discarding, Discard Pile is a Valid Target**
-      setHighlightDiscardPile(false); // Reset highlight after discard
+      setPlayers(updatedPlayers);
+
+      // **Trigger Drawing a New Card with Animation**
+      drawCardWithAnimation(playerId, cardIndex, () => {
+        setPlayerTurn(getNextPlayerTurn(playerId));
+        // Clear highlighted cells
+        setHighlightedCells([]);
+        // After Discarding, Discard Pile is a Valid Target
+        setHighlightDiscardPile(false); // Reset highlight after discard
+      });
     }
+  };
+
+  // **New Function to Handle Drawing Card with Animation**
+  const drawCardWithAnimation = (playerId: PlayerEnum, handIndex: number, callback?: () => void) => {
+    setDrawingCard({ playerId, handIndex });
+    setTimeout(() => {
+      setPlayers(prevPlayers => {
+        const updatedPlayers = { ...prevPlayers };
+        const player = updatedPlayers[playerId];
+        if (player.deck.length > 0) {
+          const newCard = player.deck.pop()!;
+          player.hand[handIndex] = newCard;
+        }
+        return updatedPlayers;
+      });
+      setDrawingCard(null);
+      if (callback) callback();
+    }, 1000); // Match the animation duration
   };
 
   const playForPlayer = (playerId: PlayerEnum) => {
@@ -161,7 +191,7 @@ function App() {
       tieBreaker
     );
     setHighlightedCells(validMoves);
-    // **Set Highlight for Discard Pile if Not First Move**
+    // Set Highlight for Discard Pile if Not First Move
     setHighlightDiscardPile(!firstMove[playerId]);
   };
 
@@ -182,12 +212,33 @@ function App() {
 
     if (isGameOver(result.updatedPlayers)) {
       setGameOver(true);
+    } else {
+      // **Trigger Drawing a New Card with Animation After Placing a Card**
+      const playerId = PlayerEnum.PLAYER1;
+      const handIndex = cardIndex;
+
+      if (players[playerId].deck.length > 0) {
+        setPlayers(prevPlayers => {
+          const updatedPlayers = { ...prevPlayers };
+          updatedPlayers[playerId].hand[handIndex] = undefined; // Remove the card immediately
+          return updatedPlayers;
+        });
+
+        drawCardWithAnimation(playerId, handIndex);
+      } else {
+        // No more cards to draw, just remove the card
+        setPlayers(prevPlayers => {
+          const updatedPlayers = { ...prevPlayers };
+          updatedPlayers[playerId].hand[handIndex] = undefined;
+          return updatedPlayers;
+        });
+      }
     }
   };
 
   const clearHighlights = () => {
     setHighlightedCells([]);
-    // **Clear Highlight for Discard Pile**
+    // Clear Highlight for Discard Pile
     setHighlightDiscardPile(false);
   };
 
@@ -198,11 +249,11 @@ function App() {
   const handleDragEnd = () => {
     setDraggingPlayer(null);
     clearHighlights();
-    // **Ensure Discard Pile Highlight is Cleared on Drag End**
+    // Ensure Discard Pile Highlight is Cleared on Drag End
     setHighlightDiscardPile(false);
   };
 
-  // **New Function to Swap Cards in Player 1's Hand**
+  // New Function to Swap Cards in Player 1's Hand
   const swapCardsInHand = (playerId: PlayerEnum, sourceIndex: number, targetIndex: number) => {
     if (playerId !== PlayerEnum.PLAYER1) return; // Only allow swapping for Player 1
 
@@ -230,11 +281,53 @@ function App() {
     });
   };
 
+  // Dealing Cards at Start
   useEffect(() => {
-    if (
-      initialFaceDownCards[PlayerEnum.PLAYER1] &&
-      initialFaceDownCards[PlayerEnum.PLAYER2]
-    ) {
+    const dealCards = () => {
+      let cardsToDealPerPlayer = 3;
+      let playerQueue: PlayerEnum[] = [PlayerEnum.PLAYER1, PlayerEnum.PLAYER2];
+      let totalCardsDealt = 0;
+
+      const dealNextCard = () => {
+        if (totalCardsDealt >= cardsToDealPerPlayer * playerQueue.length) {
+          setDealing(false);
+          return;
+        }
+
+        const playerId = playerQueue[totalCardsDealt % playerQueue.length];
+        const handIndex = Math.floor(totalCardsDealt / playerQueue.length);
+
+        setDealingCardToPlayer({ playerId, handIndex });
+
+        setTimeout(() => {
+          setPlayers(prevPlayers => {
+            const updatedPlayers = { ...prevPlayers };
+            const player = updatedPlayers[playerId];
+            if (player.deck.length > 0) {
+              const newCard = player.deck.pop()!;
+              player.hand[handIndex] = newCard;
+            }
+            return updatedPlayers;
+          });
+
+          setDealingCardToPlayer(null);
+
+          totalCardsDealt++;
+
+          setTimeout(() => {
+            dealNextCard();
+          }, 500); // Delay before dealing the next card
+        }, 1000); // Time for the card to move
+      };
+
+      dealNextCard();
+    };
+
+    dealCards();
+  }, []);
+
+  useEffect(() => {
+    if (!dealing && initialFaceDownCards[PlayerEnum.PLAYER1] && initialFaceDownCards[PlayerEnum.PLAYER2]) {
       setTimeout(() => {
         const result = flipInitialCardsLogic(
           initialFaceDownCards,
@@ -247,10 +340,10 @@ function App() {
         setFirstMove(result.firstMove);
       }, 500);
     }
-  }, [initialFaceDownCards, boardState]);
+  }, [initialFaceDownCards, boardState, dealing]);
 
   useEffect(() => {
-    if (playerTurn === PlayerEnum.PLAYER2 && !gameOver) {
+    if (!dealing && !drawingCard && playerTurn === PlayerEnum.PLAYER2 && !gameOver) {
       if (!firstMove[PlayerEnum.PLAYER2]) {
         setTimeout(() => playForPlayer(PlayerEnum.PLAYER2), 500);
       } else {
@@ -258,7 +351,7 @@ function App() {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playerTurn]);
+  }, [dealing, playerTurn, drawingCard]);
 
   useEffect(() => {
     const newScores = calculateScores(boardState);
@@ -303,8 +396,10 @@ function App() {
         handleDragStart={handleDragStart}
         handleDragEnd={handleDragEnd}
         isCurrentPlayer={playerTurn === PlayerEnum.PLAYER2}
-        // **Pass Highlight Discard Pile Prop**
         isDiscardPileHighlighted={highlightDiscardPile && playerTurn === PlayerEnum.PLAYER2}
+        isDealingCard={dealingCardToPlayer?.playerId === PlayerEnum.PLAYER2}
+        dealingHandIndex={dealingCardToPlayer?.handIndex}
+        drawingCard={drawingCard?.playerId === PlayerEnum.PLAYER2 ? drawingCard : null}
       />
 
       <Board
@@ -330,10 +425,11 @@ function App() {
         handleDragStart={handleDragStart}
         handleDragEnd={handleDragEnd}
         isCurrentPlayer={playerTurn === PlayerEnum.PLAYER1}
-        // **Pass Highlight Discard Pile Prop**
         isDiscardPileHighlighted={highlightDiscardPile && playerTurn === PlayerEnum.PLAYER1}
-        // **Pass swapCardsInHand Prop**
         swapCardsInHand={swapCardsInHand}
+        isDealingCard={dealingCardToPlayer?.playerId === PlayerEnum.PLAYER1}
+        dealingHandIndex={dealingCardToPlayer?.handIndex}
+        drawingCard={drawingCard?.playerId === PlayerEnum.PLAYER1 ? drawingCard : null}
       />
     </div>
   );

@@ -41,7 +41,6 @@ const createDeck = (color: ColorEnum, owner: PlayerEnum): Cards => {
   ) as Cards;
 };
 
-// Function to initialize a player
 export const initializePlayer = (
   color: ColorEnum,
   id: PlayerEnum
@@ -50,8 +49,8 @@ export const initializePlayer = (
   shuffle(deck);
   return {
     id,
-    hand: deck.slice(0, 3),
-    deck: deck.slice(3),
+    hand: [], // Start with an empty hand
+    deck: deck, // Full deck
   };
 };
 
