@@ -1,5 +1,7 @@
 // App.tsx
 import React, { useState, useEffect } from 'react';
+import RulesModal from './components/RulesModal';
+import StatsModal from './components/StatsModal';
 import Board from './components/Board';
 import PlayerArea from './components/PlayerArea';
 import {
@@ -202,6 +204,7 @@ function App() {
     setHighlightDiscardPile(false);
   };
 
+  
   // **New Function to Swap Cards in Player 1's Hand**
   const swapCardsInHand = (playerId: PlayerEnum, sourceIndex: number, targetIndex: number) => {
     if (playerId !== PlayerEnum.PLAYER1) return; // Only allow swapping for Player 1
@@ -229,6 +232,14 @@ function App() {
       },
     });
   };
+
+  const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
+  const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
+
+  const openRulesModal = () => setIsRulesModalOpen(true);
+  const closeRulesModal = () => setIsRulesModalOpen(false);
+  const openStatsModal = () => setIsStatsModalOpen(true);
+  const closeStatsModal = () => setIsStatsModalOpen(false);
 
   useEffect(() => {
     if (
@@ -271,6 +282,7 @@ function App() {
     }
   }, [players]);
 
+
   const winner = gameOver
     ? scores[PlayerEnum.PLAYER1] > scores[PlayerEnum.PLAYER2]
       ? 'Player 1 wins!'
@@ -279,13 +291,28 @@ function App() {
       : "It's a tie!"
     : '';
 
+  
   return (
     <div className="App">
-      <div className="scoreboard">
-        <div>Player 1 Score: {scores[PlayerEnum.PLAYER1]}</div>
-        <div>Player 2 Score: {scores[PlayerEnum.PLAYER2]}</div>
-        {gameOver && <div className="winner">{winner}</div>}
-      </div>
+
+<div className="top-bar">
+  <button className="top-bar-btn" onClick={openStatsModal}>📊</button> {/* Stats button */}
+  <div className="scoreboard">
+    <div className={`score-box red-box ${playerTurn === PlayerEnum.PLAYER1 ? 'active' : ''}`}>
+      {scores[PlayerEnum.PLAYER1]}
+    </div>
+    <div className={`score-box black-box ${playerTurn === PlayerEnum.PLAYER2 ? 'active' : ''}`}>
+      {scores[PlayerEnum.PLAYER2]}
+    </div>
+  </div>
+  <button className="top-bar-btn rules-btn" onClick={openRulesModal}>❓</button> {/* Rules button */}
+</div>
+
+      <RulesModal isOpen={isRulesModalOpen} onClose={closeRulesModal} />
+      <StatsModal isOpen={isStatsModalOpen} onClose={closeStatsModal} />
+
+      
+
 
       {/* Player 2 Area */}
       <PlayerArea

@@ -15,12 +15,16 @@ body {
   align-items: center;
 }
 
+/* Old Scoreboard
+
 .scoreboard {
   display: flex;
   justify-content: center;
   gap: 20px;
   margin-top: 10px;
 }
+
+*/
 
 .winner {
   margin-top: 10px;
@@ -185,4 +189,289 @@ body {
   .board {
     grid-template-columns: repeat(3, 80px);
   }
+}
+
+
+/* Modal Styles */
+
+/* Modal Overlay */
+.modal-overlay {
+  position: fixed; /* Fixed to viewport */
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.8); /* Dark semi-transparent overlay */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+/* Modal Content */
+.modal-content {
+  background-color: #111; /* Dark background */
+  color: #fff; /* White text */
+  padding: 20px 30px;
+  border-radius: 8px;
+  max-width: 600px;
+  width: 90%;
+  position: relative;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5); /* Add shadow for depth */
+  font-family: Arial, sans-serif; /* Clean font */
+}
+
+/* Heading Style */
+.modal-content h2 {
+  font-size: 24px;
+  margin-bottom: 10px;
+  font-weight: bold;
+}
+
+/* Subheading or Description */
+.modal-content p {
+  font-size: 16px;
+  line-height: 1.6;
+  margin-bottom: 15px;
+}
+
+/* List Items */
+.modal-content ul {
+  margin-left: 20px;
+  list-style-type: disc;
+  font-size: 16px;
+}
+
+.modal-content ul li {
+  margin-bottom: 10px;
+}
+
+/* Examples Section */
+.modal-content .example {
+  margin-top: 15px;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.modal-content .example-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.modal-content .example-row span {
+  display: inline-block;
+  background-color: #444;
+  color: #fff;
+  padding: 10px;
+  margin-right: 5px;
+  border-radius: 4px;
+  font-weight: bold;
+  font-size: 18px;
+  text-align: center;
+}
+
+/* Green, Yellow, and Gray Backgrounds for Examples */
+.example-row .green {
+  background-color: #6aaa64; /* Wordle green */
+}
+
+.example-row .yellow {
+  background-color: #c9b458; /* Wordle yellow */
+}
+
+.example-row .gray {
+  background-color: #787c7e; /* Wordle gray */
+}
+
+/* Close Button */
+.modal-content button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.modal-content button:hover {
+  color: #ccc;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .modal-content {
+    width: 95%;
+    padding: 15px 20px;
+  }
+
+  .modal-content h2 {
+    font-size: 20px;
+  }
+
+  .modal-content p,
+  .modal-content ul {
+    font-size: 14px;
+  }
+
+  .modal-content .example-row span {
+    font-size: 16px;
+    padding: 8px;
+  }
+}
+
+/* Top Bar Styling */
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* Ensure buttons stay on far sides */
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 5px 15px; /* Reduced padding */
+  background-color: #121213; /* Dark background */
+  border-bottom: 1px solid #3a3a3c; /* Subtle border */
+  height: 60px; /* Reduced height */
+  box-sizing: border-box; /* Consistent layout */
+}
+
+
+/* Centered Scoreboard */
+.scoreboard {
+  display: flex;
+  align-items: center;
+  justify-content: center; /* Center contents horizontally */
+  gap: 8px; /* Space between red and black boxes */
+}
+
+/* Top Bar Buttons */
+.top-bar-btn {
+  background: none;
+  border: none;
+  color: #d7dadc; /* Icon color */
+  font-size: 18px; /* Slightly smaller button size */
+  cursor: pointer;
+  padding: 5px;
+}
+
+.top-bar-btn:hover {
+  color: #ffffff; /* Brighter on hover */
+}
+
+.rules-btn {
+  margin-left: 15px; /* Spacing between stats and rules buttons */
+}
+
+/* Scoreboard Styling */
+.scoreboard {
+  display: flex;
+  align-items: center;
+  gap: 8px; /* Spacing between the red and black boxes */
+}
+
+/* Score Boxes */
+.score-box {
+  width: 40px; /* Smaller width */
+  height: 40px; /* Smaller height */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 18px; /* Smaller font size */
+  font-weight: bold;
+  border-radius: 8px; /* Rounded corners for boxes */
+  color: #fff;
+  text-align: center;
+  transition: transform 0.2s, box-shadow 0.2s; /* For animation effects */
+}
+
+/* Red Box */
+.red-box {
+  background-color: #800000; /* Dark red */
+  border: 2px solid #a52a2a; /* Slightly brighter red border */
+}
+
+/* Black Box */
+.black-box {
+  background-color: #000000; /* Black */
+  border: 2px solid #333; /* Slightly lighter border */
+}
+
+/* Active Player Highlight */
+.red-box.active {
+  box-shadow: 0 0 10px #ff6347; /* Red glow for Player 1 */
+  transform: scale(1.1); /* Slightly enlarge */
+}
+
+.black-box.active {
+  box-shadow: 0 0 10px #888; /* Subtle gray glow for Player 2 */
+  transform: scale(1.1); /* Slightly enlarge */
+}
+
+.score-box.updated {
+  background-color: #6aaa64; /* Highlight color (green) */
+  transform: scale(1.2); /* Temporary enlargement */
+}
+
+/* Stats Modal Layout */
+.stats-modal {
+  background-color: #111; /* Dark background */
+  color: #fff; /* Light text */
+  padding: 20px 30px;
+  border-radius: 8px;
+  max-width: 400px;
+  width: 90%;
+  position: relative;
+  text-align: center;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+}
+
+/* Close Button (matches RulesModal) */
+.close-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.close-btn:hover {
+  color: #ccc;
+}
+
+/* Modal Title */
+.stats-modal h2 {
+  font-size: 24px;
+  margin-bottom: 15px;
+  font-weight: bold;
+  color: #fff;
+}
+
+/* Stats Section (Grid) */
+.stats-section {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* Two columns */
+  gap: 20px; /* Spacing between stats */
+  justify-content: center;
+  margin-top: 20px;
+}
+
+/* Individual Stat Block */
+.stat {
+  text-align: center;
+}
+
+.stat-number {
+  font-size: 28px;
+  font-weight: bold;
+  color: #6aaa64; /* Green like Wordle */
+}
+
+.stat-label {
+  font-size: 14px;
+  color: #d7dadc; /* Light gray text */
 }
