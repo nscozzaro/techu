@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Cell from './Cell';
-import { BoardState } from '../types';
+import { BoardState, Card, PlayerEnum } from '../types';
 
 interface BoardProps {
   boardState: BoardState;
@@ -10,6 +10,12 @@ interface BoardProps {
   placeCardOnBoard: (index: number, cardIndex: number) => void;
   highlightedCells: number[];
   cellRefs?: React.MutableRefObject<Array<HTMLDivElement | null>>;
+  playingCardAnimation?: {
+    playerId: PlayerEnum;
+    fromHandIndex: number;
+    toBoardIndex: number;
+    card: Card;
+  } | null;
 }
 
 const Board: React.FC<BoardProps> = ({
@@ -18,25 +24,37 @@ const Board: React.FC<BoardProps> = ({
   placeCardOnBoard,
   highlightedCells,
   cellRefs,
+  playingCardAnimation,
 }) => (
   <div className="board">
-    {boardState.map((cellStack, index) => (
-      <Cell
-        key={index}
-        ref={el => {
-          if (cellRefs) {
-            cellRefs.current[index] = el;
-          }
-        }}
-        type="board"
-        stack={cellStack}
-        index={index}
-        playerTurn={isPlayerTurn}
-        placeCardOnBoard={placeCardOnBoard}
-        highlightedCells={highlightedCells}
-        isCurrentPlayer={false}
-      />
-    ))}
+    {boardState.map((cellStack, index) => {
+      let stack = cellStack;
+
+      if (
+        playingCardAnimation &&
+        playingCardAnimation.toBoardIndex === index
+      ) {
+        stack = cellStack.slice(0, -1);
+      }
+
+      return (
+        <Cell
+          key={index}
+          ref={el => {
+            if (cellRefs) {
+              cellRefs.current[index] = el;
+            }
+          }}
+          type="board"
+          stack={stack}
+          index={index}
+          playerTurn={isPlayerTurn}
+          placeCardOnBoard={placeCardOnBoard}
+          highlightedCells={highlightedCells}
+          isCurrentPlayer={false}
+        />
+      );
+    })}
   </div>
 );
 

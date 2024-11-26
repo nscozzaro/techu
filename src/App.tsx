@@ -155,20 +155,22 @@ function App() {
           players,
           playerId,
           boardState,
-          tieBreaker,
-          setInitialFaceDownCards
+          tieBreaker
         );
 
         setPlayers(result.updatedPlayers);
-        setBoardState(result.newBoardState);
         setFirstMove(result.newFirstMove);
         setPlayerTurn(result.nextPlayerTurn);
         setHighlightedCells([]);
 
         // Check if a move was made and animate it
-        if (result.moveMade && result.moveMade.type === 'board' && result.moveMade.cellIndex !== undefined) {
+        if (
+          result.moveMade &&
+          result.moveMade.type === 'board' &&
+          result.moveMade.cellIndex !== undefined
+        ) {
           const cardIndex = result.moveMade.cardIndex;
-          const card = players[playerId].hand[cardIndex];
+          const card = result.cardPlayed;
           if (card) {
             setPlayingCardAnimation({
               playerId,
@@ -177,8 +179,21 @@ function App() {
               card,
             });
 
-            // After animation completes, reset the animation state
+            // After animation completes, update the boardState
             setTimeout(() => {
+              const newBoardState = [...boardState];
+              newBoardState[result.moveMade!.cellIndex!] = [
+                ...newBoardState[result.moveMade!.cellIndex!],
+                card,
+              ];
+              setBoardState(newBoardState);
+
+              // Update initialFaceDownCards
+              setInitialFaceDownCards((prev) => ({
+                ...prev,
+                [playerId]: { ...card, cellIndex: result.moveMade!.cellIndex! },
+              }));
+
               setPlayingCardAnimation(null);
             }, 1000); // duration of animation
           }
@@ -412,7 +427,7 @@ function App() {
       const executePlay = () => playForPlayer(PlayerEnum.PLAYER2);
       setTimeout(executePlay, firstMove[PlayerEnum.PLAYER2] ? 0 : 500);
     }
-  }, [dealing, drawingCard, playingCardAnimation, playerTurn, gameOver, firstMove, playForPlayer]);
+  }, [dealing, drawingCard, playingCardAnimation, playerTurn, gameOver, firstMove, playForPlayer, boardState]);
 
   useEffect(() => {
     const newScores = calculateScores(boardState);
@@ -471,6 +486,7 @@ function App() {
         placeCardOnBoard={placeCardOnBoard}
         highlightedCells={highlightedCells}
         cellRefs={boardCellRefs}
+        playingCardAnimation={playingCardAnimation} // Pass the animation state
       />
 
       {/* Player 1 Area */}

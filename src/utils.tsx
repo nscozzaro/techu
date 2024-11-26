@@ -140,7 +140,6 @@ export const selectMoveForPlayer = (
   return undefined;
 };
 
-
 // Function to apply a board move to the board state
 export const applyMoveToBoardState = (
   boardState: BoardState,
@@ -352,18 +351,22 @@ export const performFirstMoveForPlayer = (
   players: Players,
   playerId: PlayerEnum,
   boardState: BoardState,
-  tieBreaker: boolean,
-  setInitialFaceDownCards: React.Dispatch<React.SetStateAction<InitialFaceDownCards>>
+  tieBreaker: boolean
 ): {
   updatedPlayers: Players;
-  newBoardState: BoardState;
   newFirstMove: PlayerBooleans;
   nextPlayerTurn: PlayerEnum;
   moveMade?: Move;
+  cardPlayed?: Card;
 } => {
   const cardIndex = 0;
   const card = players[playerId].hand[cardIndex];
-  if (!card) return { updatedPlayers: players, newBoardState: boardState, newFirstMove: initialFirstMove(), nextPlayerTurn: getNextPlayerTurn(playerId) };
+  if (!card)
+    return {
+      updatedPlayers: players,
+      newFirstMove: initialFirstMove(),
+      nextPlayerTurn: getNextPlayerTurn(playerId),
+    };
 
   const faceDownCard = { ...card, faceDown: true };
 
@@ -382,24 +385,11 @@ export const performFirstMoveForPlayer = (
     tieBreaker
   );
 
-  let newBoardState = [...boardState];
   let moveMade: Move | undefined = undefined;
 
   if (validMoves.length > 0) {
     const move = selectRandomMove(validMoves);
     moveMade = move;
-    if (move.type === 'board' && move.cellIndex !== undefined) {
-      setInitialFaceDownCards((prev: InitialFaceDownCards) => ({
-        ...prev,
-        [playerId]: { ...faceDownCard, cellIndex: move.cellIndex },
-      }));
-      newBoardState[move.cellIndex] = [
-        ...newBoardState[move.cellIndex],
-        faceDownCard,
-      ];
-    } else {
-      console.error('Invalid move type or missing cellIndex during first move.');
-    }
   }
 
   const newFirstMove: PlayerBooleans = {
@@ -408,7 +398,13 @@ export const performFirstMoveForPlayer = (
   };
   const nextPlayerTurn = getNextPlayerTurn(playerId);
 
-  return { updatedPlayers, newBoardState, newFirstMove, nextPlayerTurn, moveMade };
+  return {
+    updatedPlayers,
+    newFirstMove,
+    nextPlayerTurn,
+    moveMade,
+    cardPlayed: faceDownCard,
+  };
 };
 
 // Helper function to get valid first moves
@@ -430,50 +426,6 @@ const getValidFirstMoves = (
 // Helper function to select a random move from valid moves
 const selectRandomMove = (validMoves: Move[]): Move => {
   return validMoves[Math.floor(Math.random() * validMoves.length)];
-};
-
-// Function to perform regular move for a player
-export const performRegularMoveForPlayer = (
-  players: Players,
-  playerId: PlayerEnum,
-  boardState: BoardState
-): {
-  updatedPlayers: Players;
-  newBoardState: BoardState;
-  nextPlayerTurn: PlayerEnum;
-  moveMade: boolean;
-  move?: Move;
-} => {
-  const validMoves = getValidMoves(
-    players[playerId],
-    playerId,
-    boardState,
-    BOARD_SIZE,
-    false,
-    STARTING_INDICES,
-    false
-  );
-
-  let newBoardState = [...boardState];
-  let updatedPlayers = { ...players };
-  let moveMade = false;
-  let selectedMove: Move | undefined;
-
-  if (validMoves.length > 0) {
-    selectedMove = selectRandomMove(validMoves);
-    if (selectedMove.type === 'board') {
-      const result = applyMoveToBoardState(boardState, players, selectedMove, playerId);
-      newBoardState = result.newBoardState;
-      updatedPlayers = result.updatedPlayers;
-      moveMade = true;
-    } else if (selectedMove.type === 'discard') {
-      moveMade = true;
-    }
-  }
-
-  const nextPlayerTurn = getNextPlayerTurn(playerId);
-
-  return { updatedPlayers, newBoardState, nextPlayerTurn, moveMade, move: selectedMove };
 };
 
 // Function to handle card drag logic
@@ -513,7 +465,13 @@ export const placeCardOnBoardLogic = (
 } => {
   const playerId = PlayerEnum.PLAYER1;
   const card = players[playerId].hand[cardIndex];
-  if (!card) return { updatedPlayers: players, newBoardState: boardState, newFirstMove: firstMove, nextPlayerTurn: getNextPlayerTurn(playerId) };
+  if (!card)
+    return {
+      updatedPlayers: players,
+      newBoardState: boardState,
+      newFirstMove: firstMove,
+      nextPlayerTurn: getNextPlayerTurn(playerId),
+    };
 
   const faceDownCard = { ...card, faceDown: true };
 
