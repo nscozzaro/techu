@@ -95,6 +95,9 @@ export const updatePlayerHandAndDrawCard = (
   insertSlot?: number
 ): Players => {
   const updatedPlayer = { ...players[playerId] };
+  updatedPlayer.hand = [...updatedPlayer.hand]; // Copy hand
+  updatedPlayer.deck = [...updatedPlayer.deck]; // Copy deck
+
   if (cardIndex >= 0 && cardIndex < updatedPlayer.hand.length) {
     updatedPlayer.hand[cardIndex] = undefined;
     if (updatedPlayer.deck.length > 0) {
@@ -115,6 +118,28 @@ export const updatePlayerHandAndDrawCard = (
   }
   return { ...players, [playerId]: updatedPlayer };
 };
+
+export const selectMoveForPlayer = (
+  players: Players,
+  playerId: PlayerEnum,
+  boardState: BoardState
+): Move | undefined => {
+  const validMoves = getValidMoves(
+    players[playerId],
+    playerId,
+    boardState,
+    BOARD_SIZE,
+    false,
+    STARTING_INDICES,
+    false
+  );
+
+  if (validMoves.length > 0) {
+    return selectRandomMove(validMoves);
+  }
+  return undefined;
+};
+
 
 // Function to apply a board move to the board state
 export const applyMoveToBoardState = (

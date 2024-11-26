@@ -9,7 +9,8 @@ import {
   calculateScores,
   isGameOver,
   performFirstMoveForPlayer,
-  performRegularMoveForPlayer,
+  selectMoveForPlayer,
+  applyMoveToBoardState,
   handleCardDragLogic,
   placeCardOnBoardLogic,
   flipInitialCardsLogic,
@@ -97,6 +98,7 @@ function App() {
           const player = updatedPlayers[playerId];
           if (player.deck.length > 0) {
             const newCard = player.deck.pop()!;
+            player.hand = [...player.hand]; // Make a copy of the hand
             player.hand[handIndex] = newCard;
           }
           return updatedPlayers;
@@ -114,7 +116,8 @@ function App() {
 
       setPlayers(prevPlayers => {
         const updatedPlayers = { ...prevPlayers };
-        const player = updatedPlayers[playerId];
+        const player = { ...updatedPlayers[playerId] };
+        player.hand = [...player.hand]; // Copy the hand
 
         if (cardIndex >= 0 && cardIndex < player.hand.length) {
           const cardToDiscard = player.hand[cardIndex];
@@ -126,7 +129,8 @@ function App() {
             [playerId]: [...prev[playerId], discardedCard],
           }));
 
-          updatedPlayers[playerId].hand[cardIndex] = undefined;
+          player.hand[cardIndex] = undefined;
+          updatedPlayers[playerId] = player;
         }
 
         return updatedPlayers;
@@ -160,55 +164,42 @@ function App() {
         setPlayerTurn(result.nextPlayerTurn);
         setHighlightedCells([]);
       } else {
-        const result = performRegularMoveForPlayer(players, playerId, boardState);
+        const selectedMove = selectMoveForPlayer(players, playerId, boardState);
 
-        if (
-          playerId === PlayerEnum.PLAYER2 &&
-          result.moveMade &&
-          result.move?.type === 'board' &&
-          result.move.cellIndex !== undefined
-        ) {
-          const cardIndex = result.move.cardIndex;
-          const card = players[playerId].hand[cardIndex];
-          if (!card) return;
-          setPlayingCardAnimation({
-            playerId,
-            fromHandIndex: cardIndex,
-            toBoardIndex: result.move.cellIndex,
-            card,
-          });
+        if (selectedMove) {
+          if (selectedMove.type === 'board' && selectedMove.cellIndex !== undefined) {
+            const cardIndex = selectedMove.cardIndex;
+            const card = players[playerId].hand[cardIndex];
+            if (!card) return;
 
-          // After animation completes, update state
-          setTimeout(() => {
-            setPlayers(result.updatedPlayers);
-            setBoardState(result.newBoardState);
-            setPlayerTurn(result.nextPlayerTurn);
-            if (isGameOver(result.updatedPlayers)) {
-              setGameOver(true);
-            }
-            setPlayingCardAnimation(null);
-          }, 1000); // duration of animation
+            setPlayingCardAnimation({
+              playerId,
+              fromHandIndex: cardIndex,
+              toBoardIndex: selectedMove.cellIndex,
+              card,
+            });
+
+            // After animation completes, apply the move
+            setTimeout(() => {
+              const result = applyMoveToBoardState(boardState, players, selectedMove, playerId);
+              setPlayers(result.updatedPlayers);
+              setBoardState(result.newBoardState);
+
+              const nextPlayerTurn = getNextPlayerTurn(playerId);
+              setPlayerTurn(nextPlayerTurn);
+
+              if (isGameOver(result.updatedPlayers)) {
+                setGameOver(true);
+              }
+              setPlayingCardAnimation(null);
+            }, 1000); // duration of animation
+          } else if (selectedMove.type === 'discard') {
+            // Handle discard
+            const cardIndex = selectedMove.cardIndex;
+            handleCardDiscard(cardIndex, playerId);
+          }
         } else {
-          // For other moves or Player 1, update state immediately
-          setPlayers(result.updatedPlayers);
-          setBoardState(result.newBoardState);
-          setPlayerTurn(result.nextPlayerTurn);
-          const { moveMade, move } = result;
-
-          if (moveMade && move) {
-            if (move.type === 'discard' && playerId === PlayerEnum.PLAYER2) {
-              handleCardDiscard(move.cardIndex, PlayerEnum.PLAYER2);
-            }
-          }
-
-          if (!moveMade && playerId === PlayerEnum.PLAYER2) {
-            const firstDiscardableIndex = players[PlayerEnum.PLAYER2].hand.findIndex(
-              card => card !== undefined
-            );
-            if (firstDiscardableIndex !== -1) {
-              handleCardDiscard(firstDiscardableIndex, PlayerEnum.PLAYER2);
-            }
-          }
+          // No valid moves, handle accordingly
         }
       }
     },
@@ -274,7 +265,9 @@ function App() {
       if (playerId !== PlayerEnum.PLAYER1) return;
 
       setPlayers(prevPlayers => {
-        const player = prevPlayers[playerId];
+        const player = { ...prevPlayers[playerId] };
+        player.hand = [...player.hand];
+
         if (
           sourceIndex < 0 ||
           sourceIndex >= player.hand.length ||
@@ -326,18 +319,26 @@ function App() {
           const updatedPlayers = { ...prevPlayers };
 
           // Deal card to Player 1
-          const player1 = updatedPlayers[PlayerEnum.PLAYER1];
+          const player1 = { ...updatedPlayers[PlayerEnum.PLAYER1] };
+          player1.hand = [...player1.hand];
+          player1.deck = [...player1.deck];
+
           if (player1.deck.length > 0) {
             const newCard = player1.deck.pop()!;
             player1.hand[handIndex] = newCard;
           }
+          updatedPlayers[PlayerEnum.PLAYER1] = player1;
 
           // Deal card to Player 2
-          const player2 = updatedPlayers[PlayerEnum.PLAYER2];
+          const player2 = { ...updatedPlayers[PlayerEnum.PLAYER2] };
+          player2.hand = [...player2.hand];
+          player2.deck = [...player2.deck];
+
           if (player2.deck.length > 0) {
             const newCard = player2.deck.pop()!;
             player2.hand[handIndex] = newCard;
           }
+          updatedPlayers[PlayerEnum.PLAYER2] = player2;
 
           return updatedPlayers;
         });
