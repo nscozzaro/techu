@@ -25,6 +25,7 @@ interface PlayerAreaProps {
   swapCardsInHand?: (playerId: PlayerEnum, sourceIndex: number, targetIndex: number) => void;
   dealingCards: Array<{ playerId: PlayerEnum; handIndex: number }>;
   drawingCard?: { playerId: PlayerEnum; handIndex: number } | null;
+  handRefs?: React.MutableRefObject<Array<HTMLDivElement | null>>;
 }
 
 const PlayerArea: React.FC<PlayerAreaProps> = ({
@@ -46,6 +47,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
   swapCardsInHand,
   dealingCards,
   drawingCard,
+  handRefs,
 }) => {
   // Define the number of hand slots
   const HAND_SIZE = 3;
@@ -276,7 +278,12 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
             return (
               <Cell
                 key={index}
-                ref={el => (handSlotRefs.current[actualIndex] = el)} // Assign ref
+                ref={el => {
+                  handSlotRefs.current[actualIndex] = el;
+                  if (handRefs) {
+                    handRefs.current[actualIndex] = el;
+                  }
+                }} // Assign ref
                 type="hand"
                 card={card}
                 index={actualIndex}

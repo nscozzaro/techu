@@ -21,9 +21,9 @@ import {
   BOARD_SIZE,
   Card,
 } from './types';
+import AnimatingCard from './components/AnimatingCard';
 
 function App() {
-  // Initialize States
   const [players, setPlayers] = useState(() => ({
     [PlayerEnum.PLAYER1]: initializePlayer(ColorEnum.RED, PlayerEnum.PLAYER1),
     [PlayerEnum.PLAYER2]: initializePlayer(ColorEnum.BLACK, PlayerEnum.PLAYER2),
@@ -72,7 +72,19 @@ function App() {
     handIndex: number;
   } | null>(null);
 
+  const [playingCardAnimation, setPlayingCardAnimation] = useState<{
+    playerId: PlayerEnum;
+    fromHandIndex: number;
+    toBoardIndex: number;
+    card: Card;
+  } | null>(null);
+
   const isDealingRef = useRef(false);
+
+  const boardCellRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const player2HandRefs = useRef<Array<HTMLDivElement | null>>([]);
+
+  const appRef = useRef<HTMLDivElement>(null);
 
   // Handler Functions
 
@@ -149,21 +161,53 @@ function App() {
         setHighlightedCells([]);
       } else {
         const result = performRegularMoveForPlayer(players, playerId, boardState);
-        setPlayers(result.updatedPlayers);
-        setBoardState(result.newBoardState);
-        setPlayerTurn(result.nextPlayerTurn);
-        const { moveMade, move } = result;
 
-        if (moveMade && move) {
-          if (move.type === 'discard' && playerId === PlayerEnum.PLAYER2) {
-            handleCardDiscard(move.cardIndex, PlayerEnum.PLAYER2);
+        if (
+          playerId === PlayerEnum.PLAYER2 &&
+          result.moveMade &&
+          result.move?.type === 'board' &&
+          result.move.cellIndex !== undefined
+        ) {
+          const cardIndex = result.move.cardIndex;
+          const card = players[playerId].hand[cardIndex];
+          if (!card) return;
+          setPlayingCardAnimation({
+            playerId,
+            fromHandIndex: cardIndex,
+            toBoardIndex: result.move.cellIndex,
+            card,
+          });
+
+          // After animation completes, update state
+          setTimeout(() => {
+            setPlayers(result.updatedPlayers);
+            setBoardState(result.newBoardState);
+            setPlayerTurn(result.nextPlayerTurn);
+            if (isGameOver(result.updatedPlayers)) {
+              setGameOver(true);
+            }
+            setPlayingCardAnimation(null);
+          }, 1000); // duration of animation
+        } else {
+          // For other moves or Player 1, update state immediately
+          setPlayers(result.updatedPlayers);
+          setBoardState(result.newBoardState);
+          setPlayerTurn(result.nextPlayerTurn);
+          const { moveMade, move } = result;
+
+          if (moveMade && move) {
+            if (move.type === 'discard' && playerId === PlayerEnum.PLAYER2) {
+              handleCardDiscard(move.cardIndex, PlayerEnum.PLAYER2);
+            }
           }
-        }
 
-        if (!moveMade && playerId === PlayerEnum.PLAYER2) {
-          const firstDiscardableIndex = players[PlayerEnum.PLAYER2].hand.findIndex(card => card !== undefined);
-          if (firstDiscardableIndex !== -1) {
-            handleCardDiscard(firstDiscardableIndex, PlayerEnum.PLAYER2);
+          if (!moveMade && playerId === PlayerEnum.PLAYER2) {
+            const firstDiscardableIndex = players[PlayerEnum.PLAYER2].hand.findIndex(
+              card => card !== undefined
+            );
+            if (firstDiscardableIndex !== -1) {
+              handleCardDiscard(firstDiscardableIndex, PlayerEnum.PLAYER2);
+            }
           }
         }
       }
@@ -337,11 +381,17 @@ function App() {
   }, [dealing, initialFaceDownCards, boardState]);
 
   useEffect(() => {
-    if (!dealing && !drawingCard && playerTurn === PlayerEnum.PLAYER2 && !gameOver) {
+    if (
+      !dealing &&
+      !drawingCard &&
+      !playingCardAnimation &&
+      playerTurn === PlayerEnum.PLAYER2 &&
+      !gameOver
+    ) {
       const executePlay = () => playForPlayer(PlayerEnum.PLAYER2);
       setTimeout(executePlay, firstMove[PlayerEnum.PLAYER2] ? 0 : 500);
     }
-  }, [dealing, drawingCard, playerTurn, gameOver, firstMove, playForPlayer]);
+  }, [dealing, drawingCard, playingCardAnimation, playerTurn, gameOver, firstMove, playForPlayer]);
 
   useEffect(() => {
     const newScores = calculateScores(boardState);
@@ -364,7 +414,7 @@ function App() {
     : '';
 
   return (
-    <div className="App">
+    <div className="App" ref={appRef} style={{ position: 'relative' }}>
       <div className="scoreboard">
         <div>Player 1 Score: {scores[PlayerEnum.PLAYER1]}</div>
         <div>Player 2 Score: {scores[PlayerEnum.PLAYER2]}</div>
@@ -391,6 +441,7 @@ function App() {
         swapCardsInHand={undefined}
         dealingCards={dealingCardsToPlayers.filter(dc => dc.playerId === PlayerEnum.PLAYER2)}
         drawingCard={drawingCard?.playerId === PlayerEnum.PLAYER2 ? drawingCard : null}
+        handRefs={player2HandRefs}
       />
 
       <Board
@@ -398,6 +449,7 @@ function App() {
         isPlayerTurn={playerTurn === PlayerEnum.PLAYER1 && !gameOver}
         placeCardOnBoard={placeCardOnBoard}
         highlightedCells={highlightedCells}
+        cellRefs={boardCellRefs}
       />
 
       {/* Player 1 Area */}
@@ -421,6 +473,16 @@ function App() {
         dealingCards={dealingCardsToPlayers.filter(dc => dc.playerId === PlayerEnum.PLAYER1)}
         drawingCard={drawingCard?.playerId === PlayerEnum.PLAYER1 ? drawingCard : null}
       />
+
+      {/* Animating Card */}
+      {playingCardAnimation && (
+        <AnimatingCard
+          card={playingCardAnimation.card}
+          fromElement={player2HandRefs.current[playingCardAnimation.fromHandIndex]}
+          toElement={boardCellRefs.current[playingCardAnimation.toBoardIndex]}
+          containerElement={appRef.current}
+        />
+      )}
     </div>
   );
 }
