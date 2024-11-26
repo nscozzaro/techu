@@ -1,3 +1,5 @@
+// src/components/PlayerArea.tsx
+
 import React, { useRef, useEffect, useState } from 'react';
 import Cell from './Cell';
 import { Card, PlayerEnum } from '../types';
@@ -21,8 +23,7 @@ interface PlayerAreaProps {
   isCurrentPlayer: boolean;
   isDiscardPileHighlighted: boolean;
   swapCardsInHand?: (playerId: PlayerEnum, sourceIndex: number, targetIndex: number) => void;
-  isDealingCard: boolean;
-  dealingHandIndex?: number;
+  dealingCards: Array<{ playerId: PlayerEnum; handIndex: number }>;
   drawingCard?: { playerId: PlayerEnum; handIndex: number } | null;
 }
 
@@ -43,8 +44,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
   isCurrentPlayer,
   isDiscardPileHighlighted,
   swapCardsInHand,
-  isDealingCard,
-  dealingHandIndex,
+  dealingCards,
   drawingCard,
 }) => {
   // Define the number of hand slots
@@ -57,82 +57,143 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
   const deckRef = useRef<HTMLDivElement>(null);
   const handSlotRefs = useRef<Array<HTMLDivElement | null>>([]);
 
-  // State for Dealing Card Position
-  const [dealingCardStyle, setDealingCardStyle] = useState<React.CSSProperties | null>(null);
+  const playerAreaRef = useRef<HTMLDivElement>(null);
+
+  // State for Dealing Card Positions
+  const [dealingCardsData, setDealingCardsData] = useState<Array<{
+    handIndex: number;
+    style: React.CSSProperties;
+    cardBackImage: string;
+  }>>([]);
 
   // Handle dealing card animation
   useEffect(() => {
-    if (isDealingCard && deckRef.current) {
-      const deckRect = deckRef.current.getBoundingClientRect();
-      const handRect = handSlotRefs.current[dealingHandIndex!]?.getBoundingClientRect();
+    if (dealingCards.length > 0 && deckRef.current && playerAreaRef.current) {
+      const playerAreaRect = playerAreaRef.current.getBoundingClientRect();
+      const newDealingCardsData: Array<{
+        handIndex: number;
+        style: React.CSSProperties;
+        cardBackImage: string;
+      }> = [];
 
-      if (handRect) {
-        const initialStyle: React.CSSProperties = {
-          position: 'absolute',
-          width: deckRect.width,
-          height: deckRect.height,
-          left: deckRect.left - handRect.left,
-          top: deckRect.top - handRect.top,
-          transition: 'left 1s ease, top 1s ease',
-          zIndex: 1000,
-        };
+      dealingCards.forEach(({ playerId: dealingPlayerId, handIndex }) => {
+        if (dealingPlayerId === playerId && deckRef.current) {
+          const deckRect = deckRef.current.getBoundingClientRect();
+          const handRect = handSlotRefs.current[handIndex]?.getBoundingClientRect();
 
-        setDealingCardStyle(initialStyle);
+          if (handRect) {
+            const initialLeft = deckRect.left - playerAreaRect.left;
+            const initialTop = deckRect.top - playerAreaRect.top;
 
-        // Move to hand position after a short delay to allow rendering
-        setTimeout(() => {
-          setDealingCardStyle(prevStyle => prevStyle && {
-            ...prevStyle,
-            left: 0,
-            top: 0,
-          });
-        }, 50); // Slight delay
-      }
+            const finalLeft = handRect.left - playerAreaRect.left;
+            const finalTop = handRect.top - playerAreaRect.top;
+
+            const initialStyle: React.CSSProperties = {
+              position: 'absolute',
+              width: deckRect.width,
+              height: deckRect.height,
+              left: initialLeft,
+              top: initialTop,
+              transition: 'left 1s ease, top 1s ease',
+              zIndex: 1000,
+            };
+
+            newDealingCardsData.push({
+              handIndex,
+              style: initialStyle,
+              cardBackImage: playerId === PlayerEnum.PLAYER1 ? cardBackRed : cardBackBlue,
+            });
+
+            // Move to hand position after a short delay to allow rendering
+            setTimeout(() => {
+              setDealingCardsData(prev =>
+                prev.map(dc =>
+                  dc.handIndex === handIndex
+                    ? {
+                        ...dc,
+                        style: {
+                          ...dc.style,
+                          left: finalLeft,
+                          top: finalTop,
+                        },
+                      }
+                    : dc
+                )
+              );
+            }, 50); // Slight delay
+          }
+        }
+      });
+
+      setDealingCardsData(newDealingCardsData);
+
+      // Remove dealing cards after animation
+      setTimeout(() => {
+        setDealingCardsData([]);
+      }, 1000); // Match transition duration
     }
-  }, [isDealingCard, dealingHandIndex, playerId]);
+  }, [dealingCards, playerId]);
 
   // Handle drawing card animation
   useEffect(() => {
-    if (drawingCard && drawingCard.playerId === playerId && deckRef.current) {
+    if (drawingCard && drawingCard.playerId === playerId && deckRef.current && playerAreaRef.current) {
+      const playerAreaRect = playerAreaRef.current.getBoundingClientRect();
       const deckRect = deckRef.current.getBoundingClientRect();
       const handRect = handSlotRefs.current[drawingCard.handIndex]?.getBoundingClientRect();
 
       if (handRect) {
+        const initialLeft = deckRect.left - playerAreaRect.left;
+        const initialTop = deckRect.top - playerAreaRect.top;
+
+        const finalLeft = handRect.left - playerAreaRect.left;
+        const finalTop = handRect.top - playerAreaRect.top;
+
         const initialStyle: React.CSSProperties = {
           position: 'absolute',
           width: deckRect.width,
           height: deckRect.height,
-          left: deckRect.left - handRect.left,
-          top: deckRect.top - handRect.top,
+          left: initialLeft,
+          top: initialTop,
           transition: 'left 1s ease, top 1s ease',
           zIndex: 1000,
         };
 
-        setDealingCardStyle(initialStyle);
+        setDealingCardsData([
+          {
+            handIndex: drawingCard.handIndex,
+            style: initialStyle,
+            cardBackImage: playerId === PlayerEnum.PLAYER1 ? cardBackRed : cardBackBlue,
+          },
+        ]);
 
         // Move to hand position after a short delay to allow rendering
         setTimeout(() => {
-          setDealingCardStyle(prevStyle => prevStyle && {
-            ...prevStyle,
-            left: 0,
-            top: 0,
-          });
+          setDealingCardsData(prev =>
+            prev.map(dc =>
+              dc.handIndex === drawingCard.handIndex
+                ? {
+                    ...dc,
+                    style: {
+                      ...dc.style,
+                      left: finalLeft,
+                      top: finalTop,
+                    },
+                  }
+                : dc
+            )
+          );
         }, 50); // Slight delay
+
+        // Remove dealing card after animation
+        setTimeout(() => {
+          setDealingCardsData([]);
+        }, 1000); // Match transition duration
       }
     }
   }, [drawingCard, playerId]);
 
-  // Remove dealing card after animation
-  useEffect(() => {
-    if (!isDealingCard && (!drawingCard || drawingCard.playerId !== playerId)) {
-      setTimeout(() => {
-        setDealingCardStyle(null);
-      }, 1000); // Match transition duration
-    }
-  }, [isDealingCard, drawingCard, playerId]);
-
   return (
-    <div className="player-area" style={{ position: 'relative' }}>
+    <div className="player-area" style={{ position: 'relative' }} ref={playerAreaRef}>
       {playerId === PlayerEnum.PLAYER1 ? (
         <>
           {/* Deck Cell */}
@@ -162,38 +223,23 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
               onDragEnd={handleDragEnd}
               isCurrentPlayer={isCurrentPlayer}
               swapCardsInHand={swapCardsInHand}
-            >
-              {/* Dealing Card Animation */}
-              {dealingCardStyle && isDealingCard && dealingHandIndex === index && (
-                <div style={dealingCardStyle}>
-                  <div
-                    className="card-back"
-                    style={{
-                      backgroundImage: `url(${cardBackRed})`,
-                      backgroundSize: 'cover',
-                      backgroundPosition: 'center',
-                      width: '100%',
-                      height: '100%',
-                    }}
-                  />
-                </div>
-              )}
-              {/* Drawing Card Animation */}
-              {dealingCardStyle && drawingCard && drawingCard.handIndex === index && (
-                <div style={dealingCardStyle}>
-                  <div
-                    className="card-back"
-                    style={{
-                      backgroundImage: `url(${cardBackRed})`,
-                      backgroundSize: 'cover',
-                      backgroundPosition: 'center',
-                      width: '100%',
-                      height: '100%',
-                    }}
-                  />
-                </div>
-              )}
-            </Cell>
+            />
+          ))}
+
+          {/* Dealing Cards */}
+          {dealingCardsData.map(dc => (
+            <div key={dc.handIndex} style={dc.style}>
+              <div
+                className="card-back"
+                style={{
+                  backgroundImage: `url(${dc.cardBackImage})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  width: '100%',
+                  height: '100%',
+                }}
+              />
+            </div>
           ))}
 
           {/* Discard Pile Cell */}
@@ -241,40 +287,25 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
                 onDragStart={() => handleDragStart(playerId)}
                 onDragEnd={handleDragEnd}
                 isCurrentPlayer={isCurrentPlayer}
-              >
-                {/* Dealing Card Animation */}
-                {dealingCardStyle && isDealingCard && dealingHandIndex === actualIndex && (
-                  <div style={dealingCardStyle}>
-                    <div
-                      className="card-back"
-                      style={{
-                        backgroundImage: `url(${cardBackBlue})`,
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                        width: '100%',
-                        height: '100%',
-                      }}
-                    />
-                  </div>
-                )}
-                {/* Drawing Card Animation */}
-                {dealingCardStyle && drawingCard && drawingCard.handIndex === actualIndex && (
-                  <div style={dealingCardStyle}>
-                    <div
-                      className="card-back"
-                      style={{
-                        backgroundImage: `url(${cardBackBlue})`,
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                        width: '100%',
-                        height: '100%',
-                      }}
-                    />
-                  </div>
-                )}
-              </Cell>
+              />
             );
           })}
+
+          {/* Dealing Cards */}
+          {dealingCardsData.map(dc => (
+            <div key={dc.handIndex} style={dc.style}>
+              <div
+                className="card-back"
+                style={{
+                  backgroundImage: `url(${dc.cardBackImage})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  width: '100%',
+                  height: '100%',
+                }}
+              />
+            </div>
+          ))}
 
           {/* Deck Cell */}
           <Cell

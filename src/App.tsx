@@ -62,10 +62,10 @@ function App() {
   const [highlightDiscardPile, setHighlightDiscardPile] = useState<boolean>(false);
 
   const [dealing, setDealing] = useState<boolean>(true);
-  const [dealingCardToPlayer, setDealingCardToPlayer] = useState<{
+  const [dealingCardsToPlayers, setDealingCardsToPlayers] = useState<Array<{
     playerId: PlayerEnum;
     handIndex: number;
-  } | null>(null);
+  }>>([]);
 
   const [drawingCard, setDrawingCard] = useState<{
     playerId: PlayerEnum;
@@ -261,32 +261,46 @@ function App() {
 
   const dealCards = useCallback(() => {
     const cardsToDealPerPlayer = 3;
-    const playerQueue: PlayerEnum[] = [PlayerEnum.PLAYER1, PlayerEnum.PLAYER2];
     let totalCardsDealt = 0;
 
     const dealNextCard = () => {
-      if (totalCardsDealt >= cardsToDealPerPlayer * playerQueue.length) {
+      if (totalCardsDealt >= cardsToDealPerPlayer) {
         setDealing(false);
         return;
       }
 
-      const playerId = playerQueue[totalCardsDealt % playerQueue.length];
-      const handIndex = Math.floor(totalCardsDealt / playerQueue.length);
+      const handIndex = totalCardsDealt;
 
-      setDealingCardToPlayer({ playerId, handIndex });
+      // Set dealing animation for both players
+      setDealingCardsToPlayers([
+        { playerId: PlayerEnum.PLAYER1, handIndex },
+        { playerId: PlayerEnum.PLAYER2, handIndex },
+      ]);
 
       setTimeout(() => {
         setPlayers(prevPlayers => {
           const updatedPlayers = { ...prevPlayers };
-          const player = updatedPlayers[playerId];
-          if (player.deck.length > 0) {
-            const newCard = player.deck.pop()!;
-            player.hand[handIndex] = newCard;
+
+          // Deal card to Player 1
+          const player1 = updatedPlayers[PlayerEnum.PLAYER1];
+          if (player1.deck.length > 0) {
+            const newCard = player1.deck.pop()!;
+            player1.hand[handIndex] = newCard;
           }
+
+          // Deal card to Player 2
+          const player2 = updatedPlayers[PlayerEnum.PLAYER2];
+          if (player2.deck.length > 0) {
+            const newCard = player2.deck.pop()!;
+            player2.hand[handIndex] = newCard;
+          }
+
           return updatedPlayers;
         });
 
-        setDealingCardToPlayer(null);
+        // Clear dealing cards animation
+        setDealingCardsToPlayers([]);
+
         totalCardsDealt++;
 
         setTimeout(dealNextCard, 500);
@@ -374,8 +388,8 @@ function App() {
         handleDragEnd={handleDragEnd}
         isCurrentPlayer={playerTurn === PlayerEnum.PLAYER2}
         isDiscardPileHighlighted={highlightDiscardPile && playerTurn === PlayerEnum.PLAYER2}
-        isDealingCard={dealingCardToPlayer?.playerId === PlayerEnum.PLAYER2}
-        dealingHandIndex={dealingCardToPlayer?.handIndex}
+        swapCardsInHand={undefined}
+        dealingCards={dealingCardsToPlayers.filter(dc => dc.playerId === PlayerEnum.PLAYER2)}
         drawingCard={drawingCard?.playerId === PlayerEnum.PLAYER2 ? drawingCard : null}
       />
 
@@ -404,8 +418,7 @@ function App() {
         isCurrentPlayer={playerTurn === PlayerEnum.PLAYER1}
         isDiscardPileHighlighted={highlightDiscardPile && playerTurn === PlayerEnum.PLAYER1}
         swapCardsInHand={swapCardsInHand}
-        isDealingCard={dealingCardToPlayer?.playerId === PlayerEnum.PLAYER1}
-        dealingHandIndex={dealingCardToPlayer?.handIndex}
+        dealingCards={dealingCardsToPlayers.filter(dc => dc.playerId === PlayerEnum.PLAYER1)}
         drawingCard={drawingCard?.playerId === PlayerEnum.PLAYER1 ? drawingCard : null}
       />
     </div>
