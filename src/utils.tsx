@@ -359,6 +359,7 @@ export const performFirstMoveForPlayer = (
   newBoardState: BoardState;
   newFirstMove: PlayerBooleans;
   nextPlayerTurn: PlayerEnum;
+  moveMade?: Move;
 } => {
   const cardIndex = 0;
   const card = players[playerId].hand[cardIndex];
@@ -382,9 +383,11 @@ export const performFirstMoveForPlayer = (
   );
 
   let newBoardState = [...boardState];
+  let moveMade: Move | undefined = undefined;
 
   if (validMoves.length > 0) {
     const move = selectRandomMove(validMoves);
+    moveMade = move;
     if (move.type === 'board' && move.cellIndex !== undefined) {
       setInitialFaceDownCards((prev: InitialFaceDownCards) => ({
         ...prev,
@@ -405,7 +408,7 @@ export const performFirstMoveForPlayer = (
   };
   const nextPlayerTurn = getNextPlayerTurn(playerId);
 
-  return { updatedPlayers, newBoardState, newFirstMove, nextPlayerTurn };
+  return { updatedPlayers, newBoardState, newFirstMove, nextPlayerTurn, moveMade };
 };
 
 // Helper function to get valid first moves

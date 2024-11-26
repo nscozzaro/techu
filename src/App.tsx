@@ -158,11 +158,31 @@ function App() {
           tieBreaker,
           setInitialFaceDownCards
         );
+
         setPlayers(result.updatedPlayers);
         setBoardState(result.newBoardState);
         setFirstMove(result.newFirstMove);
         setPlayerTurn(result.nextPlayerTurn);
         setHighlightedCells([]);
+
+        // Check if a move was made and animate it
+        if (result.moveMade && result.moveMade.type === 'board' && result.moveMade.cellIndex !== undefined) {
+          const cardIndex = result.moveMade.cardIndex;
+          const card = players[playerId].hand[cardIndex];
+          if (card) {
+            setPlayingCardAnimation({
+              playerId,
+              fromHandIndex: cardIndex,
+              toBoardIndex: result.moveMade.cellIndex,
+              card,
+            });
+
+            // After animation completes, reset the animation state
+            setTimeout(() => {
+              setPlayingCardAnimation(null);
+            }, 1000); // duration of animation
+          }
+        }
       } else {
         const selectedMove = selectMoveForPlayer(players, playerId, boardState);
 
