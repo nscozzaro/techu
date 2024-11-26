@@ -1,6 +1,6 @@
 // App.tsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Board from './components/Board';
 import PlayerArea from './components/PlayerArea';
 import {
@@ -79,40 +79,45 @@ function App() {
     handIndex: number;
   } | null>(null);
 
+  // Ref to prevent multiple dealing
+  const isDealingRef = useRef(false);
+
   const handleCardDiscard = (cardIndex: number, playerId: PlayerEnum) => {
     if (gameOver) return;
 
     // Prevent discarding during first move
     if (firstMove[playerId]) return;
 
-    const updatedPlayers = { ...players };
-    const player = updatedPlayers[playerId];
+    setPlayers(prevPlayers => {
+      const updatedPlayers = { ...prevPlayers };
+      const player = updatedPlayers[playerId];
 
-    if (cardIndex >= 0 && cardIndex < player.hand.length) {
-      const cardToDiscard = player.hand[cardIndex];
-      if (!cardToDiscard) return; // Nothing to discard
+      if (cardIndex >= 0 && cardIndex < player.hand.length) {
+        const cardToDiscard = player.hand[cardIndex];
+        if (!cardToDiscard) return prevPlayers; // Nothing to discard
 
-      // Add the face-down card to the discard pile
-      const discardedCard = { ...cardToDiscard, faceDown: true };
-      setDiscardPiles((prev) => ({
-        ...prev,
-        [playerId]: [...prev[playerId], discardedCard],
-      }));
+        // Add the face-down card to the discard pile
+        const discardedCard = { ...cardToDiscard, faceDown: true };
+        setDiscardPiles(prev => ({
+          ...prev,
+          [playerId]: [...prev[playerId], discardedCard],
+        }));
 
-      // Remove the card from player's hand by setting it to undefined
-      updatedPlayers[playerId].hand[cardIndex] = undefined;
+        // Remove the card from player's hand by setting it to undefined
+        updatedPlayers[playerId].hand[cardIndex] = undefined;
+      }
 
-      setPlayers(updatedPlayers);
+      return updatedPlayers;
+    });
 
-      // **Trigger Drawing a New Card with Animation**
-      drawCardWithAnimation(playerId, cardIndex, () => {
-        setPlayerTurn(getNextPlayerTurn(playerId));
-        // Clear highlighted cells
-        setHighlightedCells([]);
-        // After Discarding, Discard Pile is a Valid Target
-        setHighlightDiscardPile(false); // Reset highlight after discard
-      });
-    }
+    // **Trigger Drawing a New Card with Animation**
+    drawCardWithAnimation(playerId, cardIndex, () => {
+      setPlayerTurn(getNextPlayerTurn(playerId));
+      // Clear highlighted cells
+      setHighlightedCells([]);
+      // After Discarding, Discard Pile is a Valid Target
+      setHighlightDiscardPile(false); // Reset highlight after discard
+    });
   };
 
   // **New Function to Handle Drawing Card with Animation**
@@ -170,8 +175,6 @@ function App() {
 
       if (!moveMade && playerId === PlayerEnum.PLAYER2) {
         // If no move was made and Player 2 is involved, ensure they discard
-        // This should not happen as 'discard' is always a valid move now
-        // But added as a safety net
         const firstDiscardableIndex = players[PlayerEnum.PLAYER2].hand.findIndex(card => card !== undefined);
         if (firstDiscardableIndex !== -1) {
           handleCardDiscard(firstDiscardableIndex, PlayerEnum.PLAYER2);
@@ -212,28 +215,8 @@ function App() {
 
     if (isGameOver(result.updatedPlayers)) {
       setGameOver(true);
-    } else {
-      // **Trigger Drawing a New Card with Animation After Placing a Card**
-      const playerId = PlayerEnum.PLAYER1;
-      const handIndex = cardIndex;
-
-      if (players[playerId].deck.length > 0) {
-        setPlayers(prevPlayers => {
-          const updatedPlayers = { ...prevPlayers };
-          updatedPlayers[playerId].hand[handIndex] = undefined; // Remove the card immediately
-          return updatedPlayers;
-        });
-
-        drawCardWithAnimation(playerId, handIndex);
-      } else {
-        // No more cards to draw, just remove the card
-        setPlayers(prevPlayers => {
-          const updatedPlayers = { ...prevPlayers };
-          updatedPlayers[playerId].hand[handIndex] = undefined;
-          return updatedPlayers;
-        });
-      }
     }
+    // **Removed redundant deck update and animation trigger**
   };
 
   const clearHighlights = () => {
@@ -257,35 +240,40 @@ function App() {
   const swapCardsInHand = (playerId: PlayerEnum, sourceIndex: number, targetIndex: number) => {
     if (playerId !== PlayerEnum.PLAYER1) return; // Only allow swapping for Player 1
 
-    const player = players[playerId];
-    if (
-      sourceIndex < 0 ||
-      sourceIndex >= player.hand.length ||
-      targetIndex < 0 ||
-      targetIndex >= player.hand.length
-    ) {
-      return;
-    }
+    setPlayers(prevPlayers => {
+      const player = prevPlayers[playerId];
+      if (
+        sourceIndex < 0 ||
+        sourceIndex >= player.hand.length ||
+        targetIndex < 0 ||
+        targetIndex >= player.hand.length
+      ) {
+        return prevPlayers; // Invalid indices, do nothing
+      }
 
-    const updatedHand = [...player.hand];
-    const temp = updatedHand[sourceIndex];
-    updatedHand[sourceIndex] = updatedHand[targetIndex];
-    updatedHand[targetIndex] = temp;
+      const updatedHand = [...player.hand];
+      const temp = updatedHand[sourceIndex];
+      updatedHand[sourceIndex] = updatedHand[targetIndex];
+      updatedHand[targetIndex] = temp;
 
-    setPlayers({
-      ...players,
-      [playerId]: {
-        ...player,
-        hand: updatedHand,
-      },
+      return {
+        ...prevPlayers,
+        [playerId]: {
+          ...player,
+          hand: updatedHand,
+        },
+      };
     });
   };
 
   // Dealing Cards at Start
   useEffect(() => {
+    if (isDealingRef.current) return; // Prevent multiple runs
+    isDealingRef.current = true;
+
     const dealCards = () => {
-      let cardsToDealPerPlayer = 3;
-      let playerQueue: PlayerEnum[] = [PlayerEnum.PLAYER1, PlayerEnum.PLAYER2];
+      const cardsToDealPerPlayer = 3;
+      const playerQueue: PlayerEnum[] = [PlayerEnum.PLAYER1, PlayerEnum.PLAYER2];
       let totalCardsDealt = 0;
 
       const dealNextCard = () => {
