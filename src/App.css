@@ -215,7 +215,7 @@ body {
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.8);
+  background-color: rgba(0, 0, 0, 0.9);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -226,32 +226,38 @@ body {
 /* Modal Content */
 .modal-content {
   background-color: #111;
+  background: linear-gradient(135deg, #1f1f1f, #333); /* Gradient background */ 
   color: #fff;
   padding: 40px 30px;
   border-radius: 8px;
   max-width: 600px;
   width: 90%;
   position: relative;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+ /*box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);*/
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.7); /* More pronounced shadow */
   font-family: Arial, sans-serif;
 }
 
 /* Close Button */
-.modal-content button,
-.close-btn {
+.modal-content .close-btn {
   position: absolute;
-  top: 10px;
-  right: 15px;
+  top: 15px;
+  right: 20px;
   background: none;
   border: none;
-  color: #fff;
-  font-size: 28px;
+  color: #f8f9fa;
+  font-size: 32px;
   cursor: pointer;
+  transition: color 0.3s ease;
 }
 
 .modal-content button:hover,
 .close-btn:hover {
   color: #ccc;
+}
+
+.modal-content .close-btn:hover {
+  color: #6aaa64; /* Wordle green on hover */
 }
 
 /* Responsive Design for Modal Content */
@@ -291,10 +297,10 @@ body {
 
 /* Modal Title */
 .rules-modal h2 {
-  font-size: 24px;
-  margin-bottom: 30px;
+  font-size: 26px;
+  margin-bottom: 20px;
   font-weight: bold;
-  color: #fff;
+  color: #ffffff;
 }
 
 .rules-modal .slide-content {
@@ -321,6 +327,20 @@ body {
   margin-bottom: 10px;
 }
 
+/* Slide Content */
+.rules-modal .slide-content {
+  font-size: 18px; /* Increase size for readability */
+  line-height: 1.8;
+  color: #e0e0e0; /* Softer white */
+  margin-bottom: 20px;
+}
+
+/* Highlight Important Text */
+.rules-modal .slide-content span {
+  color: #ffdd57; /* Bright yellow for emphasis */
+  font-weight: bold;
+}
+
 /* Navigation Container */
 .nav-buttons-container {
   position: absolute;
@@ -335,7 +355,7 @@ body {
 .nav-btn {
   position: absolute;
   top: 50%;
-  transform: translateY(300%);
+  transform: translateY(-50%);
   background: none;
   border: none;
   color: #d7dadc;
@@ -371,25 +391,39 @@ body {
 /* Dots Indicator */
 .dots {
   position: absolute;
-  bottom: 15px;
+  bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   justify-content: center;
   align-items: center;
+  gap: 15px;
+
 }
 
 .dot {
-  height: 10px;
-  width: 10px;
-  background-color: #3a3a3c;
+  height: 12px;
+  width: 12px;
+  background-color: #555;
   border-radius: 50%;
-  display: inline-block;
-  margin: 0 5px;
+  transition: transform 0.3s ease, background 0.3s ease;
 }
 
 .dot.active {
-  background-color: #6aaa64;
+  background-color: #6aaa64; /* Highlight active dot */
+  transform: scale(1.1); /* Enlarge active dot */
+}
+
+/* Animation for Fade-In Effect */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 /* Responsive Design for Rules Modal */
@@ -520,7 +554,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 20px;
 }
 
 /* Score Boxes */

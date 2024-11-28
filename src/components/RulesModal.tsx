@@ -15,7 +15,7 @@ interface Slide {
 const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
   const slides: Slide[] = [
     {
-      title: 'Daily Techu Puzzle',
+      title: 'Welcome to the Daily Techu Puzzle!',
       content: (
         <>
           <p>Everyone gets the same shuffle, so you can compare your results with others.</p>
@@ -75,7 +75,7 @@ const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
         <>
           <p>
             Video tutorial:{' '}
-            <a href="[Insert Link]" target="_blank" rel="noopener noreferrer">
+            <a href="https://www.youtube.com/watch?v=lPL5LN9u-rg&t=4s" target="_blank" rel="noopener noreferrer">
               Video Tutorial
             </a>
           </p>
@@ -85,7 +85,11 @@ const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
               Discord Community
             </a>
           </p>
-          <p>Download the app to keep playing.</p>
+          <p>Download the app to keep playing:{' '}
+            <a href="http://www.techu.app" target="_blank" rel="noopener noreferrer">
+              Techu.app
+            </a>
+          </p>
         </>
       ),
     },
