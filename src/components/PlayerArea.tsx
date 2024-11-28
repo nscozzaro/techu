@@ -18,7 +18,7 @@ interface PlayerAreaProps {
   highlightedCells: number[];
   firstMove: boolean;
   clearHighlights: () => void;
-  handleDragStart: (playerId: PlayerEnum) => void;
+  handleDragStart: (playerId: PlayerEnum, cardIndex: number) => void;
   handleDragEnd: () => void;
   isCurrentPlayer: boolean;
   isDiscardPileHighlighted: boolean;
@@ -26,6 +26,13 @@ interface PlayerAreaProps {
   dealingCards: Array<{ playerId: PlayerEnum; handIndex: number }>;
   drawingCard?: { playerId: PlayerEnum; handIndex: number } | null;
   handRefs?: React.MutableRefObject<Array<HTMLDivElement | null>>;
+  draggedCard?: { playerId: PlayerEnum; cardIndex: number } | null;
+  playingCardAnimation?: {
+    playerId: PlayerEnum;
+    fromHandIndex: number;
+    toBoardIndex: number;
+    card: Card;
+  } | null;
 }
 
 const PlayerArea: React.FC<PlayerAreaProps> = ({
@@ -48,6 +55,8 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
   dealingCards,
   drawingCard,
   handRefs,
+  draggedCard,
+  playingCardAnimation,
 }) => {
   // Define the number of hand slots
   const HAND_SIZE = 3;
@@ -210,23 +219,25 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
           />
 
           {/* Hand Cells */}
-          {handSlots.map((card, index) => (
-            <Cell
-              key={index}
-              ref={el => (handSlotRefs.current[index] = el)} // Assign ref
-              type="hand"
-              card={card}
-              index={index}
-              playerId={playerId}
-              handleCardDrag={handleCardDrag}
-              highlightedCells={highlightedCells}
-              clearHighlights={clearHighlights}
-              onDragStart={() => handleDragStart(playerId)}
-              onDragEnd={handleDragEnd}
-              isCurrentPlayer={isCurrentPlayer}
-              swapCardsInHand={swapCardsInHand}
-            />
-          ))}
+          {handSlots.map((card, index) => {
+            return (
+              <Cell
+                key={index}
+                ref={el => (handSlotRefs.current[index] = el)}
+                type="hand"
+                card={card}
+                index={index}
+                playerId={playerId}
+                handleCardDrag={handleCardDrag}
+                highlightedCells={highlightedCells}
+                clearHighlights={clearHighlights}
+                onDragStart={() => handleDragStart(playerId, index)}
+                onDragEnd={handleDragEnd}
+                isCurrentPlayer={isCurrentPlayer}
+                swapCardsInHand={swapCardsInHand}
+              />
+            );
+          })}
 
           {/* Dealing Cards */}
           {dealingCardsData.map(dc => (
@@ -275,6 +286,10 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
           {/* Hand Cells (reversed) */}
           {handSlots.slice().reverse().map((card, index) => {
             const actualIndex = handSlots.length - 1 - index;
+            const isAnimating =
+              playingCardAnimation && playingCardAnimation.fromHandIndex === actualIndex;
+            const cardToRender = isAnimating ? undefined : card;
+
             return (
               <Cell
                 key={index}
@@ -283,15 +298,15 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
                   if (handRefs) {
                     handRefs.current[actualIndex] = el;
                   }
-                }} // Assign ref
+                }}
                 type="hand"
-                card={card}
+                card={cardToRender} // Use cardToRender here
                 index={actualIndex}
                 playerId={playerId}
                 handleCardDrag={handleCardDrag}
                 highlightedCells={highlightedCells}
                 clearHighlights={clearHighlights}
-                onDragStart={() => handleDragStart(playerId)}
+                onDragStart={() => handleDragStart(playerId, actualIndex)}
                 onDragEnd={handleDragEnd}
                 isCurrentPlayer={isCurrentPlayer}
               />

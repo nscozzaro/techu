@@ -28,45 +28,60 @@ interface CellProps {
   placeCardOnBoard?: (index: number, cardIndex: number) => void;
   playerTurn?: boolean;
   clearHighlights?: () => void;
-  onDragStart?: () => void;
+  onDragStart?: (playerId: PlayerEnum, cardIndex: number) => void;
   onDragEnd?: () => void;
   isCurrentPlayer?: boolean;
   isDisabled?: boolean;
   isHighlighted?: boolean;
   swapCardsInHand?: (playerId: PlayerEnum, sourceIndex: number, targetIndex: number) => void;
   children?: React.ReactNode; // For dealing card animation
+  // Removed isDragging from props
 }
 
-const Cell = forwardRef<HTMLDivElement, CellProps>(({
-  type,
-  card,
-  index,
-  playerId,
-  handleCardDrag,
-  stack,
-  isVisible,
-  handleCardDiscard,
-  count,
-  isFaceDown,
-  highlightedCells,
-  placeCardOnBoard,
-  playerTurn,
-  clearHighlights,
-  onDragStart,
-  onDragEnd,
-  isCurrentPlayer = false,
-  isDisabled = false,
-  isHighlighted = false,
-  swapCardsInHand,
-  children,
-}, ref) => {
+const Cell = forwardRef<HTMLDivElement, CellProps>((props, ref) => {
+  const {
+    type,
+    card,
+    index,
+    playerId,
+    handleCardDrag,
+    stack,
+    isVisible,
+    handleCardDiscard,
+    count,
+    highlightedCells,
+    placeCardOnBoard,
+    playerTurn,
+    clearHighlights,
+    onDragStart,
+    onDragEnd,
+    isCurrentPlayer = false,
+    isDisabled = false,
+    isHighlighted = false,
+    swapCardsInHand,
+    children,
+    // Removed isDragging from props
+  } = props;
+
   const isDeck = type === 'deck';
   const isHand = type === 'hand';
   const isDiscard = type === 'discard';
   const isBoard = type === 'board';
 
-  const isEmpty = isHand ? card === undefined : isDiscard ? (stack?.length === 0) : isBoard ? (stack?.length === 0) : false;
-  const topCard = isHand ? card : isDiscard ? stack![stack!.length - 1] : isBoard ? stack![stack!.length - 1] : null;
+  const isEmpty = isHand
+    ? card === undefined
+    : isDiscard
+    ? stack?.length === 0
+    : isBoard
+    ? stack?.length === 0
+    : false;
+  const topCard = isHand
+    ? card
+    : isDiscard
+    ? stack![stack!.length - 1]
+    : isBoard
+    ? stack![stack!.length - 1]
+    : null;
 
   // Determine if the cell should be highlighted
   const isCellHighlighted = isHighlighted || (highlightedCells?.includes(index ?? -1) || false);
@@ -89,12 +104,18 @@ const Cell = forwardRef<HTMLDivElement, CellProps>(({
       if (handleCardDrag && playerId !== undefined && index !== undefined && card) {
         handleCardDrag(index, playerId);
         if (onDragStart) {
-          onDragStart();
+          onDragStart(playerId, index);
         }
       }
       return { cardIndex: index!, playerId: playerId! };
     },
-    canDrag: isHand && isCurrentPlayer && playerId !== undefined && !!handleCardDrag && !!card && !isDisabled,
+    canDrag:
+      isHand &&
+      isCurrentPlayer &&
+      playerId !== undefined &&
+      !!handleCardDrag &&
+      !!card &&
+      !isDisabled,
     collect: (monitor: DragSourceMonitor) => ({
       isDragging: monitor.isDragging(),
     }),
@@ -109,7 +130,11 @@ const Cell = forwardRef<HTMLDivElement, CellProps>(({
   });
 
   // Drop Target Setup
-  const [{ canDrop, isOver }, dropRef] = useDrop<DropItem, void, { canDrop: boolean; isOver: boolean }>({
+  const [{ canDrop, isOver }, dropRef] = useDrop<
+    DropItem,
+    void,
+    { canDrop: boolean; isOver: boolean }
+  >({
     accept: 'CARD',
     canDrop: (item: DropItem) => {
       if (isDisabled) return false;
@@ -209,25 +234,29 @@ const Cell = forwardRef<HTMLDivElement, CellProps>(({
       )}
 
       {isHand && (
-        card ? (
-          card.faceDown ? (
-            <div
-              className="card-back"
-              style={{
-                backgroundImage: `url(${cardBackImage})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-              }}
-            />
-          ) : (
-            <div className={`card-content ${card.color.toLowerCase()}`}>
-              <div className="top-left">{card.rank}</div>
-              <div className="suit">{card.suit}</div>
-              <div className="bottom-right">{card.rank}</div>
-            </div>
-          )
-        ) : (
+        isDragging ? (
           <div className="empty-placeholder"></div>
+        ) : (
+          card ? (
+            card.faceDown ? (
+              <div
+                className="card-back"
+                style={{
+                  backgroundImage: `url(${cardBackImage})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                }}
+              />
+            ) : (
+              <div className={`card-content ${card.color.toLowerCase()}`}>
+                <div className="top-left">{card.rank}</div>
+                <div className="suit">{card.suit}</div>
+                <div className="bottom-right">{card.rank}</div>
+              </div>
+            )
+          ) : (
+            <div className="empty-placeholder"></div>
+          )
         )
       )}
 

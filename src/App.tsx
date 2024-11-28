@@ -459,26 +459,27 @@ function App() {
 
       {/* Player 2 Area */}
       <PlayerArea
-        playerId={PlayerEnum.PLAYER2}
-        deckCount={players[PlayerEnum.PLAYER2].deck.length}
-        handCards={players[PlayerEnum.PLAYER2].hand}
-        discardPile={discardPiles[PlayerEnum.PLAYER2]}
-        isDragging={draggingPlayer === PlayerEnum.PLAYER2}
-        handleCardDrag={playerTurn === PlayerEnum.PLAYER2 ? handleCardDrag : undefined}
-        handleCardDiscard={handleCardDiscard}
-        placeCardOnBoard={placeCardOnBoard}
-        highlightedCells={highlightedCells}
-        firstMove={firstMove[PlayerEnum.PLAYER2]}
-        clearHighlights={clearHighlights}
-        handleDragStart={handleDragStart}
-        handleDragEnd={handleDragEnd}
-        isCurrentPlayer={playerTurn === PlayerEnum.PLAYER2}
-        isDiscardPileHighlighted={highlightDiscardPile && playerTurn === PlayerEnum.PLAYER2}
-        swapCardsInHand={undefined}
-        dealingCards={dealingCardsToPlayers.filter(dc => dc.playerId === PlayerEnum.PLAYER2)}
-        drawingCard={drawingCard?.playerId === PlayerEnum.PLAYER2 ? drawingCard : null}
-        handRefs={player2HandRefs}
-      />
+  playerId={PlayerEnum.PLAYER2}
+  deckCount={players[PlayerEnum.PLAYER2].deck.length}
+  handCards={players[PlayerEnum.PLAYER2].hand}
+  discardPile={discardPiles[PlayerEnum.PLAYER2]}
+  isDragging={draggingPlayer === PlayerEnum.PLAYER2}
+  handleCardDrag={playerTurn === PlayerEnum.PLAYER2 ? handleCardDrag : undefined}
+  handleCardDiscard={handleCardDiscard}
+  placeCardOnBoard={placeCardOnBoard}
+  highlightedCells={highlightedCells}
+  firstMove={firstMove[PlayerEnum.PLAYER2]}
+  clearHighlights={clearHighlights}
+  handleDragStart={handleDragStart}
+  handleDragEnd={handleDragEnd}
+  isCurrentPlayer={playerTurn === PlayerEnum.PLAYER2}
+  isDiscardPileHighlighted={highlightDiscardPile && playerTurn === PlayerEnum.PLAYER2}
+  swapCardsInHand={undefined}
+  dealingCards={dealingCardsToPlayers.filter(dc => dc.playerId === PlayerEnum.PLAYER2)}
+  drawingCard={drawingCard?.playerId === PlayerEnum.PLAYER2 ? drawingCard : null}
+  handRefs={player2HandRefs}
+  playingCardAnimation={playingCardAnimation?.playerId === PlayerEnum.PLAYER2 ? playingCardAnimation : null} // Add this line
+/>
 
       <Board
         boardState={boardState}
