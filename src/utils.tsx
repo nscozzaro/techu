@@ -160,10 +160,9 @@ export const applyMoveToBoardState = (
   const newBoardState = [...boardState];
   newBoardState[move.cellIndex] = [...boardState[move.cellIndex], card];
 
-  const updatedPlayers = updatePlayerHandAndDrawCard(
+  const updatedPlayers = removeCardFromHand(
     players,
     playerId,
-    move.cardIndex,
     move.cardIndex
   );
 
@@ -370,10 +369,9 @@ export const performFirstMoveForPlayer = (
 
   const faceDownCard = { ...card, faceDown: true };
 
-  const updatedPlayers = updatePlayerHandAndDrawCard(
+  const updatedPlayers = removeCardFromHand(
     players,
     playerId,
-    cardIndex,
     cardIndex
   );
 
@@ -449,6 +447,21 @@ export const handleCardDragLogic = (
   );
 };
 
+export const removeCardFromHand = (
+  players: Players,
+  playerId: PlayerEnum,
+  cardIndex: number
+): Players => {
+  const updatedPlayer = { ...players[playerId] };
+  updatedPlayer.hand = [...updatedPlayer.hand]; // Copy hand
+
+  if (cardIndex >= 0 && cardIndex < updatedPlayer.hand.length) {
+    updatedPlayer.hand[cardIndex] = undefined;
+  }
+
+  return { ...players, [playerId]: updatedPlayer };
+};
+
 // Function to handle placing card on board
 export const placeCardOnBoardLogic = (
   index: number,
@@ -474,13 +487,7 @@ export const placeCardOnBoardLogic = (
     };
 
   const faceDownCard = { ...card, faceDown: true };
-
-  const updatedPlayers = updatePlayerHandAndDrawCard(
-    players,
-    playerId,
-    cardIndex,
-    cardIndex
-  );
+  const updatedPlayers = removeCardFromHand(players, playerId, cardIndex);
 
   let newBoardState = [...boardState];
 

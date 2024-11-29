@@ -95,12 +95,14 @@ function App() {
       setTimeout(() => {
         setPlayers(prevPlayers => {
           const updatedPlayers = { ...prevPlayers };
-          const player = updatedPlayers[playerId];
+          const player = { ...updatedPlayers[playerId] };
+          player.hand = [...player.hand]; // Make a copy of the hand
+          player.deck = [...player.deck]; // Copy the deck
           if (player.deck.length > 0) {
             const newCard = player.deck.pop()!;
-            player.hand = [...player.hand]; // Make a copy of the hand
             player.hand[handIndex] = newCard;
           }
+          updatedPlayers[playerId] = player;
           return updatedPlayers;
         });
         setDrawingCard(null);
@@ -163,6 +165,9 @@ function App() {
         setPlayerTurn(result.nextPlayerTurn);
         setHighlightedCells([]);
 
+        const cardIndex = 0;
+        drawCardWithAnimation(playerId, cardIndex);
+
         // Check if a move was made and animate it
         if (
           result.moveMade &&
@@ -220,6 +225,9 @@ function App() {
               setPlayers(result.updatedPlayers);
               setBoardState(result.newBoardState);
 
+              // Draw card with animation
+              drawCardWithAnimation(playerId, selectedMove.cardIndex);
+
               const nextPlayerTurn = getNextPlayerTurn(playerId);
               setPlayerTurn(nextPlayerTurn);
 
@@ -227,7 +235,7 @@ function App() {
                 setGameOver(true);
               }
               setPlayingCardAnimation(null);
-            }, 1000); // duration of animation
+            }, 1000);
           } else if (selectedMove.type === 'discard') {
             // Handle discard
             const cardIndex = selectedMove.cardIndex;
@@ -238,7 +246,7 @@ function App() {
         }
       }
     },
-    [gameOver, firstMove, players, boardState, tieBreaker, handleCardDiscard]
+    [gameOver, firstMove, players, boardState, tieBreaker, handleCardDiscard, drawCardWithAnimation]
   );
 
   const handleCardDrag = useCallback(
@@ -274,11 +282,14 @@ function App() {
       setFirstMove(result.newFirstMove);
       setPlayerTurn(result.nextPlayerTurn);
 
+      const playerId = PlayerEnum.PLAYER1;
+      drawCardWithAnimation(playerId, cardIndex);
+
       if (isGameOver(result.updatedPlayers)) {
         setGameOver(true);
       }
     },
-    [gameOver, players, boardState, firstMove]
+    [gameOver, players, boardState, firstMove, drawCardWithAnimation]
   );
 
   const clearHighlights = useCallback(() => {
