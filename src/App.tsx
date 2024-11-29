@@ -275,8 +275,6 @@ function App() {
     ]
   );
 
-
-
   const handleCardDrag = useCallback(
     (cardIndex: number, playerId: PlayerEnum) => {
       if (gameOver) return;
