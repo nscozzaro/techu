@@ -165,63 +165,79 @@ function App() {
         setPlayerTurn(result.nextPlayerTurn);
         setHighlightedCells([]);
 
-        const cardIndex = 0;
-        drawCardWithAnimation(playerId, cardIndex);
-
-        // Check if a move was made and animate it
         if (
           result.moveMade &&
           result.moveMade.type === 'board' &&
           result.moveMade.cellIndex !== undefined
         ) {
           const cardIndex = result.moveMade.cardIndex;
+          const cellIndex = result.moveMade.cellIndex;
           const card = result.cardPlayed;
           if (card) {
             setPlayingCardAnimation({
               playerId,
               fromHandIndex: cardIndex,
-              toBoardIndex: result.moveMade.cellIndex,
+              toBoardIndex: cellIndex,
               card,
             });
 
-            // After animation completes, update the boardState
+            // After animation completes, update the boardState and draw a new card
             setTimeout(() => {
-              const newBoardState = [...boardState];
-              newBoardState[result.moveMade!.cellIndex!] = [
-                ...newBoardState[result.moveMade!.cellIndex!],
-                card,
-              ];
-              setBoardState(newBoardState);
+              // Update the board state with the new card
+              setBoardState((prevBoardState) => {
+                const newBoardState = [...prevBoardState];
+                newBoardState[cellIndex] = [
+                  ...newBoardState[cellIndex],
+                  card,
+                ];
+                return newBoardState;
+              });
 
-              // Update initialFaceDownCards
+              // Update initial face-down cards
               setInitialFaceDownCards((prev) => ({
                 ...prev,
-                [playerId]: { ...card, cellIndex: result.moveMade!.cellIndex! },
+                [playerId]: { ...card, cellIndex: cellIndex },
               }));
 
               setPlayingCardAnimation(null);
-            }, 1000); // duration of animation
+
+              // Now draw the card with animation
+              drawCardWithAnimation(playerId, cardIndex);
+            }, 1000); // Duration of the animation in milliseconds
           }
+        } else {
+          // If no move was made, draw the card immediately
+          const cardIndex = 0;
+          drawCardWithAnimation(playerId, cardIndex);
         }
       } else {
         const selectedMove = selectMoveForPlayer(players, playerId, boardState);
 
         if (selectedMove) {
-          if (selectedMove.type === 'board' && selectedMove.cellIndex !== undefined) {
+          if (
+            selectedMove.type === 'board' &&
+            selectedMove.cellIndex !== undefined
+          ) {
             const cardIndex = selectedMove.cardIndex;
+            const cellIndex = selectedMove.cellIndex;
             const card = players[playerId].hand[cardIndex];
             if (!card) return;
 
             setPlayingCardAnimation({
               playerId,
               fromHandIndex: cardIndex,
-              toBoardIndex: selectedMove.cellIndex,
+              toBoardIndex: cellIndex,
               card,
             });
 
-            // After animation completes, apply the move
+            // After animation completes, apply the move and draw a new card
             setTimeout(() => {
-              const result = applyMoveToBoardState(boardState, players, selectedMove, playerId);
+              const result = applyMoveToBoardState(
+                boardState,
+                players,
+                selectedMove,
+                playerId
+              );
               setPlayers(result.updatedPlayers);
               setBoardState(result.newBoardState);
 
@@ -235,19 +251,31 @@ function App() {
                 setGameOver(true);
               }
               setPlayingCardAnimation(null);
-            }, 1000);
+            }, 1000); // Duration of the animation in milliseconds
           } else if (selectedMove.type === 'discard') {
-            // Handle discard
+            // Handle discard move
             const cardIndex = selectedMove.cardIndex;
             handleCardDiscard(cardIndex, playerId);
           }
         } else {
-          // No valid moves, handle accordingly
+          // No valid moves available, pass the turn to the next player
+          const nextPlayerTurn = getNextPlayerTurn(playerId);
+          setPlayerTurn(nextPlayerTurn);
         }
       }
     },
-    [gameOver, firstMove, players, boardState, tieBreaker, handleCardDiscard, drawCardWithAnimation]
+    [
+      gameOver,
+      firstMove,
+      players,
+      boardState,
+      tieBreaker,
+      handleCardDiscard,
+      drawCardWithAnimation,
+    ]
   );
+
+
 
   const handleCardDrag = useCallback(
     (cardIndex: number, playerId: PlayerEnum) => {
