@@ -2,7 +2,7 @@
 
 body {
   font-family: Arial, sans-serif;
-  background-color: #222;
+  background-color: #121213;
   color: #fff;
   margin: 0;
   padding: 0;
@@ -49,14 +49,10 @@ body {
   border-radius: 8px;
   position: relative;
   box-sizing: border-box;
-  border: 1px solid #555;
+  border: 2px solid #3A3A3C;
   display: flex;
   justify-content: center;
   align-items: center;
-}
-
-.cell.empty {
-  background-color: #333;
 }
 
 .card-content {
@@ -139,18 +135,6 @@ body {
 .cell.highlight {
   outline: 2px solid yellow;
   box-shadow: 0 0 10px yellow;
-}
-
-.cell.dragging {
-  opacity: 0.5;
-}
-
-.empty-placeholder {
-  width: 80px;
-  height: 120px;
-  background-color: #444;
-  border: 2px dashed #777;
-  border-radius: 8px;
 }
 
 .discard-pile {

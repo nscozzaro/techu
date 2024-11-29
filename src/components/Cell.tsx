@@ -60,7 +60,6 @@ const Cell = forwardRef<HTMLDivElement, CellProps>((props, ref) => {
     isHighlighted = false,
     swapCardsInHand,
     children,
-    // Removed isDragging from props
   } = props;
 
   const isDeck = type === 'deck';
@@ -205,7 +204,7 @@ const Cell = forwardRef<HTMLDivElement, CellProps>((props, ref) => {
       className={`cell ${isEmpty ? 'empty' : ''} ${
         (isCellHighlighted || isActive) && (type === 'board' || type === 'discard') ? 'highlight' : ''
       } ${isDisabled ? 'disabled' : ''}`}
-      style={{ opacity: isDragging ? 0.5 : 1, position: 'relative' }}
+      style={{ position: 'relative' }}
     >
       {isDeck && count !== undefined && (
         <>
@@ -235,7 +234,7 @@ const Cell = forwardRef<HTMLDivElement, CellProps>((props, ref) => {
 
       {isHand && (
         isDragging ? (
-          <div className="empty-placeholder"></div>
+          <></>
         ) : (
           card ? (
             card.faceDown ? (
@@ -255,7 +254,7 @@ const Cell = forwardRef<HTMLDivElement, CellProps>((props, ref) => {
               </div>
             )
           ) : (
-            <div className="empty-placeholder"></div>
+            <></>
           )
         )
       )}
