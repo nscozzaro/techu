@@ -1,5 +1,4 @@
 // App.tsx
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Board from './components/Board';
 import PlayerArea from './components/PlayerArea';
@@ -86,6 +85,12 @@ function App() {
   const player2HandRefs = useRef<Array<HTMLDivElement | null>>([]);
 
   const appRef = useRef<HTMLDivElement>(null);
+
+  // Removed draggedCard state as it's unused
+  // const [draggedCard, setDraggedCard] = useState<{
+  //   playerId: PlayerEnum;
+  //   cardIndex: number;
+  // } | null>(null);
 
   // Handler Functions
 
@@ -323,12 +328,13 @@ function App() {
     setHighlightDiscardPile(false);
   }, []);
 
-  const handleDragStart = useCallback((playerId: PlayerEnum) => {
-    setDraggingPlayer(playerId);
-  }, []);
+  const handleDragStartNative = useCallback((playerId: PlayerEnum, cardIndex: number) => {
+    setDraggingPlayer(playerId); // Utilize setDraggingPlayer
+    handleCardDrag(cardIndex, playerId);
+  }, [handleCardDrag]);
 
-  const handleDragEnd = useCallback(() => {
-    setDraggingPlayer(null);
+  const handleDragEndNative = useCallback(() => {
+    setDraggingPlayer(null); // Clear draggingPlayer
     clearHighlights();
   }, [clearHighlights]);
 
@@ -477,6 +483,20 @@ function App() {
     }
   }, [players]);
 
+  // **Add the following useEffect for global dragend handling**
+  useEffect(() => {
+    const handleGlobalDragEnd = () => {
+      clearHighlights();
+      setDraggingPlayer(null);
+    };
+
+    window.addEventListener('dragend', handleGlobalDragEnd);
+
+    return () => {
+      window.removeEventListener('dragend', handleGlobalDragEnd);
+    };
+  }, [clearHighlights]);
+
   // Determine Winner
   const winner = gameOver
     ? scores[PlayerEnum.PLAYER1] > scores[PlayerEnum.PLAYER2]
@@ -507,8 +527,8 @@ function App() {
         highlightedCells={highlightedCells}
         firstMove={firstMove[PlayerEnum.PLAYER2]}
         clearHighlights={clearHighlights}
-        handleDragStart={handleDragStart}
-        handleDragEnd={handleDragEnd}
+        handleDragStart={handleDragStartNative}
+        handleDragEnd={handleDragEndNative}
         isCurrentPlayer={playerTurn === PlayerEnum.PLAYER2}
         isDiscardPileHighlighted={highlightDiscardPile && playerTurn === PlayerEnum.PLAYER2}
         swapCardsInHand={undefined}
@@ -540,8 +560,8 @@ function App() {
         highlightedCells={highlightedCells}
         firstMove={firstMove[PlayerEnum.PLAYER1]}
         clearHighlights={clearHighlights}
-        handleDragStart={handleDragStart}
-        handleDragEnd={handleDragEnd}
+        handleDragStart={handleDragStartNative}
+        handleDragEnd={handleDragEndNative}
         isCurrentPlayer={playerTurn === PlayerEnum.PLAYER1}
         isDiscardPileHighlighted={highlightDiscardPile && playerTurn === PlayerEnum.PLAYER1}
         swapCardsInHand={swapCardsInHand}

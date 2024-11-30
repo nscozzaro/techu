@@ -1,5 +1,4 @@
 // src/components/Board.tsx
-
 import React from 'react';
 import Cell from './Cell';
 import { BoardState, Card, PlayerEnum } from '../types';
@@ -48,10 +47,15 @@ const Board: React.FC<BoardProps> = ({
           type="board"
           stack={stack}
           index={index}
-          playerTurn={isPlayerTurn}
+          playerId={undefined}
+          isVisible={true}
+          handleCardDiscard={undefined}
+          handleCardDrag={undefined}
           placeCardOnBoard={placeCardOnBoard}
           highlightedCells={highlightedCells}
+          playerTurn={isPlayerTurn}
           isCurrentPlayer={false}
+          // Removed draggedCard prop
         />
       );
     })}

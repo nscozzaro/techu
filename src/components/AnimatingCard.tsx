@@ -1,5 +1,4 @@
 // src/components/AnimatingCard.tsx
-
 import React, { useEffect, useState } from 'react';
 import { Card, PlayerEnum } from '../types';
 import cardBackRed from '../assets/card-back-red.png';

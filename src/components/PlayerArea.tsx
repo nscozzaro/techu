@@ -1,5 +1,4 @@
 // src/components/PlayerArea.tsx
-
 import React, { useRef, useEffect, useState } from 'react';
 import Cell from './Cell';
 import { Card, PlayerEnum } from '../types';
@@ -26,7 +25,6 @@ interface PlayerAreaProps {
   dealingCards: Array<{ playerId: PlayerEnum; handIndex: number }>;
   drawingCard?: { playerId: PlayerEnum; handIndex: number } | null;
   handRefs?: React.MutableRefObject<Array<HTMLDivElement | null>>;
-  draggedCard?: { playerId: PlayerEnum; cardIndex: number } | null;
   playingCardAnimation?: {
     playerId: PlayerEnum;
     fromHandIndex: number;
@@ -55,7 +53,6 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
   dealingCards,
   drawingCard,
   handRefs,
-  draggedCard,
   playingCardAnimation,
 }) => {
   // Define the number of hand slots
@@ -212,10 +209,10 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
             type="deck"
             count={deckCount}
             playerId={playerId}
-            isFaceDown={false}
             clearHighlights={clearHighlights}
             isCurrentPlayer={isCurrentPlayer}
             ref={deckRef} // Assign ref
+            // Removed isFaceDown and draggedCard props
           />
 
           {/* Hand Cells */}
@@ -235,6 +232,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
                 onDragEnd={handleDragEnd}
                 isCurrentPlayer={isCurrentPlayer}
                 swapCardsInHand={swapCardsInHand}
+                // Removed draggedCard prop
               />
             );
           })}
@@ -266,6 +264,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
             isCurrentPlayer={isCurrentPlayer}
             isDisabled={firstMove}
             isHighlighted={isDiscardPileHighlighted}
+            // Removed draggedCard prop
           />
         </>
       ) : (
@@ -281,6 +280,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
             isCurrentPlayer={isCurrentPlayer}
             isDisabled={firstMove}
             isHighlighted={isDiscardPileHighlighted}
+            // Removed draggedCard prop
           />
 
           {/* Hand Cells (reversed) */}
@@ -309,6 +309,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
                 onDragStart={() => handleDragStart(playerId, actualIndex)}
                 onDragEnd={handleDragEnd}
                 isCurrentPlayer={isCurrentPlayer}
+                // Removed swapCardsInHand and draggedCard props
               />
             );
           })}
@@ -334,7 +335,6 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({
             type="deck"
             count={deckCount}
             playerId={playerId}
-            isFaceDown={false}
             clearHighlights={clearHighlights}
             isCurrentPlayer={isCurrentPlayer}
             ref={deckRef} // Assign ref

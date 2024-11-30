@@ -1,15 +1,8 @@
 // src/components/Cell.tsx
-
 import React, { forwardRef } from 'react';
-import { useDrag, useDrop, DragSourceMonitor, DropTargetMonitor } from 'react-dnd';
 import { Card, PlayerEnum } from '../types';
 import cardBackRed from '../assets/card-back-red.png';
 import cardBackBlue from '../assets/card-back-blue.png';
-
-interface DropItem {
-  cardIndex: number;
-  playerId: PlayerEnum;
-}
 
 type CellType = 'deck' | 'hand' | 'discard' | 'board';
 
@@ -23,7 +16,6 @@ interface CellProps {
   isVisible?: boolean;
   handleCardDiscard?: (cardIndex: number, playerId: PlayerEnum) => void;
   count?: number;
-  isFaceDown?: boolean;
   highlightedCells?: number[];
   placeCardOnBoard?: (index: number, cardIndex: number) => void;
   playerTurn?: boolean;
@@ -82,7 +74,8 @@ const Cell = forwardRef<HTMLDivElement, CellProps>((props, ref) => {
       : null
     : null;
 
-  const isCellHighlighted = isHighlighted || highlightedCells.includes(index ?? -1);
+  // Ensure 'index' is defined before using it
+  const isCellHighlighted = index !== undefined && (isHighlighted || highlightedCells.includes(index));
 
   const getCardBackImage = () => {
     if (topCard && topCard.faceDown) {
@@ -96,92 +89,77 @@ const Cell = forwardRef<HTMLDivElement, CellProps>((props, ref) => {
 
   const cardBackImage = getCardBackImage();
 
-  // Drag Source Setup
-  const [{ isDragging }, dragRef] = useDrag<
-    DropItem,
-    void,
-    { isDragging: boolean }
-  >({
-    type: 'CARD',
-    item: () => {
-      if (handleCardDrag && playerId && index !== undefined && card) {
-        handleCardDrag(index, playerId);
-        onDragStart && onDragStart(playerId, index);
-      }
-      return { cardIndex: index!, playerId: playerId! };
-    },
-    canDrag:
-      isHand &&
-      isCurrentPlayer &&
-      !!handleCardDrag &&
-      !!card &&
-      !isDisabled,
-    collect: (monitor: DragSourceMonitor) => ({
-      isDragging: monitor.isDragging(),
-    }),
-    end: () => {
-      onDragEnd && onDragEnd();
-      clearHighlights && clearHighlights();
-    },
-  });
+  // DragOver Handler: Only allow drop if the cell is highlighted
+  const handleDragOverNative = (e: React.DragEvent<HTMLDivElement>) => {
+    if (isDisabled) return;
 
-  // Drop Target Setup
-  const [{ canDrop, isOver }, dropRef] = useDrop<
-    DropItem,
-    void,
-    { canDrop: boolean; isOver: boolean }
-  >({
-    accept: 'CARD',
-    canDrop: (item: DropItem) => {
-      if (isDisabled) return false;
-      if (type === 'discard') {
-        return item.playerId === playerId;
-      }
-      if (type === 'board') {
-        return playerTurn && isCellHighlighted;
-      }
-      if (type === 'hand' && playerId === PlayerEnum.PLAYER1 && swapCardsInHand && isCurrentPlayer) {
-        return true;
-      }
-      return false;
-    },
-    drop: (item: DropItem) => {
-      if (isDisabled) return;
-      if (type === 'discard' && handleCardDiscard) {
-        handleCardDiscard(item.cardIndex, item.playerId);
-      } else if (type === 'board' && placeCardOnBoard && index !== undefined) {
-        placeCardOnBoard(index, item.cardIndex);
-      } else if (type === 'hand' && playerId === PlayerEnum.PLAYER1 && swapCardsInHand && index !== undefined) {
-        swapCardsInHand(PlayerEnum.PLAYER1, item.cardIndex, index);
-      }
-    },
-    collect: (monitor: DropTargetMonitor) => ({
-      canDrop: monitor.canDrop(),
-      isOver: monitor.isOver(),
-    }),
-  });
-
-  const isActive = canDrop && isOver;
-
-  // Combine drag and drop refs based on cell type
-  const setRef = (node: HTMLDivElement | null) => {
-    if (isHand && playerId === PlayerEnum.PLAYER1 && swapCardsInHand) {
-      dragRef(node);
-      dropRef(node);
-    } else if (isHand) {
-      dragRef(node);
-    } else if (isDiscard || isBoard || isDeck) {
-      dropRef(node);
+    if (isCellHighlighted) {
+      e.preventDefault(); // Allow drop
+      e.dataTransfer.dropEffect = 'move';
+    } else {
+      // Indicate that the drop is not allowed
+      e.dataTransfer.dropEffect = 'none';
     }
-    if (ref) {
-      if (typeof ref === 'function') {
-        ref(node);
-      } else {
-        (ref as React.MutableRefObject<HTMLDivElement | null>).current = node;
+  };
+
+  // Drop Handler: Only handle the drop if it's valid
+  const handleDropNative = (e: React.DragEvent<HTMLDivElement>) => {
+    const data = e.dataTransfer.getData('application/json');
+    if (!data) return;
+
+    try {
+      const parsedData = JSON.parse(data);
+      const { cardIndex, playerId: draggedPlayerId } = parsedData;
+
+      // Determine if the drop is valid based on cell type and game rules
+      if (type === 'discard' && handleCardDiscard) {
+        if (draggedPlayerId === playerId) {
+          e.preventDefault(); // Valid drop
+          handleCardDiscard(cardIndex, draggedPlayerId);
+          return;
+        }
+      } else if (type === 'board') {
+        if (placeCardOnBoard && playerTurn && isCellHighlighted) {
+          e.preventDefault(); // Valid drop
+          placeCardOnBoard(index!, cardIndex);
+          return;
+        }
+      } else if (type === 'hand' && playerId === PlayerEnum.PLAYER1 && swapCardsInHand && isCurrentPlayer) {
+        e.preventDefault(); // Valid drop
+        swapCardsInHand(PlayerEnum.PLAYER1, cardIndex, index!);
+        return;
+      }
+
+      // If the drop is invalid, do not preventDefault(), allowing snap-back
+    } catch (error) {
+      console.error('Error parsing drag data:', error);
+    }
+
+    // Clear highlights and end drag regardless of drop validity
+    if (clearHighlights) {
+      clearHighlights();
+    }
+
+    if (onDragEnd) {
+      onDragEnd();
+    }
+  };
+
+  // DragStart Handler: Set up the drag data
+  const handleDragStartNative = (e: React.DragEvent<HTMLDivElement>) => {
+    if (isHand && isCurrentPlayer && handleCardDrag && card && !isDisabled) {
+      e.dataTransfer.setData('application/json', JSON.stringify({
+        cardIndex: index,
+        playerId: playerId,
+      }));
+      e.dataTransfer.effectAllowed = 'move';
+      if (onDragStart && playerId !== undefined) { // Ensure playerId is defined
+        onDragStart(playerId, index!);
       }
     }
   };
 
+  // Render the card based on its state
   const renderCard = () => {
     if (!topCard) return null;
 
@@ -193,13 +171,16 @@ const Cell = forwardRef<HTMLDivElement, CellProps>((props, ref) => {
             backgroundImage: `url(${cardBackImage})`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
+            opacity: 1, // Ensure opacity is consistent
           }}
         />
       );
     }
 
     return (
-      <div className={`card-content ${topCard.color.toLowerCase()}`}>
+      <div
+        className={`card-content ${topCard.color.toLowerCase()}`}
+      >
         <div className="top-left">{topCard.rank}</div>
         <div className="suit">{topCard.suit}</div>
         <div className="bottom-right">{topCard.rank}</div>
@@ -209,12 +190,17 @@ const Cell = forwardRef<HTMLDivElement, CellProps>((props, ref) => {
 
   return (
     <div
-      ref={setRef}
+      ref={ref}
       className={`cell ${isEmpty ? 'empty' : ''} ${
-        (isCellHighlighted || isActive) && (type === 'board' || type === 'discard') ? 'highlight' : ''
+        isCellHighlighted && (type === 'board' || type === 'discard') ? 'highlight' : ''
       } ${isDisabled ? 'disabled' : ''}`}
       style={{ position: 'relative' }}
+      draggable={isHand && isCurrentPlayer && handleCardDrag && card && !isDisabled}
+      onDragStart={handleDragStartNative}
+      onDragOver={handleDragOverNative}
+      onDrop={handleDropNative}
     >
+      {/* Deck Cell */}
       {isDeck && count !== undefined && (
         <div
           className={`card-back deck-back ${count === 0 ? 'empty-deck' : ''}`}
@@ -233,12 +219,15 @@ const Cell = forwardRef<HTMLDivElement, CellProps>((props, ref) => {
         </div>
       )}
 
-      {isHand && !isDragging && card && renderCard()}
+      {/* Hand Cell */}
+      {isHand && !isEmpty && card && renderCard()}
 
+      {/* Discard Pile Cell */}
       {isDiscard && isVisible && (
         stack && stack.length > 0 ? renderCard() : <span>Discard</span>
       )}
 
+      {/* Board Cell */}
       {isBoard && renderCard()}
 
       {/* Render children (e.g., dealing card animation) */}
