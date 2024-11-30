@@ -55,7 +55,6 @@ const Board: React.FC<BoardProps> = ({
           highlightedCells={highlightedCells}
           playerTurn={isPlayerTurn}
           isCurrentPlayer={false}
-          // Removed draggedCard prop
         />
       );
     })}
