@@ -18,6 +18,7 @@ import {
 import { PlayerEnum, ColorEnum, Card } from './types';
 import { RootState, AppDispatch } from './store';
 import { addDiscardCard } from './features/discardSlice';
+import { setTurn } from './features/turnSlice';
 
 function App() {
   const [players, setPlayers] = useState({
@@ -25,12 +26,16 @@ function App() {
     [PlayerEnum.PLAYER2]: initializePlayer(ColorEnum.BLACK, PlayerEnum.PLAYER2),
   });
 
-  // Retain your existing boardState, playerTurn, etc.
-  // (We're not moving boardState yet.)
+  // Retain boardState locally for now
   const [boardState, setBoardState] = useState(() =>
-    Array(25).fill([]) // (Assuming BOARD_SIZE=5; adjust if needed)
+    Array(25).fill([]) // Adjust if your BOARD_SIZE changes
   );
-  const [playerTurn, setPlayerTurn] = useState<PlayerEnum>(PlayerEnum.PLAYER1);
+
+  // Remove local playerTurn state and use Redux instead
+  // const [playerTurn, setPlayerTurn] = useState<PlayerEnum>(PlayerEnum.PLAYER1);
+  const currentTurn = useSelector((state: RootState) => state.turn.currentTurn);
+  const dispatch = useDispatch<AppDispatch>();
+
   const [firstMove, setFirstMove] = useState({
     [PlayerEnum.PLAYER1]: true,
     [PlayerEnum.PLAYER2]: true,
@@ -46,21 +51,13 @@ function App() {
   });
   const [gameOver, setGameOver] = useState(false);
 
-  // Remove local discardPiles state:
-  // const [discardPiles, setDiscardPiles] = useState<{ [key in PlayerEnum]: Card[] }>({
-  //   [PlayerEnum.PLAYER1]: [],
-  //   [PlayerEnum.PLAYER2]: [],
-  // });
-  // Instead, get discardPiles from Redux:
+  // Discard piles come from Redux (moved in the previous step)
   const discardPiles = useSelector((state: RootState) => state.discard);
 
-  // Other state (dragging, highlight for discard pile, etc.)
   const [draggingPlayer, setDraggingPlayer] = useState<PlayerEnum | null>(null);
   const [highlightDiscardPile, setHighlightDiscardPile] = useState<boolean>(false);
 
-  const dispatch = useDispatch<AppDispatch>();
-
-  // Wrap handleCardDiscard in useCallback
+  // Wrap handleCardDiscard so it dispatches a new turn via Redux
   const handleCardDiscard = useCallback((cardIndex: number, playerId: PlayerEnum) => {
     if (gameOver) return;
     if (firstMove[playerId]) return;
@@ -72,27 +69,24 @@ function App() {
       const cardToDiscard = player.hand[cardIndex];
       if (!cardToDiscard) return;
 
-      // Create a face-down card to add to discard pile
       const discardedCard = { ...cardToDiscard, faceDown: true };
-
-      // Dispatch an action to add the card to the discard pile in Redux
       dispatch(addDiscardCard({ playerId, card: discardedCard }));
 
-      // Update players: remove card from hand and draw a new one
       const newPlayers = updatePlayerHandAndDrawCard(
         updatedPlayers,
         playerId,
         cardIndex,
-        cardIndex // Insert into the same slot
+        cardIndex
       );
       setPlayers(newPlayers);
-      setPlayerTurn(getNextPlayerTurn(playerId));
+      // Instead of local setPlayerTurn, dispatch the new turn
+      dispatch(setTurn(getNextPlayerTurn(playerId)));
       setHighlightedCells([]);
       setHighlightDiscardPile(false);
     }
   }, [gameOver, firstMove, players, dispatch]);
 
-  // (Other functions remain unchanged.)
+  // Wrap playForPlayer in useCallback and dispatch turn changes via Redux
   const playForPlayer = useCallback((playerId: PlayerEnum) => {
     if (gameOver) return;
     const isFirst = firstMove[playerId];
@@ -108,7 +102,8 @@ function App() {
       setPlayers(result.updatedPlayers);
       setBoardState(result.newBoardState);
       setFirstMove(result.newFirstMove);
-      setPlayerTurn(result.nextPlayerTurn);
+      // Dispatch the next turn
+      dispatch(setTurn(result.nextPlayerTurn));
       setHighlightedCells([]);
     } else {
       const result = performRegularMoveForPlayer(
@@ -118,7 +113,8 @@ function App() {
       );
       setPlayers(result.updatedPlayers);
       setBoardState(result.newBoardState);
-      setPlayerTurn(result.nextPlayerTurn);
+      // Dispatch the next turn
+      dispatch(setTurn(result.nextPlayerTurn));
       const { moveMade, move } = result;
 
       if (moveMade && move) {
@@ -134,7 +130,7 @@ function App() {
         }
       }
     }
-  }, [gameOver, firstMove, players, boardState, tieBreaker, handleCardDiscard]);
+  }, [gameOver, firstMove, players, boardState, tieBreaker, dispatch, handleCardDiscard]);
 
   const handleCardDrag = (cardIndex: number, playerId: PlayerEnum) => {
     if (gameOver) return;
@@ -163,7 +159,7 @@ function App() {
     setPlayers(result.updatedPlayers);
     setBoardState(result.newBoardState);
     setFirstMove(result.newFirstMove);
-    setPlayerTurn(result.nextPlayerTurn);
+    dispatch(setTurn(result.nextPlayerTurn));
 
     if (isGameOver(result.updatedPlayers)) {
       setGameOver(true);
@@ -185,7 +181,7 @@ function App() {
     setHighlightDiscardPile(false);
   };
 
-  // New function to swap cards in Player 1's hand
+  // New function to swap cards in Player 1's hand remains unchanged
   const swapCardsInHand = (playerId: PlayerEnum, sourceIndex: number, targetIndex: number) => {
     if (playerId !== PlayerEnum.PLAYER1) return;
 
@@ -224,23 +220,24 @@ function App() {
           boardState
         );
         setBoardState(result.newBoardState);
-        setPlayerTurn(result.nextPlayerTurn);
+        dispatch(setTurn(result.nextPlayerTurn));
         setTieBreaker(result.tieBreaker);
         setInitialFaceDownCards({});
         setFirstMove(result.firstMove);
       }, 500);
     }
-  }, [initialFaceDownCards, boardState]);
+  }, [initialFaceDownCards, boardState, dispatch]);
 
   useEffect(() => {
-    if (playerTurn === PlayerEnum.PLAYER2 && !gameOver) {
+    // Use currentTurn from Redux here instead of local state
+    if (currentTurn === PlayerEnum.PLAYER2 && !gameOver) {
       if (!firstMove[PlayerEnum.PLAYER2]) {
         setTimeout(() => playForPlayer(PlayerEnum.PLAYER2), 500);
       } else {
         playForPlayer(PlayerEnum.PLAYER2);
       }
     }
-  }, [playerTurn, gameOver, firstMove, playForPlayer]);
+  }, [currentTurn, gameOver, firstMove, playForPlayer]);
 
   useEffect(() => {
     const newScores = calculateScores(boardState);
@@ -276,7 +273,7 @@ function App() {
         handCards={players[PlayerEnum.PLAYER2].hand}
         discardPile={discardPiles[PlayerEnum.PLAYER2]}
         isDragging={draggingPlayer === PlayerEnum.PLAYER2}
-        handleCardDrag={playerTurn === PlayerEnum.PLAYER2 ? handleCardDrag : undefined}
+        handleCardDrag={currentTurn === PlayerEnum.PLAYER2 ? handleCardDrag : undefined}
         handleCardDiscard={handleCardDiscard}
         placeCardOnBoard={placeCardOnBoard}
         highlightedCells={highlightedCells}
@@ -284,13 +281,13 @@ function App() {
         clearHighlights={clearHighlights}
         handleDragStart={handleDragStart}
         handleDragEnd={handleDragEnd}
-        isCurrentPlayer={playerTurn === PlayerEnum.PLAYER2}
-        isDiscardPileHighlighted={highlightDiscardPile && playerTurn === PlayerEnum.PLAYER2}
+        isCurrentPlayer={currentTurn === PlayerEnum.PLAYER2}
+        isDiscardPileHighlighted={highlightDiscardPile && currentTurn === PlayerEnum.PLAYER2}
       />
 
       <Board
         boardState={boardState}
-        isPlayerTurn={playerTurn === PlayerEnum.PLAYER1 && !gameOver}
+        isPlayerTurn={currentTurn === PlayerEnum.PLAYER1 && !gameOver}
         placeCardOnBoard={placeCardOnBoard}
         highlightedCells={highlightedCells}
       />
@@ -302,7 +299,7 @@ function App() {
         handCards={players[PlayerEnum.PLAYER1].hand}
         discardPile={discardPiles[PlayerEnum.PLAYER1]}
         isDragging={draggingPlayer === PlayerEnum.PLAYER1}
-        handleCardDrag={playerTurn === PlayerEnum.PLAYER1 ? handleCardDrag : undefined}
+        handleCardDrag={currentTurn === PlayerEnum.PLAYER1 ? handleCardDrag : undefined}
         handleCardDiscard={handleCardDiscard}
         placeCardOnBoard={placeCardOnBoard}
         highlightedCells={highlightedCells}
@@ -310,8 +307,8 @@ function App() {
         clearHighlights={clearHighlights}
         handleDragStart={handleDragStart}
         handleDragEnd={handleDragEnd}
-        isCurrentPlayer={playerTurn === PlayerEnum.PLAYER1}
-        isDiscardPileHighlighted={highlightDiscardPile && playerTurn === PlayerEnum.PLAYER1}
+        isCurrentPlayer={currentTurn === PlayerEnum.PLAYER1}
+        isDiscardPileHighlighted={highlightDiscardPile && currentTurn === PlayerEnum.PLAYER1}
         swapCardsInHand={swapCardsInHand}
       />
     </div>
