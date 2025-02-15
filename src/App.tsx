@@ -20,21 +20,17 @@ import { addDiscardCard } from './features/discardSlice';
 import { setTurn } from './features/turnSlice';
 import { updatePlayers } from './features/playersSlice';
 import { setBoardState } from './features/boardSlice';
+import { setFirstMove, setGameOver } from './features/gameStatusSlice';
 
 function App() {
   const players = useSelector((state: RootState) => state.players);
   const boardState = useSelector((state: RootState) => state.board);
   const currentTurn = useSelector((state: RootState) => state.turn.currentTurn);
   const discardPiles = useSelector((state: RootState) => state.discard);
+  const { firstMove, gameOver } = useSelector((state: RootState) => state.gameStatus);
   const dispatch = useDispatch<AppDispatch>();
 
-  // Remove local boardState; it is now managed by Redux.
-  // const [boardState, setBoardState] = useState(() => Array(25).fill([]));
-
-  const [firstMove, setFirstMove] = useState({
-    [PlayerEnum.PLAYER1]: true,
-    [PlayerEnum.PLAYER2]: true,
-  });
+  // (Other local states remain unchanged)
   const [highlightedCells, setHighlightedCells] = useState<number[]>([]);
   const [initialFaceDownCards, setInitialFaceDownCards] = useState<{
     [key in PlayerEnum]?: Card & { cellIndex: number };
@@ -44,7 +40,6 @@ function App() {
     [PlayerEnum.PLAYER1]: 0,
     [PlayerEnum.PLAYER2]: 0,
   });
-  const [gameOver, setGameOver] = useState(false);
   const [draggingPlayer, setDraggingPlayer] = useState<PlayerEnum | null>(null);
   const [highlightDiscardPile, setHighlightDiscardPile] = useState<boolean>(false);
 
@@ -89,7 +84,7 @@ function App() {
       );
       dispatch(updatePlayers(result.updatedPlayers));
       dispatch(setBoardState(result.newBoardState));
-      setFirstMove(result.newFirstMove);
+      dispatch(setFirstMove(result.newFirstMove));
       dispatch(setTurn(result.nextPlayerTurn));
       setHighlightedCells([]);
     } else {
@@ -144,11 +139,11 @@ function App() {
     );
     dispatch(updatePlayers(result.updatedPlayers));
     dispatch(setBoardState(result.newBoardState));
-    setFirstMove(result.newFirstMove);
+    dispatch(setFirstMove(result.newFirstMove));
     dispatch(setTurn(result.nextPlayerTurn));
 
     if (isGameOver(result.updatedPlayers)) {
-      setGameOver(true);
+      dispatch(setGameOver(true));
     }
   };
 
@@ -209,7 +204,7 @@ function App() {
         dispatch(setTurn(result.nextPlayerTurn));
         setTieBreaker(result.tieBreaker);
         setInitialFaceDownCards({});
-        setFirstMove(result.firstMove);
+        dispatch(setFirstMove(result.firstMove));
       }, 500);
     }
   }, [initialFaceDownCards, boardState, dispatch]);
@@ -231,9 +226,9 @@ function App() {
 
   useEffect(() => {
     if (isGameOver(players)) {
-      setGameOver(true);
+      dispatch(setGameOver(true));
     }
-  }, [players]);
+  }, [players, dispatch]);
 
   const winner = gameOver
     ? scores[PlayerEnum.PLAYER1] > scores[PlayerEnum.PLAYER2]

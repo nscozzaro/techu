@@ -4,6 +4,7 @@ import discardReducer from './features/discardSlice';
 import turnReducer from './features/turnSlice';
 import playersReducer from './features/playersSlice';
 import boardReducer from './features/boardSlice';
+import gameStatusReducer from './features/gameStatusSlice';
 
 export const store = configureStore({
   reducer: {
@@ -11,6 +12,7 @@ export const store = configureStore({
     turn: turnReducer,
     players: playersReducer,
     board: boardReducer,
+    gameStatus: gameStatusReducer,
   },
 });
 
