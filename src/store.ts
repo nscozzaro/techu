@@ -3,13 +3,14 @@ import { configureStore } from '@reduxjs/toolkit';
 import discardReducer from './features/discardSlice';
 import turnReducer from './features/turnSlice';
 import playersReducer from './features/playersSlice';
+import boardReducer from './features/boardSlice';
 
 export const store = configureStore({
   reducer: {
     discard: discardReducer,
     turn: turnReducer,
     players: playersReducer,
-    // Other reducers can be added here as needed.
+    board: boardReducer,
   },
 });
 

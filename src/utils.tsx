@@ -494,7 +494,14 @@ export const placeCardOnBoardLogic = (
 } => {
   const playerId = PlayerEnum.PLAYER1;
   const card = players[playerId].hand[cardIndex];
-  if (!card) return { updatedPlayers: players, newBoardState: boardState, newFirstMove: firstMove, nextPlayerTurn: getNextPlayerTurn(playerId) };
+  if (!card) {
+    return {
+      updatedPlayers: players,
+      newBoardState: boardState,
+      newFirstMove: firstMove,
+      nextPlayerTurn: getNextPlayerTurn(playerId),
+    };
+  }
 
   const faceDownCard = { ...card, faceDown: true };
 
@@ -505,7 +512,8 @@ export const placeCardOnBoardLogic = (
     cardIndex
   );
 
-  let newBoardState = [...boardState];
+  // Deep copy: copy each cell array individually.
+  let newBoardState = boardState.map(cell => [...cell]);
 
   if (firstMove[playerId]) {
     setInitialFaceDownCards((prev: InitialFaceDownCards) => ({
@@ -526,7 +534,9 @@ export const placeCardOnBoardLogic = (
   return { updatedPlayers, newBoardState, newFirstMove, nextPlayerTurn };
 };
 
+
 // Function to flip initial cards
+// src/utils.tsx
 export const flipInitialCardsLogic = (
   initialFaceDownCards: InitialFaceDownCards,
   boardState: BoardState
@@ -536,7 +546,9 @@ export const flipInitialCardsLogic = (
   tieBreaker: boolean;
   firstMove: PlayerBooleans;
 } => {
-  let newBoardState = [...boardState];
+  // Deep clone the board state using JSON serialization.
+  // This ensures that neither the outer array nor any inner arrays remain frozen.
+  const newBoardState: BoardState = JSON.parse(JSON.stringify(boardState));
   let nextPlayerTurn = PlayerEnum.PLAYER1;
   let tieBreaker = false;
   let firstMove: PlayerBooleans = {
@@ -548,9 +560,12 @@ export const flipInitialCardsLogic = (
     const cardData = initialFaceDownCards[playerId];
     if (cardData) {
       const flippedCard = { ...cardData, faceDown: false };
-      newBoardState[cardData.cellIndex][
-        newBoardState[cardData.cellIndex].length - 1
-      ] = flippedCard;
+      const cellIndex = cardData.cellIndex;
+      const cellStack = newBoardState[cellIndex];
+      if (cellStack.length > 0) {
+        // Replace the top card in this cell with the flipped card.
+        cellStack[cellStack.length - 1] = flippedCard;
+      }
     }
   });
 
@@ -563,12 +578,12 @@ export const flipInitialCardsLogic = (
     tieBreaker = true;
     firstMove = initialFirstMove();
   } else {
-    nextPlayerTurn =
-      rank1 < rank2 ? PlayerEnum.PLAYER1 : PlayerEnum.PLAYER2;
+    nextPlayerTurn = rank1 < rank2 ? PlayerEnum.PLAYER1 : PlayerEnum.PLAYER2;
   }
 
   return { newBoardState, nextPlayerTurn, tieBreaker, firstMove };
 };
+
 
 // Helper function to get adjacent indices
 export const getAdjacentIndices = (
