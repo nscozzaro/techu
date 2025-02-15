@@ -5,13 +5,13 @@ import Board from './components/Board';
 import PlayerArea from './components/PlayerArea';
 import {
   getNextPlayerTurn,
-  calculateScores,
-  isGameOver,
   performFirstMoveForPlayer,
   performRegularMoveForPlayer,
   handleCardDragLogic,
+  placeCardOnBoardLogic,
   flipInitialCardsLogic,
   updatePlayerHandAndDrawCard,
+  isGameOver,
 } from './utils';
 import { PlayerEnum, Card } from './types';
 import { RootState, AppDispatch } from './store';
@@ -21,9 +21,7 @@ import { updatePlayers } from './features/playersSlice';
 import { setBoardState } from './features/boardSlice';
 import { setFirstMove, setGameOver } from './features/gameStatusSlice';
 import { setHighlightedCells, setDraggingPlayer, setHighlightDiscardPile, resetUI } from './features/uiSlice';
-// In App.tsx, inside your component:
-import { placeCardOnBoardThunk } from './features/gameThunks';
-
+import { selectScores } from './selectors';
 
 function App() {
   // Redux state selectors
@@ -35,18 +33,15 @@ function App() {
   const highlightedCells = useSelector((state: RootState) => state.ui.highlightedCells);
   const draggingPlayer = useSelector((state: RootState) => state.ui.draggingPlayer);
   const highlightDiscardPile = useSelector((state: RootState) => state.ui.highlightDiscardPile);
+  const scores = useSelector(selectScores); // Use the memoized selector
 
   const dispatch = useDispatch<AppDispatch>();
 
-  // Other local state remains
+  // Local state for initial face-down cards and tieBreaker
   const [initialFaceDownCards, setInitialFaceDownCards] = useState<{
     [key in PlayerEnum]?: Card & { cellIndex: number };
-  }>({});  
+  }>({});
   const [tieBreaker, setTieBreaker] = useState(false);
-  const [scores, setScores] = useState({
-    [PlayerEnum.PLAYER1]: 0,
-    [PlayerEnum.PLAYER2]: 0,
-  });
 
   const handleCardDiscard = useCallback((cardIndex: number, playerId: PlayerEnum) => {
     if (gameOver) return;
@@ -131,10 +126,24 @@ function App() {
     dispatch(setHighlightDiscardPile(!firstMove[playerId]));
   };
 
-  // Replace your existing placeCardOnBoard with:
   const placeCardOnBoard = (index: number, cardIndex: number) => {
     if (gameOver) return;
-    dispatch(placeCardOnBoardThunk({ index, cardIndex, setInitialFaceDownCards }));
+    const result = placeCardOnBoardLogic(
+      index,
+      cardIndex,
+      players,
+      boardState,
+      firstMove,
+      setInitialFaceDownCards
+    );
+    dispatch(updatePlayers(result.updatedPlayers));
+    dispatch(setBoardState(result.newBoardState));
+    dispatch(setFirstMove(result.newFirstMove));
+    dispatch(setTurn(result.nextPlayerTurn));
+
+    if (isGameOver(result.updatedPlayers)) {
+      dispatch(setGameOver(true));
+    }
   };
 
   const handleDragStart = (playerId: PlayerEnum) => {
@@ -201,11 +210,6 @@ function App() {
       }
     }
   }, [currentTurn, gameOver, firstMove, playForPlayer]);
-
-  useEffect(() => {
-    const newScores = calculateScores(boardState);
-    setScores(newScores);
-  }, [boardState]);
 
   useEffect(() => {
     if (isGameOver(players)) {
