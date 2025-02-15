@@ -10,7 +10,6 @@ import {
   performFirstMoveForPlayer,
   performRegularMoveForPlayer,
   handleCardDragLogic,
-  placeCardOnBoardLogic,
   flipInitialCardsLogic,
   updatePlayerHandAndDrawCard,
 } from './utils';
@@ -22,6 +21,9 @@ import { updatePlayers } from './features/playersSlice';
 import { setBoardState } from './features/boardSlice';
 import { setFirstMove, setGameOver } from './features/gameStatusSlice';
 import { setHighlightedCells, setDraggingPlayer, setHighlightDiscardPile, resetUI } from './features/uiSlice';
+// In App.tsx, inside your component:
+import { placeCardOnBoardThunk } from './features/gameThunks';
+
 
 function App() {
   // Redux state selectors
@@ -39,7 +41,7 @@ function App() {
   // Other local state remains
   const [initialFaceDownCards, setInitialFaceDownCards] = useState<{
     [key in PlayerEnum]?: Card & { cellIndex: number };
-  }>({});
+  }>({});  
   const [tieBreaker, setTieBreaker] = useState(false);
   const [scores, setScores] = useState({
     [PlayerEnum.PLAYER1]: 0,
@@ -129,24 +131,10 @@ function App() {
     dispatch(setHighlightDiscardPile(!firstMove[playerId]));
   };
 
+  // Replace your existing placeCardOnBoard with:
   const placeCardOnBoard = (index: number, cardIndex: number) => {
     if (gameOver) return;
-    const result = placeCardOnBoardLogic(
-      index,
-      cardIndex,
-      players,
-      boardState,
-      firstMove,
-      setInitialFaceDownCards
-    );
-    dispatch(updatePlayers(result.updatedPlayers));
-    dispatch(setBoardState(result.newBoardState));
-    dispatch(setFirstMove(result.newFirstMove));
-    dispatch(setTurn(result.nextPlayerTurn));
-
-    if (isGameOver(result.updatedPlayers)) {
-      dispatch(setGameOver(true));
-    }
+    dispatch(placeCardOnBoardThunk({ index, cardIndex, setInitialFaceDownCards }));
   };
 
   const handleDragStart = (playerId: PlayerEnum) => {
