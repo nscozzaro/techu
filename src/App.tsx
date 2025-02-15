@@ -19,7 +19,7 @@ import { addDiscardCard } from './features/discardSlice';
 import { setTurn } from './features/turnSlice';
 import { updatePlayers } from './features/playersSlice';
 import { setBoardState } from './features/boardSlice';
-import { setFirstMove, setGameOver } from './features/gameStatusSlice';
+import { setFirstMove, setGameOver, setTieBreaker } from './features/gameStatusSlice';
 import { setHighlightedCells, setDraggingPlayer, setHighlightDiscardPile, resetUI } from './features/uiSlice';
 import { selectScores } from './selectors';
 
@@ -29,19 +29,18 @@ function App() {
   const boardState = useSelector((state: RootState) => state.board);
   const currentTurn = useSelector((state: RootState) => state.turn.currentTurn);
   const discardPiles = useSelector((state: RootState) => state.discard);
-  const { firstMove, gameOver } = useSelector((state: RootState) => state.gameStatus);
+  const { firstMove, gameOver, tieBreaker } = useSelector((state: RootState) => state.gameStatus);
   const highlightedCells = useSelector((state: RootState) => state.ui.highlightedCells);
   const draggingPlayer = useSelector((state: RootState) => state.ui.draggingPlayer);
   const highlightDiscardPile = useSelector((state: RootState) => state.ui.highlightDiscardPile);
-  const scores = useSelector(selectScores); // Use the memoized selector
+  const scores = useSelector(selectScores);
 
   const dispatch = useDispatch<AppDispatch>();
 
-  // Local state for initial face-down cards and tieBreaker
+  // Local state for initial face-down cards
   const [initialFaceDownCards, setInitialFaceDownCards] = useState<{
     [key in PlayerEnum]?: Card & { cellIndex: number };
   }>({});
-  const [tieBreaker, setTieBreaker] = useState(false);
 
   const handleCardDiscard = useCallback((cardIndex: number, playerId: PlayerEnum) => {
     if (gameOver) return;
@@ -194,7 +193,7 @@ function App() {
         );
         dispatch(setBoardState(result.newBoardState));
         dispatch(setTurn(result.nextPlayerTurn));
-        setTieBreaker(result.tieBreaker);
+        dispatch(setTieBreaker(result.tieBreaker));
         setInitialFaceDownCards({});
         dispatch(setFirstMove(result.firstMove));
       }, 500);
