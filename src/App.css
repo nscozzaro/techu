@@ -1,188 +1,38 @@
-/* src/App.css */
-
-body {
-  font-family: Arial, sans-serif;
-  background-color: #222;
-  color: #fff;
-  margin: 0;
-  padding: 0;
-}
-
 .App {
   text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
 }
 
-.scoreboard {
-  display: flex;
-  justify-content: center;
-  gap: 20px;
-  margin-top: 10px;
-}
-
-.winner {
-  margin-top: 10px;
-  font-size: 24px;
-  font-weight: bold;
-}
-
-.player-area {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  margin: 10px;
-}
-
-.board {
-  display: grid;
-  grid-template-columns: repeat(5, 80px);
-  gap: 10px;
-  margin: 20px auto;
-}
-
-.cell {
-  width: 80px;
-  height: 112px;
-  background-color: transparent;
-  border-radius: 8px;
-  position: relative;
-  box-sizing: border-box;
-  border: 1px solid #555;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.cell.empty {
-  background-color: #333;
-}
-
-.card-content {
-  background-color: white;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  position: relative;
-  width: 100%;
-  height: 100%;
-  box-sizing: border-box;
-  padding: 5px;
-}
-
-.card-back {
-  width: 100%;
-  height: 100%;
-  border-radius: 8px;
-  position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background-color: transparent;
-}
-
-.cell .card-back {
-  background-size: cover;
-  background-position: center;
-}
-
-.deck-count {
-  position: absolute;
-  top: 5px;
-  left: 5px;
-  color: white;
-  font-size: 18px;
-}
-
-.empty-deck {
-  background-color: #555;
-}
-
-.top-left,
-.bottom-right {
-  position: absolute;
-  font-size: 14px;
-  line-height: 14px;
-}
-
-.top-left {
-  top: 5px;
-  left: 5px;
-  text-align: left;
-}
-
-.bottom-right {
-  bottom: 5px;
-  right: 5px;
-  text-align: right;
-  transform: rotate(180deg);
-}
-
-.suit {
-  font-size: 48px;
-  text-align: center;
-  line-height: 1;
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-}
-
-.red {
-  color: red;
-}
-
-.black {
-  color: black;
-}
-
-.cell.highlight {
-  outline: 2px solid yellow;
-  box-shadow: 0 0 10px yellow;
-}
-
-.cell.dragging {
-  opacity: 0.5;
-}
-
-.empty-placeholder {
-  width: 80px;
-  height: 120px;
-  background-color: #444;
-  border: 2px dashed #777;
-  border-radius: 8px;
-}
-
-.discard-pile {
-  width: 80px;
-  height: 112px;
-  border: 2px dashed gray;
-  border-radius: 8px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background-color: transparent;
-  cursor: pointer;
-}
-
-.discard-pile.highlight {
-  background-color: #f0f0f0;
-  border-color: gold;
-}
-
-.cell.disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.App-logo {
+  height: 40vmin;
   pointer-events: none;
 }
 
-@media (max-width: 768px) {
-  .player-area {
-    flex-direction: column;
-    align-items: center;
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
   }
+}
 
-  .board {
-    grid-template-columns: repeat(3, 80px);
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
   }
 }

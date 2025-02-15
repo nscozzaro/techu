@@ -1,23 +1,20 @@
-// index.tsx
+// src/index.tsx
 import React from 'react';
-import { createRoot } from 'react-dom/client';
-import { DndProvider } from 'react-dnd';
-import { HTML5Backend } from 'react-dnd-html5-backend';
+import ReactDOM from 'react-dom/client';
+import { Provider } from 'react-redux';
+import { store } from './app/store';
 import App from './App';
-import './App.css';
+import reportWebVitals from './reportWebVitals';
 
-const container = document.getElementById('root');
+const root = ReactDOM.createRoot(
+  document.getElementById('root') as HTMLElement
+);
+root.render(
+  <React.StrictMode>
+    <Provider store={store}>
+      <App />
+    </Provider>
+  </React.StrictMode>
+);
 
-if (container) {
-  const root = createRoot(container);
-
-  root.render(
-    <React.StrictMode>
-      <DndProvider backend={HTML5Backend}>
-        <App />
-      </DndProvider>
-    </React.StrictMode>
-  );
-} else {
-  console.error("Root container missing in index.html.");
-}
+reportWebVitals();
