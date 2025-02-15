@@ -95,27 +95,35 @@ export const updatePlayerHandAndDrawCard = (
   cardIndex: number,
   insertSlot?: number
 ): Players => {
-  const updatedPlayer = { ...players[playerId] };
-  if (cardIndex >= 0 && cardIndex < updatedPlayer.hand.length) {
-    updatedPlayer.hand[cardIndex] = undefined;
-    if (updatedPlayer.deck.length > 0) {
-      const newCard = updatedPlayer.deck.pop()!;
+  const player = players[playerId];
+  // Create new copies of hand and deck
+  const newHand = [...player.hand];
+  const newDeck = [...player.deck];
+
+  if (cardIndex >= 0 && cardIndex < newHand.length) {
+    newHand[cardIndex] = undefined;
+    if (newDeck.length > 0) {
+      // Remove a card from the copied deck
+      const newCard = newDeck.pop()!;
       if (
         insertSlot !== undefined &&
         insertSlot >= 0 &&
-        insertSlot < updatedPlayer.hand.length
+        insertSlot < newHand.length
       ) {
-        updatedPlayer.hand[insertSlot] = newCard;
+        newHand[insertSlot] = newCard;
       } else {
-        const firstEmpty = updatedPlayer.hand.findIndex(card => card === undefined);
+        const firstEmpty = newHand.findIndex(card => card === undefined);
         if (firstEmpty !== -1) {
-          updatedPlayer.hand[firstEmpty] = newCard;
+          newHand[firstEmpty] = newCard;
         }
       }
     }
   }
+  // Construct an updated player using the new arrays
+  const updatedPlayer = { ...player, hand: newHand, deck: newDeck };
   return { ...players, [playerId]: updatedPlayer };
 };
+
 
 // Function to apply a board move to the board state
 export const applyMoveToBoardState = (
