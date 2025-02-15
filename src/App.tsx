@@ -22,6 +22,7 @@ import { setBoardState } from './features/boardSlice';
 import { setFirstMove, setGameOver, setTieBreaker } from './features/gameStatusSlice';
 import { setHighlightedCells, setDraggingPlayer, setHighlightDiscardPile, resetUI } from './features/uiSlice';
 import { selectScores } from './selectors';
+import { resetGameThunk } from './features/resetGameThunk';
 
 function App() {
   // Redux state selectors
@@ -226,11 +227,19 @@ function App() {
 
   return (
     <div className="App">
+      {/* Reset Game Button */}
+      <div style={{ margin: '10px' }}>
+        <button onClick={() => dispatch(resetGameThunk())}>
+          Reset Game
+        </button>
+      </div>
+
       <div className="scoreboard">
         <div>Player 1 Score: {scores[PlayerEnum.PLAYER1]}</div>
         <div>Player 2 Score: {scores[PlayerEnum.PLAYER2]}</div>
         {gameOver && <div className="winner">{winner}</div>}
       </div>
+
       <PlayerArea
         playerId={PlayerEnum.PLAYER2}
         deckCount={players[PlayerEnum.PLAYER2].deck.length}
@@ -248,12 +257,14 @@ function App() {
         isCurrentPlayer={currentTurn === PlayerEnum.PLAYER2}
         isDiscardPileHighlighted={highlightDiscardPile && currentTurn === PlayerEnum.PLAYER2}
       />
+
       <Board
         boardState={boardState}
         isPlayerTurn={currentTurn === PlayerEnum.PLAYER1 && !gameOver}
         placeCardOnBoard={placeCardOnBoard}
         highlightedCells={highlightedCells}
       />
+
       <PlayerArea
         playerId={PlayerEnum.PLAYER1}
         deckCount={players[PlayerEnum.PLAYER1].deck.length}
