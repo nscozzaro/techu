@@ -1,9 +1,11 @@
 // src/store.ts
 import { configureStore } from '@reduxjs/toolkit';
+import discardReducer from './features/discardSlice';
 
 export const store = configureStore({
   reducer: {
-    // Add your reducers here when you’re ready
+    // We'll keep other reducers here as you add them
+    discard: discardReducer,
   },
 });
 
