@@ -5,6 +5,7 @@ import turnReducer from './features/turnSlice';
 import playersReducer from './features/playersSlice';
 import boardReducer from './features/boardSlice';
 import gameStatusReducer from './features/gameStatusSlice';
+import uiReducer from './features/uiSlice';
 
 export const store = configureStore({
   reducer: {
@@ -13,6 +14,7 @@ export const store = configureStore({
     players: playersReducer,
     board: boardReducer,
     gameStatus: gameStatusReducer,
+    ui: uiReducer,
   },
 });
 

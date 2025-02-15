@@ -1,5 +1,5 @@
 // src/App.tsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import Board from './components/Board';
 import PlayerArea from './components/PlayerArea';
@@ -21,17 +21,22 @@ import { setTurn } from './features/turnSlice';
 import { updatePlayers } from './features/playersSlice';
 import { setBoardState } from './features/boardSlice';
 import { setFirstMove, setGameOver } from './features/gameStatusSlice';
+import { setHighlightedCells, setDraggingPlayer, setHighlightDiscardPile, resetUI } from './features/uiSlice';
 
 function App() {
+  // Redux state selectors
   const players = useSelector((state: RootState) => state.players);
   const boardState = useSelector((state: RootState) => state.board);
   const currentTurn = useSelector((state: RootState) => state.turn.currentTurn);
   const discardPiles = useSelector((state: RootState) => state.discard);
   const { firstMove, gameOver } = useSelector((state: RootState) => state.gameStatus);
+  const highlightedCells = useSelector((state: RootState) => state.ui.highlightedCells);
+  const draggingPlayer = useSelector((state: RootState) => state.ui.draggingPlayer);
+  const highlightDiscardPile = useSelector((state: RootState) => state.ui.highlightDiscardPile);
+
   const dispatch = useDispatch<AppDispatch>();
 
-  // (Other local states remain unchanged)
-  const [highlightedCells, setHighlightedCells] = useState<number[]>([]);
+  // Other local state remains
   const [initialFaceDownCards, setInitialFaceDownCards] = useState<{
     [key in PlayerEnum]?: Card & { cellIndex: number };
   }>({});
@@ -40,8 +45,6 @@ function App() {
     [PlayerEnum.PLAYER1]: 0,
     [PlayerEnum.PLAYER2]: 0,
   });
-  const [draggingPlayer, setDraggingPlayer] = useState<PlayerEnum | null>(null);
-  const [highlightDiscardPile, setHighlightDiscardPile] = useState<boolean>(false);
 
   const handleCardDiscard = useCallback((cardIndex: number, playerId: PlayerEnum) => {
     if (gameOver) return;
@@ -53,7 +56,6 @@ function App() {
     if (cardIndex >= 0 && cardIndex < player.hand.length) {
       const cardToDiscard = player.hand[cardIndex];
       if (!cardToDiscard) return;
-
       const discardedCard = { ...cardToDiscard, faceDown: true };
       dispatch(addDiscardCard({ playerId, card: discardedCard }));
 
@@ -65,8 +67,8 @@ function App() {
       );
       dispatch(updatePlayers(newPlayers));
       dispatch(setTurn(getNextPlayerTurn(playerId)));
-      setHighlightedCells([]);
-      setHighlightDiscardPile(false);
+      dispatch(setHighlightedCells([]));
+      dispatch(setHighlightDiscardPile(false));
     }
   }, [gameOver, firstMove, players, dispatch]);
 
@@ -86,7 +88,7 @@ function App() {
       dispatch(setBoardState(result.newBoardState));
       dispatch(setFirstMove(result.newFirstMove));
       dispatch(setTurn(result.nextPlayerTurn));
-      setHighlightedCells([]);
+      dispatch(setHighlightedCells([]));
     } else {
       const result = performRegularMoveForPlayer(
         players,
@@ -123,8 +125,8 @@ function App() {
       firstMove,
       tieBreaker
     );
-    setHighlightedCells(validMoves);
-    setHighlightDiscardPile(!firstMove[playerId]);
+    dispatch(setHighlightedCells(validMoves));
+    dispatch(setHighlightDiscardPile(!firstMove[playerId]));
   };
 
   const placeCardOnBoard = (index: number, cardIndex: number) => {
@@ -147,19 +149,12 @@ function App() {
     }
   };
 
-  const clearHighlights = () => {
-    setHighlightedCells([]);
-    setHighlightDiscardPile(false);
-  };
-
   const handleDragStart = (playerId: PlayerEnum) => {
-    setDraggingPlayer(playerId);
+    dispatch(setDraggingPlayer(playerId));
   };
 
   const handleDragEnd = () => {
-    setDraggingPlayer(null);
-    clearHighlights();
-    setHighlightDiscardPile(false);
+    dispatch(resetUI());
   };
 
   const swapCardsInHand = (playerId: PlayerEnum, sourceIndex: number, targetIndex: number) => {
@@ -245,7 +240,6 @@ function App() {
         <div>Player 2 Score: {scores[PlayerEnum.PLAYER2]}</div>
         {gameOver && <div className="winner">{winner}</div>}
       </div>
-
       <PlayerArea
         playerId={PlayerEnum.PLAYER2}
         deckCount={players[PlayerEnum.PLAYER2].deck.length}
@@ -257,20 +251,18 @@ function App() {
         placeCardOnBoard={placeCardOnBoard}
         highlightedCells={highlightedCells}
         firstMove={firstMove[PlayerEnum.PLAYER2]}
-        clearHighlights={clearHighlights}
+        clearHighlights={() => dispatch(setHighlightedCells([]))}
         handleDragStart={handleDragStart}
         handleDragEnd={handleDragEnd}
         isCurrentPlayer={currentTurn === PlayerEnum.PLAYER2}
         isDiscardPileHighlighted={highlightDiscardPile && currentTurn === PlayerEnum.PLAYER2}
       />
-
       <Board
         boardState={boardState}
         isPlayerTurn={currentTurn === PlayerEnum.PLAYER1 && !gameOver}
         placeCardOnBoard={placeCardOnBoard}
         highlightedCells={highlightedCells}
       />
-
       <PlayerArea
         playerId={PlayerEnum.PLAYER1}
         deckCount={players[PlayerEnum.PLAYER1].deck.length}
@@ -282,7 +274,7 @@ function App() {
         placeCardOnBoard={placeCardOnBoard}
         highlightedCells={highlightedCells}
         firstMove={firstMove[PlayerEnum.PLAYER1]}
-        clearHighlights={clearHighlights}
+        clearHighlights={() => dispatch(setHighlightedCells([]))}
         handleDragStart={handleDragStart}
         handleDragEnd={handleDragEnd}
         isCurrentPlayer={currentTurn === PlayerEnum.PLAYER1}
