@@ -10,7 +10,7 @@ import {
 import { updatePlayers } from './playersSlice';
 import { setBoardState } from './boardSlice';
 import { setTurn } from './turnSlice';
-import { setFirstMove, setGameOver } from './gameStatusSlice';
+import { setFirstMove, setGameOver, setInitialFaceDownCards } from './gameStatusSlice';
 import { setHighlightedCells, setHighlightDiscardPile } from './uiSlice';
 import { addDiscardCard } from './discardSlice';
 import { PlayerEnum } from '../types';
@@ -18,7 +18,6 @@ import { PlayerEnum } from '../types';
 interface PlaceCardPayload {
   index: number;     // Board cell index where the card will be placed
   cardIndex: number; // The index of the card in the player's hand
-  setInitialFaceDownCards: React.Dispatch<React.SetStateAction<any>>; // Pass the setter from App.tsx
 }
 
 /**
@@ -29,7 +28,7 @@ interface PlaceCardPayload {
 export const placeCardOnBoardThunk = createAsyncThunk(
   'game/placeCardOnBoard',
   async (
-    { index, cardIndex, setInitialFaceDownCards }: PlaceCardPayload,
+    { index, cardIndex }: PlaceCardPayload,
     { getState, dispatch }
   ) => {
     const state = getState() as RootState;
@@ -43,7 +42,8 @@ export const placeCardOnBoardThunk = createAsyncThunk(
       players,
       boardState,
       firstMove,
-      setInitialFaceDownCards
+      // Instead of using a local state setter, dispatch the Redux action
+      (cards) => dispatch(setInitialFaceDownCards(cards))
     );
 
     // Dispatch updates to various slices:

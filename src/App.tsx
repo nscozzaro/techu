@@ -1,5 +1,5 @@
 // src/App.tsx
-import React, { useEffect, useCallback, useState } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import Board from './components/Board';
 import PlayerArea from './components/PlayerArea';
@@ -13,13 +13,13 @@ import {
   updatePlayerHandAndDrawCard,
   isGameOver,
 } from './utils';
-import { PlayerEnum, Card } from './types';
+import { PlayerEnum } from './types';
 import { RootState, AppDispatch } from './store';
 import { addDiscardCard } from './features/discardSlice';
 import { setTurn } from './features/turnSlice';
 import { updatePlayers } from './features/playersSlice';
 import { setBoardState } from './features/boardSlice';
-import { setFirstMove, setGameOver, setTieBreaker } from './features/gameStatusSlice';
+import { setFirstMove, setGameOver, setInitialFaceDownCards, clearInitialFaceDownCards } from './features/gameStatusSlice';
 import { setHighlightedCells, setDraggingPlayer, setHighlightDiscardPile, resetUI } from './features/uiSlice';
 import { selectScores } from './selectors';
 import { resetGameThunk } from './features/resetGameThunk';
@@ -30,18 +30,13 @@ function App() {
   const boardState = useSelector((state: RootState) => state.board);
   const currentTurn = useSelector((state: RootState) => state.turn.currentTurn);
   const discardPiles = useSelector((state: RootState) => state.discard);
-  const { firstMove, gameOver, tieBreaker } = useSelector((state: RootState) => state.gameStatus);
+  const { firstMove, gameOver, tieBreaker, initialFaceDownCards } = useSelector((state: RootState) => state.gameStatus);
   const highlightedCells = useSelector((state: RootState) => state.ui.highlightedCells);
   const draggingPlayer = useSelector((state: RootState) => state.ui.draggingPlayer);
   const highlightDiscardPile = useSelector((state: RootState) => state.ui.highlightDiscardPile);
   const scores = useSelector(selectScores);
 
   const dispatch = useDispatch<AppDispatch>();
-
-  // Local state for initial face-down cards
-  const [initialFaceDownCards, setInitialFaceDownCards] = useState<{
-    [key in PlayerEnum]?: Card & { cellIndex: number };
-  }>({});
 
   const handleCardDiscard = useCallback((cardIndex: number, playerId: PlayerEnum) => {
     if (gameOver) return;
@@ -79,7 +74,8 @@ function App() {
         playerId,
         boardState,
         tieBreaker,
-        setInitialFaceDownCards
+        // Instead of a local setter, dispatch the Redux action
+        (cards) => dispatch(setInitialFaceDownCards(cards))
       );
       dispatch(updatePlayers(result.updatedPlayers));
       dispatch(setBoardState(result.newBoardState));
@@ -134,7 +130,7 @@ function App() {
       players,
       boardState,
       firstMove,
-      setInitialFaceDownCards
+      (cards) => dispatch(setInitialFaceDownCards(cards))
     );
     dispatch(updatePlayers(result.updatedPlayers));
     dispatch(setBoardState(result.newBoardState));
@@ -182,6 +178,7 @@ function App() {
     dispatch(updatePlayers(updatedPlayers));
   };
 
+  // Effect to flip the initial cards when both players have placed their first card.
   useEffect(() => {
     if (
       initialFaceDownCards[PlayerEnum.PLAYER1] &&
@@ -194,12 +191,13 @@ function App() {
         );
         dispatch(setBoardState(result.newBoardState));
         dispatch(setTurn(result.nextPlayerTurn));
-        dispatch(setTieBreaker(result.tieBreaker));
-        setInitialFaceDownCards({});
+        dispatch(setGameOver(isGameOver(players)));
+        dispatch(setHighlightedCells([]));
+        dispatch(clearInitialFaceDownCards());
         dispatch(setFirstMove(result.firstMove));
       }, 500);
     }
-  }, [initialFaceDownCards, boardState, dispatch]);
+  }, [initialFaceDownCards, boardState, players, dispatch]);
 
   useEffect(() => {
     if (currentTurn === PlayerEnum.PLAYER2 && !gameOver) {
