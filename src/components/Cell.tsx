@@ -1,6 +1,6 @@
-// src/components/Cell.tsx
 import React from 'react';
-import { useDrag, useDrop, DragSourceMonitor, DropTargetMonitor } from 'react-dnd';
+import { useDrag, useDrop, DragSourceMonitor } from 'react-dnd';
+// Removed: DropTargetMonitor (was never used)
 import { Card, PlayerEnum } from '../types';
 import cardBackRed from '../assets/card-back-red.png';
 import cardBackBlue from '../assets/card-back-blue.png';
@@ -18,21 +18,22 @@ interface CellProps {
   index?: number;
   playerId?: PlayerEnum;
   handleCardDrag?: (cardIndex: number, playerId: PlayerEnum) => void;
-  stack?: (Card | undefined)[]; // Updated to accept undefined
+  stack?: (Card | undefined)[];
   isVisible?: boolean;
   handleCardDiscard?: (cardIndex: number, playerId: PlayerEnum) => void;
   count?: number;
   isFaceDown?: boolean;
   highlightedCells?: number[];
-  placeCardOnBoard?: (index: number, cardIndex: number) => void;
+  // Updated signature to include playerId
+  placeCardOnBoard?: (index: number, cardIndex: number, playerId: PlayerEnum) => void;
   playerTurn?: boolean;
   clearHighlights?: () => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;
   isCurrentPlayer?: boolean;
-  isDisabled?: boolean; // **New Prop**
-  isHighlighted?: boolean; // **New Prop**
-  swapCardsInHand?: (playerId: PlayerEnum, sourceIndex: number, targetIndex: number) => void; // **New Prop**
+  isDisabled?: boolean;
+  isHighlighted?: boolean;
+  swapCardsInHand?: (playerId: PlayerEnum, sourceIndex: number, targetIndex: number) => void;
 }
 
 const Cell: React.FC<CellProps> = ({
@@ -53,34 +54,44 @@ const Cell: React.FC<CellProps> = ({
   onDragStart,
   onDragEnd,
   isCurrentPlayer = false,
-  isDisabled = false, // **Default to false**
-  isHighlighted = false, // **Default to false**
-  swapCardsInHand, // **New Prop**
+  isDisabled = false,
+  isHighlighted = false,
+  swapCardsInHand,
 }) => {
   const isDeck = type === 'deck';
   const isHand = type === 'hand';
   const isDiscard = type === 'discard';
   const isBoard = type === 'board';
 
-  const isEmpty = isHand ? card === undefined : isDiscard ? (stack?.length === 0) : isBoard ? (stack?.length === 0) : false;
-  const topCard = isHand ? card : isDiscard ? stack![stack!.length - 1] : isBoard ? stack![stack!.length - 1] : null;
+  const isEmpty = isHand
+    ? card === undefined
+    : isDiscard
+    ? stack?.length === 0
+    : isBoard
+    ? stack?.length === 0
+    : false;
 
-  // **Determine if the cell should be highlighted**
-  const isCellHighlighted = isHighlighted || (highlightedCells?.includes(index ?? -1) || false);
+  const topCard = isHand
+    ? card
+    : isDiscard
+    ? stack![stack!.length - 1]
+    : isBoard
+    ? stack![stack!.length - 1]
+    : null;
+
+  const isCellHighlighted =
+    isHighlighted || (highlightedCells?.includes(index ?? -1) || false);
 
   let cardBackImage: string | undefined;
   if (topCard && topCard.faceDown) {
-    cardBackImage = topCard.owner === PlayerEnum.PLAYER1 ? cardBackRed : cardBackBlue;
+    cardBackImage =
+      topCard.owner === PlayerEnum.PLAYER1 ? cardBackRed : cardBackBlue;
   } else if (isHand && card && card.faceDown) {
-    cardBackImage = card.owner === PlayerEnum.PLAYER1 ? cardBackRed : cardBackBlue;
+    cardBackImage =
+      card.owner === PlayerEnum.PLAYER1 ? cardBackRed : cardBackBlue;
   }
 
-  // **Drag Source Setup**
-  const [{ isDragging }, dragRef] = useDrag<
-    DropItem,
-    void,
-    { isDragging: boolean }
-  >({
+  const [{ isDragging }, dragRef] = useDrag<DropItem, void, { isDragging: boolean }>({
     type: 'CARD',
     item: () => {
       if (handleCardDrag && playerId !== undefined && index !== undefined && card) {
@@ -91,7 +102,8 @@ const Cell: React.FC<CellProps> = ({
       }
       return { cardIndex: index!, playerId: playerId! };
     },
-    canDrag: isHand && isCurrentPlayer && playerId !== undefined && !!handleCardDrag && !!card && !isDisabled, // **Prevent dragging if disabled**
+    canDrag:
+      isHand && isCurrentPlayer && playerId !== undefined && !!handleCardDrag && !!card && !isDisabled,
     collect: (monitor: DragSourceMonitor) => ({
       isDragging: monitor.isDragging(),
     }),
@@ -105,30 +117,27 @@ const Cell: React.FC<CellProps> = ({
     },
   });
 
-  // **Drop Target Setup**
   const [{ canDrop, isOver }, dropRef] = useDrop<DropItem, void, { canDrop: boolean; isOver: boolean }>({
     accept: 'CARD',
     canDrop: (item: DropItem) => {
-      if (isDisabled) return false; // **Disable dropping if disabled**
+      if (isDisabled) return false;
       if (type === 'discard') {
-        // **Only allow dropping if the card belongs to the owner of the discard pile**
         return item.playerId === playerId;
       } else if (type === 'board' && playerTurn && isCellHighlighted) {
         return true;
       } else if (type === 'hand' && playerId === PlayerEnum.PLAYER1 && swapCardsInHand && isCurrentPlayer) {
-        // **Allow dropping on hand slots for Player 1 to swap cards**
         return true;
       }
       return false;
     },
-    drop: (item: DropItem, monitor: DropTargetMonitor) => {
-      if (isDisabled) return; // **Do nothing if disabled**
+    drop: (item: DropItem) => {
+      if (isDisabled) return;
       if (type === 'discard' && handleCardDiscard) {
         handleCardDiscard(item.cardIndex, item.playerId);
       } else if (type === 'board' && placeCardOnBoard && index !== undefined) {
-        placeCardOnBoard(index, item.cardIndex);
+        // Pass the dragged card's playerId
+        placeCardOnBoard(index, item.cardIndex, item.playerId);
       } else if (type === 'hand' && playerId === PlayerEnum.PLAYER1 && swapCardsInHand && index !== undefined) {
-        // **Handle swapping cards within Player 1's hand**
         swapCardsInHand(PlayerEnum.PLAYER1, item.cardIndex, index);
       }
     },
@@ -142,16 +151,13 @@ const Cell: React.FC<CellProps> = ({
 
   let cellRef: React.Ref<any> | null = null;
   if (isHand && playerId === PlayerEnum.PLAYER1 && swapCardsInHand) {
-    // **Make Player 1's hand slots both drag sources and drop targets**
     cellRef = (node) => {
       dragRef(node);
       dropRef(node);
     };
   } else if (isHand) {
-    // **Only drag for other players' hand slots**
     cellRef = dragRef;
   } else if (isDiscard || isBoard) {
-    // **Only drop for discard and board cells**
     cellRef = dropRef;
   }
 
@@ -159,9 +165,10 @@ const Cell: React.FC<CellProps> = ({
     <div
       ref={cellRef}
       className={`cell ${isEmpty ? 'empty' : ''} ${
-        // **Apply 'highlight' only if the cell is 'board' or 'discard'**
-        (isCellHighlighted || isActive) && (type === 'board' || type === 'discard') ? 'highlight' : ''
-      } ${isDisabled ? 'disabled' : ''}`} // **Apply Highlight and Disabled Classes**
+        (isCellHighlighted || isActive) && (type === 'board' || type === 'discard')
+          ? 'highlight'
+          : ''
+      } ${isDisabled ? 'disabled' : ''}`}
       style={{ opacity: isDragging ? 0.5 : 1 }}
     >
       {isDeck && count !== undefined && (
@@ -170,10 +177,12 @@ const Cell: React.FC<CellProps> = ({
             <div
               className="card-back deck-back"
               style={{
-                backgroundImage: `url(${playerId === PlayerEnum.PLAYER1 ? cardBackRed : cardBackBlue})`,
+                backgroundImage: `url(${
+                  playerId === PlayerEnum.PLAYER1 ? cardBackRed : cardBackBlue
+                })`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
-              }} // Updated to use playerId for deck back image
+              }}
             >
               <div className="deck-count">{count}</div>
             </div>
@@ -181,7 +190,8 @@ const Cell: React.FC<CellProps> = ({
             <div
               className="card-back empty-deck"
               style={{
-                backgroundColor: playerId === PlayerEnum.PLAYER1 ? '#800000' : '#000080', // Optional: Differentiate empty decks
+                backgroundColor:
+                  playerId === PlayerEnum.PLAYER1 ? '#800000' : '#000080',
               }}
             >
               <div className="deck-count">0</div>
@@ -190,8 +200,8 @@ const Cell: React.FC<CellProps> = ({
         </>
       )}
 
-      {isHand && (
-        card ? (
+      {isHand &&
+        (card ? (
           card.faceDown ? (
             <div
               className="card-back"
@@ -210,17 +220,20 @@ const Cell: React.FC<CellProps> = ({
           )
         ) : (
           <div className="empty-placeholder"></div>
-        )
-      )}
+        ))}
 
       {isDiscard && isVisible && (
         stack && stack.length > 0 ? (
-          stack[stack.length - 1] ? ( // Check if the last card is not undefined
+          stack[stack.length - 1] ? (
             stack[stack.length - 1]!.faceDown ? (
               <div
                 className="card-back"
                 style={{
-                  backgroundImage: `url(${stack[stack.length - 1]!.owner === PlayerEnum.PLAYER1 ? cardBackRed : cardBackBlue})`,
+                  backgroundImage: `url(${
+                    stack[stack.length - 1]!.owner === PlayerEnum.PLAYER1
+                      ? cardBackRed
+                      : cardBackBlue
+                  })`,
                   backgroundSize: 'cover',
                   backgroundPosition: 'center',
                 }}
@@ -242,12 +255,14 @@ const Cell: React.FC<CellProps> = ({
 
       {isBoard && (
         <>
-          {topCard && (
-            topCard.faceDown ? (
+          {topCard &&
+            (topCard.faceDown ? (
               <div
                 className="card-back"
                 style={{
-                  backgroundImage: `url(${topCard.owner === PlayerEnum.PLAYER1 ? cardBackRed : cardBackBlue})`,
+                  backgroundImage: `url(${
+                    topCard.owner === PlayerEnum.PLAYER1 ? cardBackRed : cardBackBlue
+                  })`,
                   backgroundSize: 'cover',
                   backgroundPosition: 'center',
                 }}
@@ -258,8 +273,7 @@ const Cell: React.FC<CellProps> = ({
                 <div className="suit">{topCard.suit}</div>
                 <div className="bottom-right">{topCard.rank}</div>
               </div>
-            )
-          )}
+            ))}
         </>
       )}
     </div>

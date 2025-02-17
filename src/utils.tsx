@@ -1,4 +1,5 @@
 // src/utils.tsx
+
 import {
   Card,
   ColorEnum,
@@ -21,8 +22,10 @@ import {
   initialFirstMove,
 } from './types';
 
-/** 
- * Function to shuffle a deck.
+/* ---------- Basic Utilities ---------- */
+
+/**
+ * Shuffle a deck of cards in-place.
  */
 export const shuffle = (deck: Cards): void => {
   for (let i = deck.length - 1; i > 0; i--) {
@@ -32,7 +35,7 @@ export const shuffle = (deck: Cards): void => {
 };
 
 /**
- * Function to create a deck based on color and owner.
+ * Create a deck based on color (red/black) and owner.
  */
 const createDeck = (color: ColorEnum, owner: PlayerEnum): Cards => {
   const suits =
@@ -46,12 +49,9 @@ const createDeck = (color: ColorEnum, owner: PlayerEnum): Cards => {
 };
 
 /**
- * Function to initialize a player.
+ * Initialize a player with a shuffled deck and first 3 cards in hand.
  */
-export const initializePlayer = (
-  color: ColorEnum,
-  id: PlayerEnum
-): Player => {
+export const initializePlayer = (color: ColorEnum, id: PlayerEnum): Player => {
   const deck = createDeck(color, id);
   shuffle(deck);
   return {
@@ -62,7 +62,7 @@ export const initializePlayer = (
 };
 
 /**
- * Initialize players.
+ * Initial players state for a new game.
  */
 export const initialPlayers = (): Players => ({
   [PlayerEnum.PLAYER1]: initializePlayer(ColorEnum.RED, PlayerEnum.PLAYER1),
@@ -70,13 +70,14 @@ export const initialPlayers = (): Players => ({
 });
 
 /**
- * Initialize board state.
+ * Initial board state (5x5 of empty stacks).
+ * Using Array.from ensures that each cell is its own array.
  */
 export const initialBoardState = (): BoardState =>
-  Array(BOARD_SIZE * BOARD_SIZE).fill([]) as BoardState;
+  Array.from({ length: BOARD_SIZE * BOARD_SIZE }, () => []);
 
 /**
- * Initialize scores.
+ * Initial scores for both players.
  */
 export const initialScores = (): Scores => ({
   [PlayerEnum.PLAYER1]: 0,
@@ -84,7 +85,7 @@ export const initialScores = (): Scores => ({
 });
 
 /**
- * Initialize discard piles.
+ * Initial discard piles for both players.
  */
 export const initialDiscardPiles = (): DiscardPiles => ({
   [PlayerEnum.PLAYER1]: [],
@@ -92,12 +93,12 @@ export const initialDiscardPiles = (): DiscardPiles => ({
 });
 
 /**
- * Function to draw a card for a player and place it in the first empty slot.
+ * Draw a card for a player, placing it in the first empty slot in their hand.
  */
 export const drawCardForPlayer = (player: Player): void => {
   if (player.deck.length > 0) {
     const newCard = player.deck.pop()!;
-    const firstEmpty = player.hand.findIndex(card => card === undefined);
+    const firstEmpty = player.hand.findIndex((c) => c === undefined);
     if (firstEmpty !== -1) {
       player.hand[firstEmpty] = newCard;
     }
@@ -105,7 +106,7 @@ export const drawCardForPlayer = (player: Player): void => {
 };
 
 /**
- * Function to update player's hand by removing a card and drawing a new one.
+ * Remove a card from a player's hand, then draw one.
  */
 export const updatePlayerHandAndDrawCard = (
   players: Players,
@@ -114,14 +115,11 @@ export const updatePlayerHandAndDrawCard = (
   insertSlot?: number
 ): Players => {
   const player = players[playerId];
-  // Create new copies of hand and deck
   const newHand = [...player.hand];
   const newDeck = [...player.deck];
-
   if (cardIndex >= 0 && cardIndex < newHand.length) {
     newHand[cardIndex] = undefined;
     if (newDeck.length > 0) {
-      // Remove a card from the copied deck
       const newCard = newDeck.pop()!;
       if (
         insertSlot !== undefined &&
@@ -130,52 +128,48 @@ export const updatePlayerHandAndDrawCard = (
       ) {
         newHand[insertSlot] = newCard;
       } else {
-        const firstEmpty = newHand.findIndex(card => card === undefined);
+        const firstEmpty = newHand.findIndex((c) => c === undefined);
         if (firstEmpty !== -1) {
           newHand[firstEmpty] = newCard;
         }
       }
     }
   }
-  // Construct an updated player using the new arrays
-  const updatedPlayer = { ...player, hand: newHand, deck: newDeck };
-  return { ...players, [playerId]: updatedPlayer };
+  return {
+    ...players,
+    [playerId]: { ...player, hand: newHand, deck: newDeck },
+  };
 };
 
+/* ---------- Board & Score Utilities ---------- */
+
 /**
- * Function to apply a board move to the board state.
+ * Apply a "board" move (placing a card from hand onto the board).
  */
 export const applyMoveToBoardState = (
   boardState: BoardState,
   players: Players,
   move: Move,
   playerId: PlayerEnum
-): {
-  newBoardState: BoardState;
-  updatedPlayers: Players;
-} => {
+): { newBoardState: BoardState; updatedPlayers: Players } => {
   if (move.type !== 'board' || move.cellIndex === undefined) {
     return { newBoardState: boardState, updatedPlayers: players };
   }
-
   const card = players[playerId].hand[move.cardIndex];
   if (!card) return { newBoardState: boardState, updatedPlayers: players };
-
   const newBoardState = [...boardState];
   newBoardState[move.cellIndex] = [...boardState[move.cellIndex], card];
-
   const updatedPlayers = updatePlayerHandAndDrawCard(
     players,
     playerId,
     move.cardIndex,
     move.cardIndex
   );
-
   return { newBoardState, updatedPlayers };
 };
 
 /**
- * Function to get the next player's turn.
+ * Get the next player's turn (simple toggle).
  */
 export const getNextPlayerTurn = (currentPlayer: PlayerEnum): PlayerEnum => {
   return currentPlayer === PlayerEnum.PLAYER1
@@ -184,33 +178,34 @@ export const getNextPlayerTurn = (currentPlayer: PlayerEnum): PlayerEnum => {
 };
 
 /**
- * Function to calculate scores based on board state.
+ * Calculate scores from the board state.
  */
-export const calculateScores = (
-  boardState: BoardState
-): Scores => {
+export const calculateScores = (boardState: BoardState): Scores => {
   const scores = { [PlayerEnum.PLAYER1]: 0, [PlayerEnum.PLAYER2]: 0 };
   boardState.forEach((cellStack) => {
     if (cellStack.length > 0) {
       const topCard = cellStack[cellStack.length - 1];
-      if (topCard && topCard.color === ColorEnum.RED) scores[PlayerEnum.PLAYER1]++;
-      else if (topCard && topCard.color === ColorEnum.BLACK) scores[PlayerEnum.PLAYER2]++;
+      if (topCard?.color === ColorEnum.RED) scores[PlayerEnum.PLAYER1]++;
+      else if (topCard?.color === ColorEnum.BLACK) scores[PlayerEnum.PLAYER2]++;
     }
   });
   return scores;
 };
 
 /**
- * Function to check if the game is over.
+ * Check if the game is over.
  */
 export const isGameOver = (players: Players): boolean => {
   return Object.values(players).every(
-    (player) => player.hand.every(card => card === undefined) && player.deck.length === 0
+    (player) =>
+      player.hand.every((card) => card === undefined) && player.deck.length === 0
   );
 };
 
+/* ---------- Valid Move Calculations ---------- */
+
 /**
- * Function to get valid moves for a player, including discards.
+ * Compute valid moves (board + discard) for a given player.
  */
 export const getValidMoves = (
   player: Player,
@@ -235,19 +230,18 @@ export const getValidMoves = (
         ).map((cellIndex) => ({ type: 'board', cellIndex, cardIndex }))
       : []
   );
-
   if (!isFirst) {
     const discardMoves: Move[] = player.hand
       .map((card, cardIndex) => (card ? { type: 'discard', cardIndex } : null))
       .filter((move): move is Move => move !== null);
     return [...boardMoves, ...discardMoves];
   }
-
   return boardMoves;
 };
 
 /**
- * Function to calculate valid move indices for a card.
+ * Calculate valid board indices for a single card.
+ * If tieBreaker is true, the entire home row is considered.
  */
 export const calculateValidMoves = (
   cardIndex: number,
@@ -260,41 +254,31 @@ export const calculateValidMoves = (
   isTieBreaker?: boolean
 ): number[] => {
   const selectedCard = hand[cardIndex];
-
   if (!selectedCard) return [];
-
+  if (isTieBreaker) {
+    const homeRowIndices = getHomeRowIndices(playerType, boardSize);
+    return getValidMoveIndices(homeRowIndices, boardState, selectedCard);
+  }
   if (isFirstMove) {
-    if (isTieBreaker) {
-      const homeRowIndices = getHomeRowIndices(playerType, boardSize);
-      return getValidMoveIndices(homeRowIndices, boardState, selectedCard);
-    }
     return [startingIndices[playerType]];
   }
-
   const homeRowIndices = getHomeRowIndices(playerType, boardSize);
-  const homeRowValidIndices = getValidMoveIndices(
-    homeRowIndices,
-    boardState,
-    selectedCard
-  );
-
+  const homeRowValidIndices = getValidMoveIndices(homeRowIndices, boardState, selectedCard);
   const connectedCells = findConnectedCellsToHomeRow(
     playerType,
     boardState,
     selectedCard.color,
     boardSize
   );
-
   const connectedValidIndices = connectedCells.flatMap((index) => {
     const adjacentIndices = getAdjacentIndices(index, boardSize);
     return getValidMoveIndices(adjacentIndices, boardState, selectedCard);
   });
-
   return Array.from(new Set([...homeRowValidIndices, ...connectedValidIndices]));
 };
 
 /**
- * Function to get home row indices for a player.
+ * Return the indices of the player's home row.
  */
 export const getHomeRowIndices = (
   playerType: PlayerEnum,
@@ -305,7 +289,7 @@ export const getHomeRowIndices = (
 };
 
 /**
- * Function to get valid move indices from a list of indices.
+ * Filter out cells where the top card's rank is greater than or equal to the selected card's rank.
  */
 export const getValidMoveIndices = (
   indices: number[],
@@ -319,14 +303,14 @@ export const getValidMoveIndices = (
 };
 
 /**
- * Function to get the rank of a card.
+ * Convert a RankEnum to its numeric value.
  */
 export const getCardRank = (rank: RankEnum): number => {
   return rankOrder[rank];
 };
 
 /**
- * Function to explore connected cells.
+ * Explore adjacent cells with the same color.
  */
 const exploreConnectedCells = (
   initialCells: number[],
@@ -336,7 +320,6 @@ const exploreConnectedCells = (
 ): Set<number> => {
   const visited = new Set<number>(initialCells);
   const queue = [...initialCells];
-
   while (queue.length) {
     const currentIndex = queue.shift()!;
     for (const adjIndex of getAdjacentIndices(currentIndex, boardSize)) {
@@ -353,7 +336,7 @@ const exploreConnectedCells = (
 };
 
 /**
- * Function to find connected cells to home row.
+ * For non-first moves, find cells connected to the player's home row.
  */
 export const findConnectedCellsToHomeRow = (
   playerType: PlayerEnum,
@@ -365,13 +348,43 @@ export const findConnectedCellsToHomeRow = (
     const topCard = boardState[i][boardState[i].length - 1];
     return topCard && topCard.color === color;
   });
-  return Array.from(
-    exploreConnectedCells(homeRowIndices, boardState, boardSize, color)
-  );
+  return Array.from(exploreConnectedCells(homeRowIndices, boardState, boardSize, color));
 };
 
 /**
- * Function to perform first move for a player.
+ * Pick a random move from a list.
+ */
+const selectRandomMove = (validMoves: Move[]): Move => {
+  return validMoves[Math.floor(Math.random() * validMoves.length)];
+};
+
+/**
+ * If tieBreaker is true, gather the entire home row as potential moves.
+ */
+const getValidFirstMoves = (
+  playerId: PlayerEnum,
+  card: Card,
+  cardIndex: number,
+  boardState: BoardState,
+  tieBreaker: boolean
+): Move[] => {
+  if (tieBreaker) {
+    const homeRowIndices = getHomeRowIndices(playerId, BOARD_SIZE);
+    return homeRowIndices.map((cellIndex) => ({
+      type: 'board',
+      cellIndex,
+      cardIndex,
+    }));
+  }
+  return [{ type: 'board', cellIndex: STARTING_INDICES[playerId], cardIndex }];
+};
+
+/* ---------- Move Execution Functions ---------- */
+
+/**
+ * Perform the player's first move.
+ * • Normal first move: place card face-down.
+ * • Tie-breaker: record the played card as face-up and return the next turn as the opponent.
  */
 export const performFirstMoveForPlayer = (
   players: Players,
@@ -387,91 +400,60 @@ export const performFirstMoveForPlayer = (
 } => {
   const cardIndex = 0;
   const card = players[playerId].hand[cardIndex];
-  if (!card)
+  if (!card) {
     return {
       updatedPlayers: players,
       newBoardState: boardState,
       newFirstMove: initialFirstMove(),
       nextPlayerTurn: getNextPlayerTurn(playerId),
     };
-
+  }
+  if (tieBreaker) {
+    // In a tie-breaker, record the card as face-up.
+    const validMoves = getValidFirstMoves(playerId, card, cardIndex, boardState, true);
+    let newBoard = [...boardState];
+    if (validMoves.length > 0) {
+      const move = selectRandomMove(validMoves);
+      newBoard[move.cellIndex!] = [
+        ...newBoard[move.cellIndex!],
+        { ...card, faceDown: false },
+      ];
+      setInitialFaceDownCards({
+        [playerId]: { ...card, faceDown: false, cellIndex: move.cellIndex! },
+      });
+    }
+    // Return next turn as the opponent so that Player 2 gets to play.
+    const newFirstMove: PlayerBooleans = { ...initialFirstMove(), [playerId]: true };
+    return {
+      updatedPlayers: players,
+      newBoardState: newBoard,
+      newFirstMove,
+      nextPlayerTurn: getNextPlayerTurn(playerId),
+    };
+  }
+  // Normal first move: place the card face-down.
   const faceDownCard = { ...card, faceDown: true };
-
-  const updatedPlayers = updatePlayerHandAndDrawCard(
-    players,
-    playerId,
-    cardIndex,
-    cardIndex
-  );
-
-  const validMoves = getValidFirstMoves(
-    playerId,
-    card,
-    cardIndex,
-    boardState,
-    tieBreaker
-  );
-
-  let newBoardState = [...boardState];
-
+  const updatedPlayers = updatePlayerHandAndDrawCard(players, playerId, cardIndex, cardIndex);
+  const validMoves = getValidFirstMoves(playerId, card, cardIndex, boardState, false);
+  let newBoard = [...boardState];
   if (validMoves.length > 0) {
     const move = selectRandomMove(validMoves);
     if (move.type === 'board' && move.cellIndex !== undefined) {
-      // Call the callback directly with the new state
       setInitialFaceDownCards({
         [playerId]: { ...faceDownCard, cellIndex: move.cellIndex },
       });
-      newBoardState[move.cellIndex] = [
-        ...newBoardState[move.cellIndex],
-        faceDownCard,
-      ];
+      newBoard[move.cellIndex] = [...newBoard[move.cellIndex], faceDownCard];
     } else {
-      console.error(
-        'Invalid move type or missing cellIndex during first move.'
-      );
+      console.error('Invalid move type or missing cellIndex in first move.');
     }
   }
-
-  const newFirstMove: PlayerBooleans = {
-    ...initialFirstMove(),
-    [playerId]: false,
-  };
+  const newFirstMove: PlayerBooleans = { ...initialFirstMove(), [playerId]: false };
   const nextPlayerTurn = getNextPlayerTurn(playerId);
-
-  return { updatedPlayers, newBoardState, newFirstMove, nextPlayerTurn };
+  return { updatedPlayers, newBoardState: newBoard, newFirstMove, nextPlayerTurn };
 };
 
 /**
- * Helper function to get valid first moves.
- */
-const getValidFirstMoves = (
-  playerId: PlayerEnum,
-  card: Card,
-  cardIndex: number,
-  boardState: BoardState,
-  tieBreaker: boolean
-): Move[] => {
-  if (tieBreaker) {
-    const homeRowIndices = getHomeRowIndices(playerId, BOARD_SIZE);
-    const validIndices = getValidMoveIndices(homeRowIndices, boardState, card);
-    return validIndices.map((cellIndex) => ({
-      type: 'board',
-      cellIndex,
-      cardIndex,
-    }));
-  }
-  return [{ type: 'board', cellIndex: STARTING_INDICES[playerId], cardIndex }];
-};
-
-/**
- * Helper function to select a random move from valid moves.
- */
-const selectRandomMove = (validMoves: Move[]): Move => {
-  return validMoves[Math.floor(Math.random() * validMoves.length)];
-};
-
-/**
- * Function to perform regular move for a player.
+ * Perform a regular (non-first) move.
  */
 export const performRegularMoveForPlayer = (
   players: Players,
@@ -493,36 +475,27 @@ export const performRegularMoveForPlayer = (
     STARTING_INDICES,
     false
   );
-
-  let newBoardState = [...boardState];
+  let newBoard = [...boardState];
   let updatedPlayers = { ...players };
   let moveMade = false;
   let selectedMove: Move | undefined;
-
   if (validMoves.length > 0) {
     selectedMove = selectRandomMove(validMoves);
     if (selectedMove.type === 'board') {
-      const result = applyMoveToBoardState(
-        boardState,
-        players,
-        selectedMove,
-        playerId
-      );
-      newBoardState = result.newBoardState;
+      const result = applyMoveToBoardState(boardState, players, selectedMove, playerId);
+      newBoard = result.newBoardState;
       updatedPlayers = result.updatedPlayers;
       moveMade = true;
     } else if (selectedMove.type === 'discard') {
       moveMade = true;
     }
   }
-
   const nextPlayerTurn = getNextPlayerTurn(playerId);
-
-  return { updatedPlayers, newBoardState, nextPlayerTurn, moveMade, move: selectedMove };
+  return { updatedPlayers, newBoardState: newBoard, nextPlayerTurn, moveMade, move: selectedMove };
 };
 
 /**
- * Function to handle card drag logic.
+ * Called when dragging a card. Returns valid board indices.
  */
 export const handleCardDragLogic = (
   cardIndex: number,
@@ -545,17 +518,19 @@ export const handleCardDragLogic = (
 };
 
 /**
- * Function to handle placing card on board.
- * 
- * Note: The callback now is a simple function that accepts the new
- * InitialFaceDownCards object.
+ * Place a card on the board.
+ * - If it's a first move and not in a tie-breaker, place face-down.
+ * - In a tie-breaker, place the card face-up.
+ * - Otherwise, normal placement.
  */
 export const placeCardOnBoardLogic = (
   index: number,
   cardIndex: number,
+  playerId: PlayerEnum,
   players: Players,
   boardState: BoardState,
   firstMove: PlayerBooleans,
+  tieBreaker: boolean,
   setInitialFaceDownCards: (cards: InitialFaceDownCards) => void
 ): {
   updatedPlayers: Players;
@@ -563,7 +538,6 @@ export const placeCardOnBoardLogic = (
   newFirstMove: PlayerBooleans;
   nextPlayerTurn: PlayerEnum;
 } => {
-  const playerId = PlayerEnum.PLAYER1;
   const card = players[playerId].hand[cardIndex];
   if (!card) {
     return {
@@ -573,40 +547,29 @@ export const placeCardOnBoardLogic = (
       nextPlayerTurn: getNextPlayerTurn(playerId),
     };
   }
-
-  const faceDownCard = { ...card, faceDown: true };
-
-  const updatedPlayers = updatePlayerHandAndDrawCard(
-    players,
-    playerId,
-    cardIndex,
-    cardIndex
-  );
-
-  // Deep copy: copy each cell array individually.
-  let newBoardState = boardState.map((cell) => [...cell]);
-
-  if (firstMove[playerId]) {
-    // Instead of using an updater function, we call the callback directly
-    setInitialFaceDownCards({
-      [playerId]: { ...faceDownCard, cellIndex: index },
-    });
-    newBoardState[index] = [...newBoardState[index], faceDownCard];
+  const updatedPlayers = updatePlayerHandAndDrawCard(players, playerId, cardIndex, cardIndex);
+  let newBoard = boardState.map((cell) => [...cell]);
+  if (firstMove[playerId] && !tieBreaker) {
+    const faceDownCard = { ...card, faceDown: true };
+    setInitialFaceDownCards({ [playerId]: { ...faceDownCard, cellIndex: index } });
+    newBoard[index].push(faceDownCard);
+  } else if (tieBreaker) {
+    const faceUpCard = { ...card, faceDown: false };
+    setInitialFaceDownCards({ [playerId]: { ...faceUpCard, cellIndex: index } });
+    newBoard[index].push(faceUpCard);
   } else {
-    newBoardState[index] = [...newBoardState[index], card];
+    newBoard[index].push(card);
   }
-
-  const newFirstMove: PlayerBooleans = {
-    ...firstMove,
-    [playerId]: false,
-  };
+  const newFirstMove: PlayerBooleans = { ...firstMove, [playerId]: false };
   const nextPlayerTurn = getNextPlayerTurn(playerId);
-
-  return { updatedPlayers, newBoardState, newFirstMove, nextPlayerTurn };
+  return { updatedPlayers, newBoardState: newBoard, newFirstMove, nextPlayerTurn };
 };
 
 /**
- * Function to flip initial cards.
+ * Flip both players' initial face-down cards.
+ * - If the two tie-breaker cards have equal rank, tieBreaker remains true and both players' firstMove remain unchanged.
+ * - Otherwise, tieBreaker is set to false, both players' firstMove become false, and nextPlayerTurn is set to the player with the lower-ranked card.
+ * If either tie-breaker card is missing, return the board state unchanged.
  */
 export const flipInitialCardsLogic = (
   initialFaceDownCards: InitialFaceDownCards,
@@ -617,58 +580,56 @@ export const flipInitialCardsLogic = (
   tieBreaker: boolean;
   firstMove: PlayerBooleans;
 } => {
-  // Deep clone the board state using JSON serialization.
+  if (
+    !initialFaceDownCards[PlayerEnum.PLAYER1] ||
+    !initialFaceDownCards[PlayerEnum.PLAYER2]
+  ) {
+    return {
+      newBoardState: boardState,
+      nextPlayerTurn: getNextPlayerTurn(PlayerEnum.PLAYER1),
+      tieBreaker: false,
+      firstMove: { [PlayerEnum.PLAYER1]: false, [PlayerEnum.PLAYER2]: false },
+    };
+  }
   const newBoardState: BoardState = JSON.parse(JSON.stringify(boardState));
-  let nextPlayerTurn = PlayerEnum.PLAYER1;
+  let nextPlayerTurn: PlayerEnum = PlayerEnum.PLAYER1;
   let tieBreaker = false;
-  let firstMove: PlayerBooleans = {
-    [PlayerEnum.PLAYER1]: false,
-    [PlayerEnum.PLAYER2]: false,
-  };
-
-  Object.values(PlayerEnum).forEach((playerId) => {
-    const cardData = initialFaceDownCards[playerId];
+  let firstMove: PlayerBooleans = { [PlayerEnum.PLAYER1]: false, [PlayerEnum.PLAYER2]: false };
+  Object.values(PlayerEnum).forEach((p) => {
+    const cardData = initialFaceDownCards[p];
     if (cardData) {
-      const flippedCard = { ...cardData, faceDown: false };
       const cellIndex = cardData.cellIndex;
-      const cellStack = newBoardState[cellIndex];
-      if (cellStack.length > 0) {
-        // Replace the top card in this cell with the flipped card.
-        cellStack[cellStack.length - 1] = flippedCard;
+      if (newBoardState[cellIndex] && newBoardState[cellIndex].length > 0) {
+        const flippedCard = { ...cardData, faceDown: false };
+        newBoardState[cellIndex][newBoardState[cellIndex].length - 1] = flippedCard;
       }
     }
   });
-
   const card1 = initialFaceDownCards[PlayerEnum.PLAYER1];
   const card2 = initialFaceDownCards[PlayerEnum.PLAYER2];
   const rank1 = card1 ? getCardRank(card1.rank) : -1;
   const rank2 = card2 ? getCardRank(card2.rank) : -1;
-
   if (rank1 === rank2) {
     tieBreaker = true;
     firstMove = initialFirstMove();
   } else {
+    tieBreaker = false;
     nextPlayerTurn = rank1 < rank2 ? PlayerEnum.PLAYER1 : PlayerEnum.PLAYER2;
+    firstMove = { [PlayerEnum.PLAYER1]: false, [PlayerEnum.PLAYER2]: false };
   }
-
   return { newBoardState, nextPlayerTurn, tieBreaker, firstMove };
 };
 
 /**
- * Helper function to get adjacent indices.
+ * Return all adjacent cell indices (up, down, left, right).
  */
-export const getAdjacentIndices = (
-  index: number,
-  boardSize: number
-): number[] => {
+export const getAdjacentIndices = (index: number, boardSize: number): number[] => {
   const indices: number[] = [];
   const row = Math.floor(index / boardSize);
   const col = index % boardSize;
-
-  if (row > 0) indices.push(index - boardSize); // Above
-  if (row < boardSize - 1) indices.push(index + boardSize); // Below
-  if (col > 0) indices.push(index - 1); // Left
-  if (col < boardSize - 1) indices.push(index + 1); // Right
-
+  if (row > 0) indices.push(index - boardSize);
+  if (row < boardSize - 1) indices.push(index + boardSize);
+  if (col > 0) indices.push(index - 1);
+  if (col < boardSize - 1) indices.push(index + 1);
   return indices;
 };

@@ -1,4 +1,3 @@
-// src/features/uiSlice.ts
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { PlayerEnum } from '../types';
 
@@ -6,12 +5,14 @@ interface UIState {
   highlightedCells: number[];
   draggingPlayer: PlayerEnum | null;
   highlightDiscardPile: boolean;
+  tieBreaker: boolean; // <-- Add this property if not already present
 }
 
 const initialState: UIState = {
   highlightedCells: [],
   draggingPlayer: null,
   highlightDiscardPile: false,
+  tieBreaker: false,
 };
 
 const uiSlice = createSlice({
@@ -27,13 +28,17 @@ const uiSlice = createSlice({
     setHighlightDiscardPile: (state, action: PayloadAction<boolean>) => {
       state.highlightDiscardPile = action.payload;
     },
+    setTieBreaker: (state, action: PayloadAction<boolean>) => {
+      state.tieBreaker = action.payload;
+    },
     resetUI: (state) => {
       state.highlightedCells = [];
       state.draggingPlayer = null;
       state.highlightDiscardPile = false;
+      state.tieBreaker = false;
     },
   },
 });
 
-export const { setHighlightedCells, setDraggingPlayer, setHighlightDiscardPile, resetUI } = uiSlice.actions;
+export const { setHighlightedCells, setDraggingPlayer, setHighlightDiscardPile, resetUI, setTieBreaker } = uiSlice.actions;
 export default uiSlice.reducer;

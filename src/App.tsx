@@ -1,36 +1,47 @@
-// src/App.tsx
 import React, { useEffect, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import Board from './components/Board';
 import PlayerArea from './components/PlayerArea';
 import {
-  getNextPlayerTurn,
   performFirstMoveForPlayer,
   performRegularMoveForPlayer,
   handleCardDragLogic,
-  placeCardOnBoardLogic,
-  flipInitialCardsLogic,
-  updatePlayerHandAndDrawCard,
   isGameOver,
 } from './utils';
-import { PlayerEnum } from './types';
+import { PlayerEnum, InitialFaceDownCards } from './types';
 import { RootState, AppDispatch } from './store';
-import { addDiscardCard } from './features/discardSlice';
 import { setTurn } from './features/turnSlice';
 import { updatePlayers } from './features/playersSlice';
 import { setBoardState } from './features/boardSlice';
-import { setFirstMove, setGameOver, setInitialFaceDownCards, clearInitialFaceDownCards } from './features/gameStatusSlice';
-import { setHighlightedCells, setDraggingPlayer, setHighlightDiscardPile, resetUI } from './features/uiSlice';
+import {
+  setFirstMove,
+  setGameOver,
+  setInitialFaceDownCards,
+} from './features/gameStatusSlice';
+import {
+  setHighlightedCells,
+  setDraggingPlayer,
+  setHighlightDiscardPile,
+  resetUI,
+} from './features/uiSlice';
 import { selectScores } from './selectors';
-import { resetGameThunk } from './features/resetGameThunk';
+import {
+  flipInitialCardsThunk,
+  placeCardOnBoardThunk,
+  discardCardThunk,
+} from './features/gameThunks';
 
 function App() {
-  // Redux state selectors
   const players = useSelector((state: RootState) => state.players);
   const boardState = useSelector((state: RootState) => state.board);
   const currentTurn = useSelector((state: RootState) => state.turn.currentTurn);
   const discardPiles = useSelector((state: RootState) => state.discard);
-  const { firstMove, gameOver, tieBreaker, initialFaceDownCards } = useSelector((state: RootState) => state.gameStatus);
+  const {
+    firstMove,
+    gameOver,
+    initialFaceDownCards,
+    tieBreaker,
+  } = useSelector((state: RootState) => state.gameStatus);
   const highlightedCells = useSelector((state: RootState) => state.ui.highlightedCells);
   const draggingPlayer = useSelector((state: RootState) => state.ui.draggingPlayer);
   const highlightDiscardPile = useSelector((state: RootState) => state.ui.highlightDiscardPile);
@@ -38,76 +49,65 @@ function App() {
 
   const dispatch = useDispatch<AppDispatch>();
 
-  const handleCardDiscard = useCallback((cardIndex: number, playerId: PlayerEnum) => {
-    if (gameOver) return;
-    if (firstMove[playerId]) return;
-
-    const updatedPlayers = { ...players };
-    const player = updatedPlayers[playerId];
-
-    if (cardIndex >= 0 && cardIndex < player.hand.length) {
-      const cardToDiscard = player.hand[cardIndex];
-      if (!cardToDiscard) return;
-      const discardedCard = { ...cardToDiscard, faceDown: true };
-      dispatch(addDiscardCard({ playerId, card: discardedCard }));
-
-      const newPlayers = updatePlayerHandAndDrawCard(
-        updatedPlayers,
-        playerId,
-        cardIndex,
-        cardIndex
+  // Discard a card
+  const handleCardDiscard = useCallback(
+    (cardIndex: number, playerId: PlayerEnum) => {
+      if (gameOver) return;
+      if (firstMove[playerId]) return;
+      dispatch(
+        discardCardThunk({
+          cardIndex,
+          playerId,
+        })
       );
-      dispatch(updatePlayers(newPlayers));
-      dispatch(setTurn(getNextPlayerTurn(playerId)));
-      dispatch(setHighlightedCells([]));
-      dispatch(setHighlightDiscardPile(false));
-    }
-  }, [gameOver, firstMove, players, dispatch]);
+    },
+    [gameOver, firstMove, dispatch]
+  );
 
-  const playForPlayer = useCallback((playerId: PlayerEnum) => {
-    if (gameOver) return;
-    const isFirst = firstMove[playerId];
+  // AI or auto-play logic for Player 2
+  const playForPlayer = useCallback(
+    (playerId: PlayerEnum) => {
+      if (gameOver) return;
+      // Removed the tie-break checks so that even in a tie-break Player 2 auto-plays.
+      const isFirst = firstMove[playerId];
+      if (isFirst) {
+        const result = performFirstMoveForPlayer(
+          players,
+          playerId,
+          boardState,
+          tieBreaker, // Pass the tieBreaker flag so that a tie-break move is executed if applicable
+          (cards: InitialFaceDownCards) => dispatch(setInitialFaceDownCards(cards))
+        );
+        dispatch(updatePlayers(result.updatedPlayers));
+        dispatch(setBoardState(result.newBoardState));
+        dispatch(setFirstMove(result.newFirstMove));
+        dispatch(setTurn(result.nextPlayerTurn));
+        dispatch(setHighlightedCells([]));
+      } else {
+        const result = performRegularMoveForPlayer(players, playerId, boardState);
+        dispatch(updatePlayers(result.updatedPlayers));
+        dispatch(setBoardState(result.newBoardState));
+        dispatch(setTurn(result.nextPlayerTurn));
 
-    if (isFirst) {
-      const result = performFirstMoveForPlayer(
-        players,
-        playerId,
-        boardState,
-        tieBreaker,
-        // Instead of a local setter, dispatch the Redux action
-        (cards) => dispatch(setInitialFaceDownCards(cards))
-      );
-      dispatch(updatePlayers(result.updatedPlayers));
-      dispatch(setBoardState(result.newBoardState));
-      dispatch(setFirstMove(result.newFirstMove));
-      dispatch(setTurn(result.nextPlayerTurn));
-      dispatch(setHighlightedCells([]));
-    } else {
-      const result = performRegularMoveForPlayer(
-        players,
-        playerId,
-        boardState
-      );
-      dispatch(updatePlayers(result.updatedPlayers));
-      dispatch(setBoardState(result.newBoardState));
-      dispatch(setTurn(result.nextPlayerTurn));
-      const { moveMade, move } = result;
-
-      if (moveMade && move) {
-        if (move.type === 'discard' && playerId === PlayerEnum.PLAYER2) {
+        const { moveMade, move } = result;
+        if (moveMade && move && move.type === 'discard' && playerId === PlayerEnum.PLAYER2) {
           handleCardDiscard(move.cardIndex, PlayerEnum.PLAYER2);
         }
-      }
-
-      if (!moveMade && playerId === PlayerEnum.PLAYER2) {
-        const firstDiscardableIndex = players[PlayerEnum.PLAYER2].hand.findIndex(card => card !== undefined);
-        if (firstDiscardableIndex !== -1) {
-          handleCardDiscard(firstDiscardableIndex, PlayerEnum.PLAYER2);
+        if (!moveMade && playerId === PlayerEnum.PLAYER2) {
+          // If no valid move, discard first available
+          const firstDiscardableIndex = players[PlayerEnum.PLAYER2].hand.findIndex(
+            (card) => card !== undefined
+          );
+          if (firstDiscardableIndex !== -1) {
+            handleCardDiscard(firstDiscardableIndex, PlayerEnum.PLAYER2);
+          }
         }
       }
-    }
-  }, [gameOver, firstMove, players, boardState, tieBreaker, dispatch, handleCardDiscard]);
+    },
+    [gameOver, firstMove, players, boardState, tieBreaker, dispatch, handleCardDiscard]
+  );
 
+  // When dragging a card
   const handleCardDrag = (cardIndex: number, playerId: PlayerEnum) => {
     if (gameOver) return;
     const validMoves = handleCardDragLogic(
@@ -119,40 +119,31 @@ function App() {
       tieBreaker
     );
     dispatch(setHighlightedCells(validMoves));
+    // highlight discard if not firstMove
     dispatch(setHighlightDiscardPile(!firstMove[playerId]));
   };
 
-  const placeCardOnBoard = (index: number, cardIndex: number) => {
+  // Place a card on the board
+  const placeCardOnBoard = (index: number, cardIndex: number, playerId: PlayerEnum) => {
     if (gameOver) return;
-    const result = placeCardOnBoardLogic(
-      index,
-      cardIndex,
-      players,
-      boardState,
-      firstMove,
-      (cards) => dispatch(setInitialFaceDownCards(cards))
-    );
-    dispatch(updatePlayers(result.updatedPlayers));
-    dispatch(setBoardState(result.newBoardState));
-    dispatch(setFirstMove(result.newFirstMove));
-    dispatch(setTurn(result.nextPlayerTurn));
-
-    if (isGameOver(result.updatedPlayers)) {
-      dispatch(setGameOver(true));
-    }
+    dispatch(placeCardOnBoardThunk({ index, cardIndex }));
   };
 
+  // Drag event handlers
   const handleDragStart = (playerId: PlayerEnum) => {
     dispatch(setDraggingPlayer(playerId));
   };
-
   const handleDragEnd = () => {
     dispatch(resetUI());
   };
 
-  const swapCardsInHand = (playerId: PlayerEnum, sourceIndex: number, targetIndex: number) => {
+  // Swap cards in Player 1's hand
+  const swapCardsInHand = (
+    playerId: PlayerEnum,
+    sourceIndex: number,
+    targetIndex: number
+  ) => {
     if (playerId !== PlayerEnum.PLAYER1) return;
-
     const player = players[playerId];
     if (
       sourceIndex < 0 ||
@@ -162,59 +153,44 @@ function App() {
     ) {
       return;
     }
-
     const updatedHand = [...player.hand];
-    const temp = updatedHand[sourceIndex];
-    updatedHand[sourceIndex] = updatedHand[targetIndex];
-    updatedHand[targetIndex] = temp;
-
+    [updatedHand[sourceIndex], updatedHand[targetIndex]] = [
+      updatedHand[targetIndex],
+      updatedHand[sourceIndex],
+    ];
     const updatedPlayers = {
       ...players,
-      [playerId]: {
-        ...player,
-        hand: updatedHand,
-      },
+      [playerId]: { ...player, hand: updatedHand },
     };
     dispatch(updatePlayers(updatedPlayers));
   };
 
-  // Effect to flip the initial cards when both players have placed their first card.
+  // When both tie-breaker cards are placed, we flip them in Redux
   useEffect(() => {
     if (
       initialFaceDownCards[PlayerEnum.PLAYER1] &&
       initialFaceDownCards[PlayerEnum.PLAYER2]
     ) {
-      setTimeout(() => {
-        const result = flipInitialCardsLogic(
-          initialFaceDownCards,
-          boardState
-        );
-        dispatch(setBoardState(result.newBoardState));
-        dispatch(setTurn(result.nextPlayerTurn));
-        dispatch(setGameOver(isGameOver(players)));
-        dispatch(setHighlightedCells([]));
-        dispatch(clearInitialFaceDownCards());
-        dispatch(setFirstMove(result.firstMove));
-      }, 500);
+      dispatch(setHighlightedCells([]));
+      dispatch(flipInitialCardsThunk());
     }
-  }, [initialFaceDownCards, boardState, players, dispatch]);
+  }, [initialFaceDownCards, dispatch]);
 
+  // If it's Player 2's turn, auto-play (even during tie-break scenarios)
   useEffect(() => {
     if (currentTurn === PlayerEnum.PLAYER2 && !gameOver) {
-      if (!firstMove[PlayerEnum.PLAYER2]) {
-        setTimeout(() => playForPlayer(PlayerEnum.PLAYER2), 500);
-      } else {
-        playForPlayer(PlayerEnum.PLAYER2);
-      }
+      setTimeout(() => playForPlayer(PlayerEnum.PLAYER2), 500);
     }
-  }, [currentTurn, gameOver, firstMove, playForPlayer]);
+  }, [currentTurn, gameOver, playForPlayer]);
 
+  // If the game might be over
   useEffect(() => {
     if (isGameOver(players)) {
       dispatch(setGameOver(true));
     }
   }, [players, dispatch]);
 
+  // Winner display
   const winner = gameOver
     ? scores[PlayerEnum.PLAYER1] > scores[PlayerEnum.PLAYER2]
       ? 'Player 1 wins!'
@@ -225,13 +201,9 @@ function App() {
 
   return (
     <div className="App">
-      {/* Reset Game Button */}
       <div style={{ margin: '10px' }}>
-        <button onClick={() => dispatch(resetGameThunk())}>
-          Reset Game
-        </button>
+        <button onClick={() => dispatch({ type: 'RESET_GAME' })}>Reset Game</button>
       </div>
-
       <div className="scoreboard">
         <div>Player 1 Score: {scores[PlayerEnum.PLAYER1]}</div>
         <div>Player 2 Score: {scores[PlayerEnum.PLAYER2]}</div>
