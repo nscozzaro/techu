@@ -3,22 +3,10 @@ import React, { useEffect, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import Board from './components/Board';
 import PlayerArea from './components/PlayerArea';
-import {
-  performFirstMoveForPlayer,
-  performRegularMoveForPlayer,
-  handleCardDragLogic,
-  isGameOver,
-} from './utils';
-import { PlayerEnum, InitialFaceDownCards } from './types';
+import { handleCardDragLogic, isGameOver } from './features/gameLogic';
+import { PlayerEnum } from './types';
 import { RootState, AppDispatch } from './store';
-import { setTurn } from './features/turnSlice';
-import { updatePlayers } from './features/playersSlice';
-import { setBoardState } from './features/boardSlice';
-import {
-  setFirstMove,
-  setGameOver,
-  setInitialFaceDownCards,
-} from './features/gameStatusSlice';
+import { setGameOver } from './features/gameStatusSlice';
 import {
   setHighlightedCells,
   setDraggingPlayer,
@@ -27,10 +15,11 @@ import {
 } from './features/uiSlice';
 import { selectScores } from './selectors';
 import {
-  flipInitialCardsThunk,
   placeCardOnBoardThunk,
   discardCardThunk,
+  flipInitialCardsThunk,
 } from './features/gameThunks';
+import { playTurnThunk } from './features/playTurnThunk';
 
 function App() {
   const players = useSelector((state: RootState) => state.players);
@@ -51,56 +40,9 @@ function App() {
     (cardIndex: number, playerId: PlayerEnum) => {
       if (gameOver) return;
       if (firstMove[playerId]) return;
-      dispatch(
-        discardCardThunk({
-          cardIndex,
-          playerId,
-        })
-      );
+      dispatch(discardCardThunk({ cardIndex, playerId }));
     },
     [gameOver, firstMove, dispatch]
-  );
-
-  // AI or auto-play logic for Player 2
-  const playForPlayer = useCallback(
-    (playerId: PlayerEnum) => {
-      if (gameOver) return;
-      const isFirst = firstMove[playerId];
-      if (isFirst) {
-        const result = performFirstMoveForPlayer(
-          players,
-          playerId,
-          boardState,
-          tieBreaker,
-          (cards: InitialFaceDownCards) => dispatch(setInitialFaceDownCards(cards))
-        );
-        dispatch(updatePlayers(result.updatedPlayers));
-        dispatch(setBoardState(result.newBoardState));
-        dispatch(setFirstMove(result.newFirstMove));
-        dispatch(setTurn(result.nextPlayerTurn));
-        dispatch(setHighlightedCells([]));
-      } else {
-        const result = performRegularMoveForPlayer(players, playerId, boardState);
-        dispatch(updatePlayers(result.updatedPlayers));
-        dispatch(setBoardState(result.newBoardState));
-        dispatch(setTurn(result.nextPlayerTurn));
-
-        const { moveMade, move } = result;
-        if (moveMade && move && move.type === 'discard' && playerId === PlayerEnum.PLAYER2) {
-          handleCardDiscard(move.cardIndex, PlayerEnum.PLAYER2);
-        }
-        if (!moveMade && playerId === PlayerEnum.PLAYER2) {
-          // If no valid move, discard first available
-          const firstDiscardableIndex = players[PlayerEnum.PLAYER2].hand.findIndex(
-            (c) => c !== undefined
-          );
-          if (firstDiscardableIndex !== -1) {
-            handleCardDiscard(firstDiscardableIndex, PlayerEnum.PLAYER2);
-          }
-        }
-      }
-    },
-    [gameOver, firstMove, players, boardState, tieBreaker, dispatch, handleCardDiscard]
   );
 
   // When dragging a card
@@ -162,26 +104,25 @@ function App() {
       ...players,
       [playerId]: { ...player, hand: updatedHand },
     };
-    dispatch(updatePlayers(updatedPlayers));
+    dispatch({ type: 'players/updatePlayers', payload: updatedPlayers });
   };
 
   // When both tie-breaker cards are placed, flip them in Redux
   useEffect(() => {
-    if (
-      initialFaceDownCards[PlayerEnum.PLAYER1] &&
-      initialFaceDownCards[PlayerEnum.PLAYER2]
-    ) {
+    if (initialFaceDownCards[PlayerEnum.PLAYER1] && initialFaceDownCards[PlayerEnum.PLAYER2]) {
       dispatch(setHighlightedCells([]));
       dispatch(flipInitialCardsThunk());
     }
   }, [initialFaceDownCards, dispatch]);
 
-  // If it's Player 2's turn, auto-play
+  // If it's Player 2's turn, auto-play via the thunk
   useEffect(() => {
     if (currentTurn === PlayerEnum.PLAYER2 && !gameOver) {
-      setTimeout(() => playForPlayer(PlayerEnum.PLAYER2), 500);
+      setTimeout(() => {
+        dispatch(playTurnThunk(PlayerEnum.PLAYER2));
+      }, 500);
     }
-  }, [currentTurn, gameOver, playForPlayer]);
+  }, [currentTurn, gameOver, dispatch]);
 
   // If the game might be over
   useEffect(() => {
