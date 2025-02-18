@@ -3,6 +3,7 @@ import React, { useEffect, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import Board from './components/Board';
 import PlayerArea from './components/PlayerArea';
+import Scoreboard from './components/Scoreboard';
 import { handleCardDragLogic, isGameOver } from './features/gameLogic';
 import { PlayerEnum } from './types';
 import { RootState, AppDispatch } from './store';
@@ -35,7 +36,6 @@ function App() {
 
   const dispatch = useDispatch<AppDispatch>();
 
-  // Discard a card
   const handleCardDiscard = useCallback(
     (cardIndex: number, playerId: PlayerEnum) => {
       if (gameOver) return;
@@ -45,13 +45,9 @@ function App() {
     [gameOver, firstMove, dispatch]
   );
 
-  // When dragging a card
   const handleCardDrag = (cardIndex: number, playerId: PlayerEnum) => {
     if (gameOver) return;
-
-    // Only show highlights for Player 1:
     if (playerId !== PlayerEnum.PLAYER1) return;
-
     const validMoves = handleCardDragLogic(
       cardIndex,
       playerId,
@@ -61,17 +57,14 @@ function App() {
       tieBreaker
     );
     dispatch(setHighlightedCells(validMoves));
-    // Highlight discard if not firstMove
     dispatch(setHighlightDiscardPile(!firstMove[playerId]));
   };
 
-  // Place a card on the board
   const placeCardOnBoard = (index: number, cardIndex: number, playerId: PlayerEnum) => {
     if (gameOver) return;
     dispatch(placeCardOnBoardThunk({ index, cardIndex }));
   };
 
-  // Drag event handlers
   const handleDragStart = (playerId: PlayerEnum) => {
     dispatch(setDraggingPlayer(playerId));
   };
@@ -79,7 +72,6 @@ function App() {
     dispatch(resetUI());
   };
 
-  // Swap cards in Player 1's hand
   const swapCardsInHand = (
     playerId: PlayerEnum,
     sourceIndex: number,
@@ -107,7 +99,6 @@ function App() {
     dispatch({ type: 'players/updatePlayers', payload: updatedPlayers });
   };
 
-  // When both tie-breaker cards are placed, flip them in Redux
   useEffect(() => {
     if (initialFaceDownCards[PlayerEnum.PLAYER1] && initialFaceDownCards[PlayerEnum.PLAYER2]) {
       dispatch(setHighlightedCells([]));
@@ -115,7 +106,6 @@ function App() {
     }
   }, [initialFaceDownCards, dispatch]);
 
-  // If it's Player 2's turn, auto-play via the thunk
   useEffect(() => {
     if (currentTurn === PlayerEnum.PLAYER2 && !gameOver) {
       setTimeout(() => {
@@ -124,30 +114,15 @@ function App() {
     }
   }, [currentTurn, gameOver, dispatch]);
 
-  // If the game might be over
   useEffect(() => {
     if (isGameOver(players)) {
       dispatch(setGameOver(true));
     }
   }, [players, dispatch]);
 
-  // Winner display
-  const winner = gameOver
-    ? scores[PlayerEnum.PLAYER1] > scores[PlayerEnum.PLAYER2]
-      ? 'Player 1 wins!'
-      : scores[PlayerEnum.PLAYER1] < scores[PlayerEnum.PLAYER2]
-      ? 'Player 2 wins!'
-      : "It's a tie!"
-    : '';
-
   return (
     <div className="App">
-      <div className="scoreboard">
-        <div>Player 1 Score: {scores[PlayerEnum.PLAYER1]}</div>
-        <div>Player 2 Score: {scores[PlayerEnum.PLAYER2]}</div>
-        {gameOver && <div className="winner">{winner}</div>}
-      </div>
-
+      <Scoreboard scores={scores} gameOver={gameOver} />
       <PlayerArea
         playerId={PlayerEnum.PLAYER2}
         deckCount={players[PlayerEnum.PLAYER2].deck.length}
@@ -165,14 +140,12 @@ function App() {
         isCurrentPlayer={currentTurn === PlayerEnum.PLAYER2}
         isDiscardPileHighlighted={highlightDiscardPile && currentTurn === PlayerEnum.PLAYER2}
       />
-
       <Board
         boardState={boardState}
         isPlayerTurn={currentTurn === PlayerEnum.PLAYER1 && !gameOver}
         placeCardOnBoard={placeCardOnBoard}
         highlightedCells={highlightedCells}
       />
-
       <PlayerArea
         playerId={PlayerEnum.PLAYER1}
         deckCount={players[PlayerEnum.PLAYER1].deck.length}

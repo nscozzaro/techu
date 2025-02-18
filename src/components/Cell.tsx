@@ -3,6 +3,7 @@ import React from 'react';
 import { Card, PlayerEnum } from '../types';
 import cardBackRed from '../assets/card-back-red.png';
 import cardBackBlue from '../assets/card-back-blue.png';
+import { useCellDragDrop } from '../hooks/useCellDragDrop';
 
 export type CellType = 'deck' | 'hand' | 'discard' | 'board';
 
@@ -29,28 +30,26 @@ interface CellProps {
   swapCardsInHand?: (playerId: PlayerEnum, sourceIndex: number, targetIndex: number) => void;
 }
 
-const Cell: React.FC<CellProps> = (props) => {
-  const {
-    type,
-    card,
-    index,
-    playerId,
-    handleCardDrag,
-    stack,
-    isVisible,
-    handleCardDiscard,
-    count,
-    highlightedCells,
-    placeCardOnBoard,
-    onDragStart,
-    onDragEnd,
-    isCurrentPlayer = false,
-    isDisabled = false,
-    isHighlighted = false,
-    swapCardsInHand,
-    clearHighlights,
-  } = props;
-
+const Cell: React.FC<CellProps> = ({
+  type,
+  card,
+  index,
+  playerId,
+  handleCardDrag,
+  stack,
+  isVisible,
+  handleCardDiscard,
+  count,
+  highlightedCells,
+  placeCardOnBoard,
+  onDragStart,
+  onDragEnd,
+  isCurrentPlayer = false,
+  isDisabled = false,
+  isHighlighted = false,
+  swapCardsInHand,
+  clearHighlights,
+}) => {
   const isDeck = type === 'deck';
   const isHand = type === 'hand';
   const isDiscard = type === 'discard';
@@ -121,46 +120,30 @@ const Cell: React.FC<CellProps> = (props) => {
     highlightedCells?.includes(index ?? -1);
   const isCellHighlighted = isHighlighted || shouldHighlight;
 
-  // --- Drag event handlers ---
-  const onNativeDragStart = (e: React.DragEvent<HTMLDivElement>) => {
-    if (handleCardDrag && playerId !== undefined && index !== undefined && card) {
-      handleCardDrag(index, playerId);
-    }
-    if (onDragStart) onDragStart();
-    e.dataTransfer.setData('text/plain', JSON.stringify({ cardIndex: index, playerId }));
-  };
+  // --- Use custom drag/drop hook ---
+  const { onNativeDragStart, onNativeDragEnd, onNativeDragOver, onNativeDrop } = useCellDragDrop({
+    handleCardDrag,
+    onDragStart,
+    onDragEnd,
+    clearHighlights,
+    isDisabled,
+    index,
+    card,
+    playerId,
+  });
 
-  const onNativeDragEnd = () => {
-    if (onDragEnd) onDragEnd();
-    if (clearHighlights) clearHighlights();
-  };
-
-  const onNativeDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-  };
-
-  const onNativeDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    try {
-      const { cardIndex, playerId: draggedPlayerId } = JSON.parse(
-        e.dataTransfer.getData('text/plain')
-      );
-      if (isDisabled) return;
-
-      if (isDiscard && handleCardDiscard) {
-        handleCardDiscard(cardIndex, draggedPlayerId);
-      } else if (isBoard && placeCardOnBoard && index !== undefined) {
-        placeCardOnBoard(index, cardIndex, draggedPlayerId);
-      } else if (isHand && playerId === PlayerEnum.PLAYER1 && swapCardsInHand && index !== undefined) {
-        swapCardsInHand(PlayerEnum.PLAYER1, cardIndex, index);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      if (clearHighlights) clearHighlights();
+  // --- Determine drop handler based on cell type ---
+  const handleDrop = (dragData: { cardIndex: number; playerId: PlayerEnum }) => {
+    if (isDiscard && handleCardDiscard) {
+      handleCardDiscard(dragData.cardIndex, dragData.playerId);
+    } else if (isBoard && placeCardOnBoard && index !== undefined) {
+      placeCardOnBoard(index, dragData.cardIndex, dragData.playerId);
+    } else if (isHand && playerId === PlayerEnum.PLAYER1 && swapCardsInHand && index !== undefined) {
+      swapCardsInHand(PlayerEnum.PLAYER1, dragData.cardIndex, index);
     }
   };
 
+  // --- Draggable only if it's a hand cell for Player 1 on their turn ---
   const draggable =
     isHand &&
     playerId === PlayerEnum.PLAYER1 &&
@@ -180,17 +163,17 @@ const Cell: React.FC<CellProps> = (props) => {
       }
       onDrop={
         (isDiscard || isBoard || (isHand && swapCardsInHand))
-          ? onNativeDrop
+          ? (e) => onNativeDrop(e, handleDrop)
           : undefined
       }
       className={`cell ${isEmpty ? 'empty' : ''} ${
         isCellHighlighted ? 'highlight' : ''
       } ${isDisabled ? 'disabled' : ''}`}
     >
-      {/* Deck Rendering */}
+      {/* Deck rendering */}
       {isDeck && count !== undefined && renderDeck(count, playerId!)}
 
-      {/* Hand Rendering */}
+      {/* Hand rendering */}
       {isHand &&
         (card ? (
           card.faceDown ? (
@@ -202,7 +185,7 @@ const Cell: React.FC<CellProps> = (props) => {
           <div className="empty-placeholder"></div>
         ))}
 
-      {/* Discard Rendering */}
+      {/* Discard rendering */}
       {isDiscard && isVisible && (
         topCard ? (
           topCard.faceDown ? (
@@ -215,7 +198,7 @@ const Cell: React.FC<CellProps> = (props) => {
         )
       )}
 
-      {/* Board Rendering */}
+      {/* Board rendering */}
       {isBoard && topCard && (
         topCard.faceDown ? (
           renderCardBack(topCard.owner)
