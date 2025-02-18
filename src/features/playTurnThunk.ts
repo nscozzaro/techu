@@ -45,7 +45,7 @@ export const playTurnThunk = createAsyncThunk(
         playerId === PlayerEnum.PLAYER2
       ) {
         dispatch(discardCardThunk({ cardIndex: result.move.cardIndex, playerId }));
-      } else if (playerId === PlayerEnum.PLAYER2) {
+      } else if (!result.moveMade && playerId === PlayerEnum.PLAYER2) {
         const firstDiscardableIndex = players[playerId].hand.findIndex((c) => c !== undefined);
         if (firstDiscardableIndex !== -1) {
           dispatch(discardCardThunk({ cardIndex: firstDiscardableIndex, playerId }));

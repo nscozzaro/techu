@@ -7,7 +7,7 @@ import {
   getNextPlayerTurn,
   updatePlayerHandAndDrawCard,
   flipInitialCardsLogic,
-} from '../utils';
+} from './gameLogic';
 import { updatePlayers } from './playersSlice';
 import { setBoardState } from './boardSlice';
 import { setTurn } from './turnSlice';
@@ -86,12 +86,10 @@ export const placeCardOnBoardThunk = createAsyncThunk(
     dispatch(setFirstMove(result.newFirstMove));
     dispatch(setTurn(result.nextPlayerTurn));
 
-    // If the game might be over
     if (isGameOver(result.updatedPlayers)) {
       dispatch(setGameOver(true));
     }
 
-    // NEW: Clear highlights after placing a card
     dispatch(setHighlightedCells([]));
     dispatch(setHighlightDiscardPile(false));
 
