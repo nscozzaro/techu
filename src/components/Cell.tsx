@@ -1,4 +1,3 @@
-// src/components/Cell.tsx
 import React from 'react';
 import { useDispatch } from 'react-redux';
 import { Card, PlayerEnum } from '../types';
@@ -6,7 +5,7 @@ import cardBackRed from '../assets/card-back-red.png';
 import cardBackBlue from '../assets/card-back-blue.png';
 import { useCellDragDrop } from '../hooks/useCellDragDrop';
 import { AppDispatch } from '../store';
-import { placeCardOnBoardThunk } from '../features/gameThunks';
+import { placeCardOnBoardThunk, discardCardThunk } from '../features/gameThunks';
 
 export type CellType = 'deck' | 'hand' | 'discard' | 'board';
 
@@ -15,10 +14,8 @@ interface CellProps {
   card?: Card;
   index?: number;
   playerId?: PlayerEnum;
-  // Removed: handleCardDrag prop
   stack?: (Card | undefined)[];
   isVisible?: boolean;
-  handleCardDiscard?: (cardIndex: number, playerId: PlayerEnum) => void;
   count?: number;
   isFaceDown?: boolean;
   highlightedCells?: number[];
@@ -37,10 +34,8 @@ const Cell: React.FC<CellProps> = ({
   card,
   index,
   playerId,
-  // Removed: handleCardDrag,
   stack,
   isVisible,
-  handleCardDiscard,
   count,
   highlightedCells,
   onDragStart,
@@ -136,8 +131,8 @@ const Cell: React.FC<CellProps> = ({
 
   // --- Determine drop handler based on cell type ---
   const handleDrop = (dragData: { cardIndex: number; playerId: PlayerEnum }) => {
-    if (isDiscard && handleCardDiscard) {
-      handleCardDiscard(dragData.cardIndex, dragData.playerId);
+    if (isDiscard && playerId) {
+      dispatch(discardCardThunk({ cardIndex: dragData.cardIndex, playerId }));
     } else if (isBoard && index !== undefined) {
       dispatch(placeCardOnBoardThunk({ index, cardIndex: dragData.cardIndex }));
     } else if (isHand && playerId === PlayerEnum.PLAYER1 && swapCardsInHand && index !== undefined) {

@@ -5,7 +5,6 @@ import { RootState, AppDispatch } from '../store';
 import Cell from './Cell';
 import { PlayerEnum } from '../types';
 import { setHighlightedCells, setDraggingPlayer, resetUI } from '../features/uiSlice';
-import { discardCardThunk } from '../features/gameThunks';
 import { swapCardsInHand } from '../features/playersSlice';
 
 interface PlayerAreaProps {
@@ -19,7 +18,6 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ playerId }) => {
   const firstMoveAll = useSelector((state: RootState) => state.gameStatus.firstMove);
   const firstMove = firstMoveAll[playerId];
   const currentTurn = useSelector((state: RootState) => state.turn.currentTurn);
-  const gameOver = useSelector((state: RootState) => state.gameStatus.gameOver);
   const highlightedCells = useSelector((state: RootState) => state.ui.highlightedCells);
   const highlightDiscardPile = useSelector((state: RootState) => state.ui.highlightDiscardPile);
 
@@ -27,11 +25,6 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ playerId }) => {
   const handCards = player.hand;
 
   const clearHighlights = () => dispatch(setHighlightedCells([]));
-
-  const handleCardDiscard = (cardIndex: number) => {
-    if (gameOver || firstMove) return;
-    dispatch(discardCardThunk({ cardIndex, playerId }));
-  };
 
   const handleDragStart = () => dispatch(setDraggingPlayer(playerId));
   const handleDragEnd = () => dispatch(resetUI());
@@ -56,7 +49,6 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ playerId }) => {
       stack={discardPile}
       playerId={playerId}
       isVisible={true}
-      handleCardDiscard={handleCardDiscard}
       clearHighlights={clearHighlights}
       isCurrentPlayer={currentTurn === playerId}
       isDisabled={firstMove}
