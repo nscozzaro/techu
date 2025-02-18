@@ -13,19 +13,26 @@ interface PlayerAreaProps {
 
 const PlayerArea: React.FC<PlayerAreaProps> = ({ playerId }) => {
   const dispatch = useDispatch<AppDispatch>();
-  const player = useSelector((state: RootState) => state.game.players[playerId]);
-  const discardPile = useSelector((state: RootState) => state.game.discard[playerId]);
-  const firstMoveAll = useSelector((state: RootState) => state.game.gameStatus.firstMove);
-  const firstMove = firstMoveAll[playerId];
-  const currentTurn = useSelector((state: RootState) => state.game.turn.currentTurn);
-  const highlightedCells = useSelector((state: RootState) => state.ui.highlightedCells);
-  const highlightDiscardPile = useSelector((state: RootState) => state.ui.highlightDiscardPile);
+  const {
+    player,
+    discardPile,
+    firstMove,
+    currentTurn,
+    highlightedCells,
+    highlightDiscardPile,
+  } = useSelector((state: RootState) => ({
+    player: state.game.players[playerId],
+    discardPile: state.game.discard[playerId],
+    firstMove: state.game.gameStatus.firstMove[playerId],
+    currentTurn: state.game.turn.currentTurn,
+    highlightedCells: state.ui.highlightedCells,
+    highlightDiscardPile: state.ui.highlightDiscardPile,
+  }));
 
   const deckCount = player.deck.length;
   const handCards = player.hand;
 
   const clearHighlights = () => dispatch(setHighlightedCells([]));
-
   const handleDragStart = () => dispatch(setDraggingPlayer(playerId));
   const handleDragEnd = () => dispatch(resetUI());
   const handleSwapCards = (sourceIndex: number, targetIndex: number) => {
