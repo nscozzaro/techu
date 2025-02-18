@@ -107,7 +107,7 @@ function App() {
   const handleCardDrag = (cardIndex: number, playerId: PlayerEnum) => {
     if (gameOver) return;
 
-    // 1) Only show highlights for Player 1:
+    // Only show highlights for Player 1:
     if (playerId !== PlayerEnum.PLAYER1) return;
 
     const validMoves = handleCardDragLogic(
@@ -119,7 +119,7 @@ function App() {
       tieBreaker
     );
     dispatch(setHighlightedCells(validMoves));
-    // highlight discard if not firstMove
+    // Highlight discard if not firstMove
     dispatch(setHighlightDiscardPile(!firstMove[playerId]));
   };
 
@@ -165,7 +165,7 @@ function App() {
     dispatch(updatePlayers(updatedPlayers));
   };
 
-  // When both tie-breaker cards are placed, we flip them in Redux
+  // When both tie-breaker cards are placed, flip them in Redux
   useEffect(() => {
     if (
       initialFaceDownCards[PlayerEnum.PLAYER1] &&
@@ -201,9 +201,6 @@ function App() {
 
   return (
     <div className="App">
-      <div style={{ margin: '10px' }}>
-        <button onClick={() => dispatch({ type: 'RESET_GAME' })}>Reset Game</button>
-      </div>
       <div className="scoreboard">
         <div>Player 1 Score: {scores[PlayerEnum.PLAYER1]}</div>
         <div>Player 2 Score: {scores[PlayerEnum.PLAYER2]}</div>
