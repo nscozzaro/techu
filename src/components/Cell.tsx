@@ -1,3 +1,4 @@
+// src/components/Cell.tsx
 import React from 'react';
 import { Card, PlayerEnum } from '../types';
 import cardBackRed from '../assets/card-back-red.png';
