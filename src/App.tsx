@@ -1,4 +1,3 @@
-// src/App.tsx
 import React, { useEffect, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import Board from './components/Board';
@@ -16,7 +15,6 @@ import {
 } from './features/uiSlice';
 import { selectScores } from './selectors';
 import {
-  placeCardOnBoardThunk,
   discardCardThunk,
   flipInitialCardsThunk,
 } from './features/gameThunks';
@@ -59,11 +57,6 @@ function App() {
     );
     dispatch(setHighlightedCells(validMoves));
     dispatch(setHighlightDiscardPile(!firstMove[playerId]));
-  };
-
-  const placeCardOnBoard = (index: number, cardIndex: number, playerId: PlayerEnum) => {
-    if (gameOver) return;
-    dispatch(placeCardOnBoardThunk({ index, cardIndex }));
   };
 
   const handleDragStart = (playerId: PlayerEnum) => {
@@ -111,7 +104,7 @@ function App() {
         isDragging={draggingPlayer === PlayerEnum.PLAYER2}
         handleCardDrag={currentTurn === PlayerEnum.PLAYER2 ? handleCardDrag : undefined}
         handleCardDiscard={handleCardDiscard}
-        placeCardOnBoard={placeCardOnBoard}
+        placeCardOnBoard={() => {}}
         highlightedCells={highlightedCells}
         firstMove={firstMove[PlayerEnum.PLAYER2]}
         clearHighlights={() => dispatch(setHighlightedCells([]))}
@@ -120,12 +113,7 @@ function App() {
         isCurrentPlayer={currentTurn === PlayerEnum.PLAYER2}
         isDiscardPileHighlighted={highlightDiscardPile && currentTurn === PlayerEnum.PLAYER2}
       />
-      <Board
-        boardState={boardState}
-        isPlayerTurn={currentTurn === PlayerEnum.PLAYER1 && !gameOver}
-        placeCardOnBoard={placeCardOnBoard}
-        highlightedCells={highlightedCells}
-      />
+      <Board />
       <PlayerArea
         playerId={PlayerEnum.PLAYER1}
         deckCount={players[PlayerEnum.PLAYER1].deck.length}
@@ -134,7 +122,7 @@ function App() {
         isDragging={draggingPlayer === PlayerEnum.PLAYER1}
         handleCardDrag={currentTurn === PlayerEnum.PLAYER1 ? handleCardDrag : undefined}
         handleCardDiscard={handleCardDiscard}
-        placeCardOnBoard={placeCardOnBoard}
+        placeCardOnBoard={() => {}}
         highlightedCells={highlightedCells}
         firstMove={firstMove[PlayerEnum.PLAYER1]}
         clearHighlights={() => dispatch(setHighlightedCells([]))}
