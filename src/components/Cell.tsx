@@ -18,7 +18,6 @@ interface CellProps {
   stack?: (Card | undefined)[];
   isVisible?: boolean;
   count?: number;
-  isFaceDown?: boolean;
   highlightedCells?: number[];
   playerTurn?: boolean;
   clearHighlights?: () => void;
@@ -29,6 +28,54 @@ interface CellProps {
   isHighlighted?: boolean;
   swapCardsInHand?: (playerId: PlayerEnum, sourceIndex: number, targetIndex: number) => void;
 }
+
+// --- Render Helpers ---
+const renderCardContent = (card: Card) => (
+  <div className={`card-content ${card.color.toLowerCase()}`}>
+    <div className="top-left">{card.rank}</div>
+    <div className="suit">{card.suit}</div>
+    <div className="bottom-right">{card.rank}</div>
+  </div>
+);
+
+const renderCardBack = (owner: PlayerEnum, extraStyle?: React.CSSProperties) => {
+  const image = owner === PlayerEnum.PLAYER1 ? cardBackRed : cardBackBlue;
+  return (
+    <div
+      className="card-back"
+      style={{ backgroundImage: `url(${image})`, backgroundSize: 'cover', backgroundPosition: 'center', ...extraStyle }}
+    />
+  );
+};
+
+const renderDeck = (count: number, owner: PlayerEnum) =>
+  count > 0 ? (
+    <div
+      className="card-back deck-back"
+      style={{
+        backgroundImage: `url(${owner === PlayerEnum.PLAYER1 ? cardBackRed : cardBackBlue})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }}
+    >
+      <div className="deck-count">{count}</div>
+    </div>
+  ) : (
+    <div className="card-back empty-deck" style={{ backgroundColor: owner === PlayerEnum.PLAYER1 ? '#800000' : '#000080' }}>
+      <div className="deck-count">0</div>
+    </div>
+  );
+
+const getTopCard = (
+  type: CellType,
+  card: Card | undefined,
+  stack?: (Card | undefined)[]
+): Card | null =>
+  type === 'hand'
+    ? card ?? null
+    : stack && stack.length > 0
+    ? stack[stack.length - 1] ?? null
+    : null;
 
 const Cell: React.FC<CellProps> = ({
   type,
@@ -53,84 +100,29 @@ const Cell: React.FC<CellProps> = ({
   const isHand = type === 'hand';
   const isDiscard = type === 'discard';
   const isBoard = type === 'board';
-
-  const isEmpty = isHand
-    ? card === undefined
-    : (isDiscard || isBoard)
-    ? stack?.length === 0
-    : false;
-
-  const topCard: Card | null =
+  const isEmpty =
     isHand
-      ? card ?? null
-      : stack && stack.length > 0
-      ? stack[stack.length - 1] ?? null
-      : null;
+      ? card === undefined
+      : (isDiscard || isBoard)
+      ? (stack?.length ?? 0) === 0
+      : false;
+  const topCard = getTopCard(type, card, stack);
 
-  // --- Helper Functions ---
-  const renderCardContent = (card: Card) => (
-    <div className={`card-content ${card.color.toLowerCase()}`}>
-      <div className="top-left">{card.rank}</div>
-      <div className="suit">{card.suit}</div>
-      <div className="bottom-right">{card.rank}</div>
-    </div>
-  );
-
-  const renderCardBack = (owner: PlayerEnum, extraStyle?: React.CSSProperties) => {
-    const image = owner === PlayerEnum.PLAYER1 ? cardBackRed : cardBackBlue;
-    return (
-      <div
-        className="card-back"
-        style={{
-          backgroundImage: `url(${image})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          ...extraStyle,
-        }}
-      />
-    );
-  };
-
-  const renderDeck = (count: number, owner: PlayerEnum) => {
-    return count > 0 ? (
-      <div
-        className="card-back deck-back"
-        style={{
-          backgroundImage: `url(${owner === PlayerEnum.PLAYER1 ? cardBackRed : cardBackBlue})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-        }}
-      >
-        <div className="deck-count">{count}</div>
-      </div>
-    ) : (
-      <div
-        className="card-back empty-deck"
-        style={{ backgroundColor: owner === PlayerEnum.PLAYER1 ? '#800000' : '#000080' }}
-      >
-        <div className="deck-count">0</div>
-      </div>
-    );
-  };
-
-  // --- Determine if cell should be highlighted ---
   const shouldHighlight =
-    (type === 'board' || type === 'discard') &&
-    highlightedCells?.includes(index ?? -1);
-  const isCellHighlighted = isHighlighted || shouldHighlight;
+    (isBoard || isDiscard) && highlightedCells?.includes(index ?? -1);
+  const cellHighlighted = isHighlighted || shouldHighlight;
 
-  // --- Use custom drag/drop hook ---
-  const { onNativeDragStart, onNativeDragEnd, onNativeDragOver, onNativeDrop } = useCellDragDrop({
-    onDragStart,
-    onDragEnd,
-    clearHighlights,
-    isDisabled,
-    index,
-    card,
-    playerId,
-  });
+  const { onNativeDragStart, onNativeDragEnd, onNativeDragOver, onNativeDrop } =
+    useCellDragDrop({
+      onDragStart,
+      onDragEnd,
+      clearHighlights,
+      isDisabled,
+      index,
+      card,
+      playerId,
+    });
 
-  // --- Determine drop handler based on cell type ---
   const handleDrop = (dragData: { cardIndex: number; playerId: PlayerEnum }) => {
     if (isDiscard && playerId) {
       dispatch(discardCardThunk({ cardIndex: dragData.cardIndex, playerId }));
@@ -142,67 +134,42 @@ const Cell: React.FC<CellProps> = ({
   };
 
   const draggable =
-    isHand &&
-    playerId === PlayerEnum.PLAYER1 &&
-    isCurrentPlayer &&
-    !isDisabled &&
-    !!card;
+    isHand && playerId === PlayerEnum.PLAYER1 && isCurrentPlayer && !isDisabled && !!card;
+
+  const renderContent = () => {
+    if (isDeck && count !== undefined && playerId)
+      return renderDeck(count, playerId);
+    if (isHand)
+      return card
+        ? card.faceDown
+          ? renderCardBack(card.owner)
+          : renderCardContent(card)
+        : <div className="empty-placeholder" />;
+    if (isDiscard && isVisible)
+      return topCard
+        ? topCard.faceDown
+          ? renderCardBack(topCard.owner)
+          : renderCardContent(topCard)
+        : <span>Discard</span>;
+    if (isBoard && topCard)
+      return topCard.faceDown ? renderCardBack(topCard.owner) : renderCardContent(topCard);
+    return null;
+  };
 
   return (
     <div
       draggable={draggable}
       onDragStart={draggable ? onNativeDragStart : undefined}
       onDragEnd={draggable ? onNativeDragEnd : undefined}
-      onDragOver={
-        (isDiscard || isBoard || (isHand && swapCardsInHand))
-          ? onNativeDragOver
-          : undefined
-      }
-      onDrop={
-        (isDiscard || isBoard || (isHand && swapCardsInHand))
-          ? (e) => onNativeDrop(e, handleDrop)
-          : undefined
-      }
-      className={`cell ${isEmpty ? 'empty' : ''} ${
-        isCellHighlighted ? 'highlight' : ''
-      } ${isDisabled ? 'disabled' : ''}`}
+      onDragOver={(isDiscard || isBoard || (isHand && swapCardsInHand))
+        ? onNativeDragOver
+        : undefined}
+      onDrop={(isDiscard || isBoard || (isHand && swapCardsInHand))
+        ? (e) => onNativeDrop(e, handleDrop)
+        : undefined}
+      className={`cell ${isEmpty ? 'empty' : ''} ${cellHighlighted ? 'highlight' : ''} ${isDisabled ? 'disabled' : ''}`}
     >
-      {/* Deck rendering */}
-      {isDeck && count !== undefined && renderDeck(count, playerId!)}
-
-      {/* Hand rendering */}
-      {isHand &&
-        (card ? (
-          card.faceDown ? (
-            renderCardBack(card.owner)
-          ) : (
-            renderCardContent(card)
-          )
-        ) : (
-          <div className="empty-placeholder"></div>
-        ))}
-
-      {/* Discard rendering */}
-      {isDiscard && isVisible && (
-        topCard ? (
-          topCard.faceDown ? (
-            renderCardBack(topCard.owner)
-          ) : (
-            renderCardContent(topCard)
-          )
-        ) : (
-          <span>Discard</span>
-        )
-      )}
-
-      {/* Board rendering */}
-      {isBoard && topCard && (
-        topCard.faceDown ? (
-          renderCardBack(topCard.owner)
-        ) : (
-          renderCardContent(topCard)
-        )
-      )}
+      {renderContent()}
     </div>
   );
 };
