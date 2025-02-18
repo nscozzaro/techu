@@ -1,76 +1,23 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import Board from './components/Board';
 import PlayerArea from './components/PlayerArea';
 import Scoreboard from './components/Scoreboard';
-import { handleCardDragLogic, isGameOver } from './features/gameLogic';
+import { isGameOver } from './features/gameLogic';
 import { PlayerEnum } from './types';
 import { RootState, AppDispatch } from './store';
 import { setGameOver } from './features/gameStatusSlice';
-import {
-  setHighlightedCells,
-  setDraggingPlayer,
-  setHighlightDiscardPile,
-  resetUI,
-} from './features/uiSlice';
+import { setHighlightedCells } from './features/uiSlice';
 import { selectScores } from './selectors';
-import {
-  discardCardThunk,
-  flipInitialCardsThunk,
-} from './features/gameThunks';
+import { flipInitialCardsThunk } from './features/gameThunks';
 import { playTurnThunk } from './features/playTurnThunk';
-import { swapCardsInHand } from './features/playersSlice';
 
 function App() {
   const players = useSelector((state: RootState) => state.players);
-  const boardState = useSelector((state: RootState) => state.board);
   const currentTurn = useSelector((state: RootState) => state.turn.currentTurn);
-  const discardPiles = useSelector((state: RootState) => state.discard);
-  const { firstMove, gameOver, initialFaceDownCards, tieBreaker } =
-    useSelector((state: RootState) => state.gameStatus);
-  const highlightedCells = useSelector((state: RootState) => state.ui.highlightedCells);
-  const draggingPlayer = useSelector((state: RootState) => state.ui.draggingPlayer);
-  const highlightDiscardPile = useSelector((state: RootState) => state.ui.highlightDiscardPile);
+  const { initialFaceDownCards, gameOver } = useSelector((state: RootState) => state.gameStatus);
   const scores = useSelector(selectScores);
-
   const dispatch = useDispatch<AppDispatch>();
-
-  const handleCardDiscard = useCallback(
-    (cardIndex: number, playerId: PlayerEnum) => {
-      if (gameOver) return;
-      if (firstMove[playerId]) return;
-      dispatch(discardCardThunk({ cardIndex, playerId }));
-    },
-    [gameOver, firstMove, dispatch]
-  );
-
-  const handleCardDrag = (cardIndex: number, playerId: PlayerEnum) => {
-    if (gameOver) return;
-    if (playerId !== PlayerEnum.PLAYER1) return;
-    const validMoves = handleCardDragLogic(
-      cardIndex,
-      playerId,
-      boardState,
-      players,
-      firstMove,
-      tieBreaker
-    );
-    dispatch(setHighlightedCells(validMoves));
-    dispatch(setHighlightDiscardPile(!firstMove[playerId]));
-  };
-
-  const handleDragStart = (playerId: PlayerEnum) => {
-    dispatch(setDraggingPlayer(playerId));
-  };
-  const handleDragEnd = () => {
-    dispatch(resetUI());
-  };
-
-  // New: dispatch Redux action to swap cards in hand
-  const handleSwapCards = (playerId: PlayerEnum, sourceIndex: number, targetIndex: number) => {
-    if (playerId !== PlayerEnum.PLAYER1) return;
-    dispatch(swapCardsInHand({ playerId, sourceIndex, targetIndex }));
-  };
 
   useEffect(() => {
     if (initialFaceDownCards[PlayerEnum.PLAYER1] && initialFaceDownCards[PlayerEnum.PLAYER2]) {
@@ -96,42 +43,9 @@ function App() {
   return (
     <div className="App">
       <Scoreboard scores={scores} gameOver={gameOver} />
-      <PlayerArea
-        playerId={PlayerEnum.PLAYER2}
-        deckCount={players[PlayerEnum.PLAYER2].deck.length}
-        handCards={players[PlayerEnum.PLAYER2].hand}
-        discardPile={discardPiles[PlayerEnum.PLAYER2]}
-        isDragging={draggingPlayer === PlayerEnum.PLAYER2}
-        handleCardDrag={currentTurn === PlayerEnum.PLAYER2 ? handleCardDrag : undefined}
-        handleCardDiscard={handleCardDiscard}
-        placeCardOnBoard={() => {}}
-        highlightedCells={highlightedCells}
-        firstMove={firstMove[PlayerEnum.PLAYER2]}
-        clearHighlights={() => dispatch(setHighlightedCells([]))}
-        handleDragStart={handleDragStart}
-        handleDragEnd={handleDragEnd}
-        isCurrentPlayer={currentTurn === PlayerEnum.PLAYER2}
-        isDiscardPileHighlighted={highlightDiscardPile && currentTurn === PlayerEnum.PLAYER2}
-      />
+      <PlayerArea playerId={PlayerEnum.PLAYER2} />
       <Board />
-      <PlayerArea
-        playerId={PlayerEnum.PLAYER1}
-        deckCount={players[PlayerEnum.PLAYER1].deck.length}
-        handCards={players[PlayerEnum.PLAYER1].hand}
-        discardPile={discardPiles[PlayerEnum.PLAYER1]}
-        isDragging={draggingPlayer === PlayerEnum.PLAYER1}
-        handleCardDrag={currentTurn === PlayerEnum.PLAYER1 ? handleCardDrag : undefined}
-        handleCardDiscard={handleCardDiscard}
-        placeCardOnBoard={() => {}}
-        highlightedCells={highlightedCells}
-        firstMove={firstMove[PlayerEnum.PLAYER1]}
-        clearHighlights={() => dispatch(setHighlightedCells([]))}
-        handleDragStart={handleDragStart}
-        handleDragEnd={handleDragEnd}
-        isCurrentPlayer={currentTurn === PlayerEnum.PLAYER1}
-        isDiscardPileHighlighted={highlightDiscardPile && currentTurn === PlayerEnum.PLAYER1}
-        swapCardsInHand={handleSwapCards}
-      />
+      <PlayerArea playerId={PlayerEnum.PLAYER1} />
     </div>
   );
 }

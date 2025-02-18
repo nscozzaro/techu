@@ -1,153 +1,134 @@
-// src/components/PlayerArea.tsx
 import React from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import { RootState, AppDispatch } from '../store';
 import Cell from './Cell';
-import { Card, PlayerEnum } from '../types';
+import { PlayerEnum } from '../types';
+import {
+  setHighlightedCells,
+  setDraggingPlayer,
+  setHighlightDiscardPile,
+  resetUI,
+} from '../features/uiSlice';
+import { discardCardThunk } from '../features/gameThunks';
+import { swapCardsInHand } from '../features/playersSlice';
+import { handleCardDragLogic } from '../features/gameLogic';
 
 interface PlayerAreaProps {
   playerId: PlayerEnum;
-  deckCount: number;
-  handCards: (Card | undefined)[];
-  discardPile: Card[];
-  isDragging: boolean;
-  handleCardDrag?: (cardIndex: number, playerId: PlayerEnum) => void;
-  handleCardDiscard: (cardIndex: number, playerId: PlayerEnum) => void;
-  placeCardOnBoard: (index: number, cardIndex: number, playerId: PlayerEnum) => void;
-  highlightedCells: number[];
-  firstMove: boolean;
-  clearHighlights: () => void;
-  handleDragStart: (playerId: PlayerEnum) => void;
-  handleDragEnd: () => void;
-  isCurrentPlayer: boolean;
-  isDiscardPileHighlighted: boolean;
-  swapCardsInHand?: (playerId: PlayerEnum, sourceIndex: number, targetIndex: number) => void;
 }
 
-// --- Helper to render Deck Cell ---
-const renderDeck = (
-  deckCount: number,
-  playerId: PlayerEnum,
-  clearHighlights: () => void,
-  isCurrentPlayer: boolean
-) => (
-  <Cell
-    type="deck"
-    count={deckCount}
-    playerId={playerId}
-    isFaceDown={false}
-    clearHighlights={clearHighlights}
-    isCurrentPlayer={isCurrentPlayer}
-  />
-);
+const PlayerArea: React.FC<PlayerAreaProps> = ({ playerId }) => {
+  const dispatch = useDispatch<AppDispatch>();
+  const player = useSelector((state: RootState) => state.players[playerId]);
+  const discardPile = useSelector((state: RootState) => state.discard[playerId]);
+  const boardState = useSelector((state: RootState) => state.board);
+  const players = useSelector((state: RootState) => state.players);
+  const firstMoveAll = useSelector((state: RootState) => state.gameStatus.firstMove);
+  const firstMove = firstMoveAll[playerId];
+  const currentTurn = useSelector((state: RootState) => state.turn.currentTurn);
+  const gameOver = useSelector((state: RootState) => state.gameStatus.gameOver);
+  const tieBreaker = useSelector((state: RootState) => state.gameStatus.tieBreaker);
+  const highlightedCells = useSelector((state: RootState) => state.ui.highlightedCells);
+  const highlightDiscardPile = useSelector((state: RootState) => state.ui.highlightDiscardPile);
 
-// --- Helper to render Discard Cell ---
-const renderDiscard = (
-  discardPile: Card[],
-  playerId: PlayerEnum,
-  clearHighlights: () => void,
-  isCurrentPlayer: boolean,
-  isDisabled: boolean,
-  isHighlighted: boolean,
-  handleCardDiscard: (cardIndex: number, playerId: PlayerEnum) => void
-) => (
-  <Cell
-    type="discard"
-    stack={discardPile}
-    playerId={playerId}
-    isVisible={true}
-    handleCardDiscard={handleCardDiscard}
-    clearHighlights={clearHighlights}
-    isCurrentPlayer={isCurrentPlayer}
-    isDisabled={isDisabled}
-    isHighlighted={isHighlighted}
-  />
-);
+  const deckCount = player.deck.length;
+  const handCards = player.hand;
 
-// --- Helper to render Hand Cells ---
-// If reverse is true, the hand order is reversed.
-const renderHand = (
-  handCards: (Card | undefined)[],
-  playerId: PlayerEnum,
-  clearHighlights: () => void,
-  handleCardDrag: ((cardIndex: number, playerId: PlayerEnum) => void) | undefined,
-  handleDragStart: (playerId: PlayerEnum) => void,
-  handleDragEnd: () => void,
-  isCurrentPlayer: boolean,
-  swapCardsInHand: ((playerId: PlayerEnum, sourceIndex: number, targetIndex: number) => void) | undefined,
-  reverse: boolean = false
-) => {
-  const HAND_SIZE = 3;
-  let handSlots = Array.from({ length: HAND_SIZE }, (_, index) => handCards[index]);
-  if (reverse) {
-    handSlots = handSlots.slice().reverse();
-  }
-  return handSlots.map((card, index) => (
+  const clearHighlights = () => dispatch(setHighlightedCells([]));
+
+  const handleCardDrag = (cardIndex: number) => {
+    if (gameOver || currentTurn !== playerId) return;
+    const validMoves = handleCardDragLogic(
+      cardIndex,
+      playerId,
+      boardState,
+      players,
+      firstMoveAll,
+      tieBreaker
+    );
+    dispatch(setHighlightedCells(validMoves));
+    // Only highlight discard pile for the active player
+    if (playerId === currentTurn) {
+      dispatch(setHighlightDiscardPile(!firstMove));
+    } else {
+      dispatch(setHighlightDiscardPile(false));
+    }
+  };
+
+  const handleCardDiscard = (cardIndex: number) => {
+    if (gameOver || firstMove) return;
+    dispatch(discardCardThunk({ cardIndex, playerId }));
+  };
+
+  const handleDragStart = () => dispatch(setDraggingPlayer(playerId));
+  const handleDragEnd = () => dispatch(resetUI());
+  const handleSwapCards = (sourceIndex: number, targetIndex: number) => {
+    if (playerId !== PlayerEnum.PLAYER1) return;
+    dispatch(swapCardsInHand({ playerId, sourceIndex, targetIndex }));
+  };
+
+  const renderDeck = () => (
     <Cell
-      key={index}
-      type="hand"
-      card={card}
-      index={index}
+      type="deck"
+      count={deckCount}
       playerId={playerId}
-      handleCardDrag={handleCardDrag}
-      highlightedCells={[]}
       clearHighlights={clearHighlights}
-      onDragStart={() => handleDragStart(playerId)}
-      onDragEnd={handleDragEnd}
-      isCurrentPlayer={isCurrentPlayer}
-      swapCardsInHand={swapCardsInHand}
+      isCurrentPlayer={currentTurn === playerId}
     />
-  ));
-};
+  );
 
-const PlayerArea: React.FC<PlayerAreaProps> = ({
-  playerId,
-  deckCount,
-  handCards,
-  discardPile,
-  isDragging,
-  handleCardDrag,
-  handleCardDiscard,
-  placeCardOnBoard,
-  highlightedCells,
-  firstMove,
-  clearHighlights,
-  handleDragStart,
-  handleDragEnd,
-  isCurrentPlayer,
-  isDiscardPileHighlighted,
-  swapCardsInHand,
-}) => {
+  const renderDiscard = () => (
+    <Cell
+      type="discard"
+      stack={discardPile}
+      playerId={playerId}
+      isVisible={true}
+      handleCardDiscard={handleCardDiscard}
+      clearHighlights={clearHighlights}
+      isCurrentPlayer={currentTurn === playerId}
+      isDisabled={firstMove}
+      // Only highlight discard pile for the active player
+      isHighlighted={currentTurn === playerId ? highlightDiscardPile : false}
+    />
+  );
+
+  const renderHand = () => {
+    const cards = playerId === PlayerEnum.PLAYER2 ? [...handCards].reverse() : handCards;
+    return cards.map((card, index) => (
+      <Cell
+        key={index}
+        type="hand"
+        card={card}
+        index={index}
+        playerId={playerId}
+        handleCardDrag={currentTurn === playerId ? (cardIndex) => handleCardDrag(cardIndex) : undefined}
+        highlightedCells={highlightedCells}
+        clearHighlights={clearHighlights}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        isCurrentPlayer={currentTurn === playerId}
+        swapCardsInHand={
+          playerId === PlayerEnum.PLAYER1
+            ? (_: PlayerEnum, source: number, target: number) => handleSwapCards(source, target)
+            : undefined
+        }
+      />
+    ));
+  };
+
   return (
     <div className="player-area">
       {playerId === PlayerEnum.PLAYER1 ? (
         <>
-          {renderDeck(deckCount, playerId, clearHighlights, isCurrentPlayer)}
-          {renderHand(
-            handCards,
-            playerId,
-            clearHighlights,
-            handleCardDrag,
-            handleDragStart,
-            handleDragEnd,
-            isCurrentPlayer,
-            swapCardsInHand
-          )}
-          {renderDiscard(discardPile, playerId, clearHighlights, isCurrentPlayer, firstMove, isDiscardPileHighlighted, handleCardDiscard)}
+          {renderDeck()}
+          {renderHand()}
+          {renderDiscard()}
         </>
       ) : (
         <>
-          {renderDiscard(discardPile, playerId, clearHighlights, isCurrentPlayer, firstMove, isDiscardPileHighlighted, handleCardDiscard)}
-          {renderHand(
-            handCards,
-            playerId,
-            clearHighlights,
-            handleCardDrag,
-            handleDragStart,
-            handleDragEnd,
-            isCurrentPlayer,
-            swapCardsInHand,
-            true
-          )}
-          {renderDeck(deckCount, playerId, clearHighlights, isCurrentPlayer)}
+          {renderDiscard()}
+          {renderHand()}
+          {renderDeck()}
         </>
       )}
     </div>
