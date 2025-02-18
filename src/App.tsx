@@ -37,12 +37,8 @@ function App() {
   const boardState = useSelector((state: RootState) => state.board);
   const currentTurn = useSelector((state: RootState) => state.turn.currentTurn);
   const discardPiles = useSelector((state: RootState) => state.discard);
-  const {
-    firstMove,
-    gameOver,
-    initialFaceDownCards,
-    tieBreaker,
-  } = useSelector((state: RootState) => state.gameStatus);
+  const { firstMove, gameOver, initialFaceDownCards, tieBreaker } =
+    useSelector((state: RootState) => state.gameStatus);
   const highlightedCells = useSelector((state: RootState) => state.ui.highlightedCells);
   const draggingPlayer = useSelector((state: RootState) => state.ui.draggingPlayer);
   const highlightDiscardPile = useSelector((state: RootState) => state.ui.highlightDiscardPile);
@@ -69,14 +65,13 @@ function App() {
   const playForPlayer = useCallback(
     (playerId: PlayerEnum) => {
       if (gameOver) return;
-      // Removed the tie-break checks so that even in a tie-break Player 2 auto-plays.
       const isFirst = firstMove[playerId];
       if (isFirst) {
         const result = performFirstMoveForPlayer(
           players,
           playerId,
           boardState,
-          tieBreaker, // Pass the tieBreaker flag so that a tie-break move is executed if applicable
+          tieBreaker,
           (cards: InitialFaceDownCards) => dispatch(setInitialFaceDownCards(cards))
         );
         dispatch(updatePlayers(result.updatedPlayers));
@@ -97,7 +92,7 @@ function App() {
         if (!moveMade && playerId === PlayerEnum.PLAYER2) {
           // If no valid move, discard first available
           const firstDiscardableIndex = players[PlayerEnum.PLAYER2].hand.findIndex(
-            (card) => card !== undefined
+            (c) => c !== undefined
           );
           if (firstDiscardableIndex !== -1) {
             handleCardDiscard(firstDiscardableIndex, PlayerEnum.PLAYER2);
@@ -111,6 +106,10 @@ function App() {
   // When dragging a card
   const handleCardDrag = (cardIndex: number, playerId: PlayerEnum) => {
     if (gameOver) return;
+
+    // 1) Only show highlights for Player 1:
+    if (playerId !== PlayerEnum.PLAYER1) return;
+
     const validMoves = handleCardDragLogic(
       cardIndex,
       playerId,
@@ -177,7 +176,7 @@ function App() {
     }
   }, [initialFaceDownCards, dispatch]);
 
-  // If it's Player 2's turn, auto-play (even during tie-break scenarios)
+  // If it's Player 2's turn, auto-play
   useEffect(() => {
     if (currentTurn === PlayerEnum.PLAYER2 && !gameOver) {
       setTimeout(() => playForPlayer(PlayerEnum.PLAYER2), 500);

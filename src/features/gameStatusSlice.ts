@@ -1,5 +1,4 @@
 // src/features/gameStatusSlice.ts
-
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { PlayerEnum, PlayerBooleans, Card } from '../types';
 

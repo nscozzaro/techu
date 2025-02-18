@@ -32,38 +32,18 @@ export const flipInitialCardsThunk = createAsyncThunk(
     const state = getState() as RootState;
     const { initialFaceDownCards } = state.gameStatus;
 
-    // If both tie-breaker cards are present, do the logic:
     if (
       initialFaceDownCards[PlayerEnum.PLAYER1] &&
       initialFaceDownCards[PlayerEnum.PLAYER2]
     ) {
       const result = flipInitialCardsLogic(initialFaceDownCards, state.board);
-
-      // Update board
       dispatch(setBoardState(result.newBoardState));
-
-      // If the ranks are equal => tieBreaker = true
-      // else tieBreaker = false
       dispatch(setTieBreaker(result.tieBreaker));
-
-      // If tieBreaker remains true => tieBreakInProgress stays true
-      // If tieBreaker is false => tieBreakInProgress = false
       dispatch(setTieBreakInProgress(result.tieBreaker));
-
-      // If the tie is resolved, nextPlayerTurn = lower card's owner
       dispatch(setTurn(result.nextPlayerTurn));
-
-      // If the game might be over
-      const isOver = isGameOver(state.players);
-      dispatch(setGameOver(isOver));
-
-      // Clear face-down cards
+      dispatch(setGameOver(isGameOver(state.players)));
       dispatch(clearInitialFaceDownCards());
-
-      // Set firstMove according to result
       dispatch(setFirstMove(result.firstMove));
-
-      // Clear highlights
       dispatch(setHighlightedCells([]));
     }
   }
@@ -110,6 +90,11 @@ export const placeCardOnBoardThunk = createAsyncThunk(
     if (isGameOver(result.updatedPlayers)) {
       dispatch(setGameOver(true));
     }
+
+    // NEW: Clear highlights after placing a card
+    dispatch(setHighlightedCells([]));
+    dispatch(setHighlightDiscardPile(false));
+
     return result;
   }
 );
