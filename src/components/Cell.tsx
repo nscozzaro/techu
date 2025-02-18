@@ -62,7 +62,6 @@ const Cell: React.FC<CellProps> = (props) => {
     ? stack?.length === 0
     : false;
 
-  // The "top" card if discard/board, or the only card if hand
   const topCard: Card | null =
     isHand
       ? card ?? null
@@ -70,23 +69,59 @@ const Cell: React.FC<CellProps> = (props) => {
       ? stack[stack.length - 1] ?? null
       : null;
 
-  let cardBackImage: string | undefined;
-  if (topCard && topCard.faceDown) {
-    cardBackImage =
-      topCard.owner === PlayerEnum.PLAYER1 ? cardBackRed : cardBackBlue;
-  } else if (isHand && card && card.faceDown) {
-    cardBackImage =
-      card.owner === PlayerEnum.PLAYER1 ? cardBackRed : cardBackBlue;
-  }
+  // --- Helper Functions ---
+  const renderCardContent = (card: Card) => (
+    <div className={`card-content ${card.color.toLowerCase()}`}>
+      <div className="top-left">{card.rank}</div>
+      <div className="suit">{card.suit}</div>
+      <div className="bottom-right">{card.rank}</div>
+    </div>
+  );
 
-  // Only highlight if this cell is a board or discard cell
+  const renderCardBack = (owner: PlayerEnum, extraStyle?: React.CSSProperties) => {
+    const image = owner === PlayerEnum.PLAYER1 ? cardBackRed : cardBackBlue;
+    return (
+      <div
+        className="card-back"
+        style={{
+          backgroundImage: `url(${image})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          ...extraStyle,
+        }}
+      />
+    );
+  };
+
+  const renderDeck = (count: number, owner: PlayerEnum) => {
+    return count > 0 ? (
+      <div
+        className="card-back deck-back"
+        style={{
+          backgroundImage: `url(${owner === PlayerEnum.PLAYER1 ? cardBackRed : cardBackBlue})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }}
+      >
+        <div className="deck-count">{count}</div>
+      </div>
+    ) : (
+      <div
+        className="card-back empty-deck"
+        style={{ backgroundColor: owner === PlayerEnum.PLAYER1 ? '#800000' : '#000080' }}
+      >
+        <div className="deck-count">0</div>
+      </div>
+    );
+  };
+
+  // --- Determine if cell should be highlighted ---
   const shouldHighlight =
     (type === 'board' || type === 'discard') &&
     highlightedCells?.includes(index ?? -1);
-
   const isCellHighlighted = isHighlighted || shouldHighlight;
 
-  // Native drag event handlers
+  // --- Drag event handlers ---
   const onNativeDragStart = (e: React.DragEvent<HTMLDivElement>) => {
     if (handleCardDrag && playerId !== undefined && index !== undefined && card) {
       handleCardDrag(index, playerId);
@@ -96,8 +131,6 @@ const Cell: React.FC<CellProps> = (props) => {
   };
 
   const onNativeDragEnd = () => {
-    // Sometimes browsers won't reliably fire this if dropped outside
-    // but we keep it in for completeness:
     if (onDragEnd) onDragEnd();
     if (clearHighlights) clearHighlights();
   };
@@ -118,23 +151,16 @@ const Cell: React.FC<CellProps> = (props) => {
         handleCardDiscard(cardIndex, draggedPlayerId);
       } else if (isBoard && placeCardOnBoard && index !== undefined) {
         placeCardOnBoard(index, cardIndex, draggedPlayerId);
-      } else if (
-        isHand &&
-        playerId === PlayerEnum.PLAYER1 &&
-        swapCardsInHand &&
-        index !== undefined
-      ) {
+      } else if (isHand && playerId === PlayerEnum.PLAYER1 && swapCardsInHand && index !== undefined) {
         swapCardsInHand(PlayerEnum.PLAYER1, cardIndex, index);
       }
     } catch (err) {
       console.error(err);
     } finally {
-      // **Important**: clear highlights once drop is done
       if (clearHighlights) clearHighlights();
     }
   };
 
-  // Make cells draggable only if it's a hand cell for Player 1 on their turn
   const draggable =
     isHand &&
     playerId === PlayerEnum.PLAYER1 &&
@@ -161,108 +187,40 @@ const Cell: React.FC<CellProps> = (props) => {
         isCellHighlighted ? 'highlight' : ''
       } ${isDisabled ? 'disabled' : ''}`}
     >
-      {/* Deck rendering */}
-      {isDeck && count !== undefined && (
-        <>
-          {count > 0 ? (
-            <div
-              className="card-back deck-back"
-              style={{
-                backgroundImage: `url(${
-                  playerId === PlayerEnum.PLAYER1 ? cardBackRed : cardBackBlue
-                })`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-              }}
-            >
-              <div className="deck-count">{count}</div>
-            </div>
-          ) : (
-            <div
-              className="card-back empty-deck"
-              style={{
-                backgroundColor:
-                  playerId === PlayerEnum.PLAYER1 ? '#800000' : '#000080',
-              }}
-            >
-              <div className="deck-count">0</div>
-            </div>
-          )}
-        </>
-      )}
+      {/* Deck Rendering */}
+      {isDeck && count !== undefined && renderDeck(count, playerId!)}
 
-      {/* Hand rendering */}
+      {/* Hand Rendering */}
       {isHand &&
         (card ? (
           card.faceDown ? (
-            <div
-              className="card-back"
-              style={{
-                backgroundImage: `url(${cardBackImage})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-              }}
-            />
+            renderCardBack(card.owner)
           ) : (
-            <div className={`card-content ${card.color.toLowerCase()}`}>
-              <div className="top-left">{card.rank}</div>
-              <div className="suit">{card.suit}</div>
-              <div className="bottom-right">{card.rank}</div>
-            </div>
+            renderCardContent(card)
           )
         ) : (
           <div className="empty-placeholder"></div>
         ))}
 
-      {/* Discard rendering */}
+      {/* Discard Rendering */}
       {isDiscard && isVisible && (
         topCard ? (
           topCard.faceDown ? (
-            <div
-              className="card-back"
-              style={{
-                backgroundImage: `url(${
-                  topCard.owner === PlayerEnum.PLAYER1
-                    ? cardBackRed
-                    : cardBackBlue
-                })`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-              }}
-            />
+            renderCardBack(topCard.owner)
           ) : (
-            <div className={`card-content ${topCard.color.toLowerCase()}`}>
-              <div className="top-left">{topCard.rank}</div>
-              <div className="suit">{topCard.suit}</div>
-              <div className="bottom-right">{topCard.rank}</div>
-            </div>
+            renderCardContent(topCard)
           )
         ) : (
           <span>Discard</span>
         )
       )}
 
-      {/* Board rendering */}
+      {/* Board Rendering */}
       {isBoard && topCard && (
         topCard.faceDown ? (
-          <div
-            className="card-back"
-            style={{
-              backgroundImage: `url(${
-                topCard.owner === PlayerEnum.PLAYER1
-                  ? cardBackRed
-                  : cardBackBlue
-              })`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-            }}
-          />
+          renderCardBack(topCard.owner)
         ) : (
-          <div className={`card-content ${topCard.color.toLowerCase()}`}>
-            <div className="top-left">{topCard.rank}</div>
-            <div className="suit">{topCard.suit}</div>
-            <div className="bottom-right">{topCard.rank}</div>
-          </div>
+          renderCardContent(topCard)
         )
       )}
     </div>

@@ -75,7 +75,8 @@ export const getNextPlayerTurn = (currentPlayer: PlayerEnum): PlayerEnum =>
 
 export const isGameOver = (players: Players): boolean =>
   Object.values(players).every(
-    (player) => player.hand.every((card) => card === undefined) && player.deck.length === 0
+    (player) =>
+      player.hand.every((card) => card === undefined) && player.deck.length === 0
   );
 
 /* ---------- Move Execution Functions ---------- */
@@ -325,6 +326,54 @@ export const placeCardOnBoardLogic = (
   };
 };
 
+/* ---------- Refactored Flip Initial Cards Logic Helpers ---------- */
+const flipCardsInBoard = (
+  initialFaceDownCards: InitialFaceDownCards,
+  boardState: BoardState
+): BoardState => {
+  const newBoardState: BoardState = JSON.parse(JSON.stringify(boardState));
+  Object.values(PlayerEnum).forEach((p) => {
+    const cardData = initialFaceDownCards[p];
+    if (cardData) {
+      const cellIndex = cardData.cellIndex;
+      if (newBoardState[cellIndex]?.length) {
+        newBoardState[cellIndex][newBoardState[cellIndex].length - 1] = {
+          ...cardData,
+          faceDown: false,
+        };
+      }
+    }
+  });
+  return newBoardState;
+};
+
+const determineTurnAndTieBreaker = (
+  initialFaceDownCards: InitialFaceDownCards
+): {
+  nextPlayerTurn: PlayerEnum;
+  tieBreaker: boolean;
+  firstMove: { [key in PlayerEnum]: boolean };
+} => {
+  const card1 = initialFaceDownCards[PlayerEnum.PLAYER1];
+  const card2 = initialFaceDownCards[PlayerEnum.PLAYER2];
+  const rank1 = card1 ? rankOrder[card1.rank] : -1;
+  const rank2 = card2 ? rankOrder[card2.rank] : -1;
+  if (rank1 === rank2) {
+    return {
+      nextPlayerTurn: getNextPlayerTurn(PlayerEnum.PLAYER1),
+      tieBreaker: true,
+      firstMove: initialFirstMove(),
+    };
+  } else {
+    return {
+      nextPlayerTurn: rank1 < rank2 ? PlayerEnum.PLAYER1 : PlayerEnum.PLAYER2,
+      tieBreaker: false,
+      firstMove: { [PlayerEnum.PLAYER1]: false, [PlayerEnum.PLAYER2]: false },
+    };
+  }
+};
+
+/* ---------- Public Flip Initial Cards Logic ---------- */
 export const flipInitialCardsLogic = (
   initialFaceDownCards: InitialFaceDownCards,
   boardState: BoardState
@@ -334,10 +383,7 @@ export const flipInitialCardsLogic = (
   tieBreaker: boolean;
   firstMove: { [key in PlayerEnum]: boolean };
 } => {
-  if (
-    !initialFaceDownCards[PlayerEnum.PLAYER1] ||
-    !initialFaceDownCards[PlayerEnum.PLAYER2]
-  ) {
+  if (!initialFaceDownCards[PlayerEnum.PLAYER1] || !initialFaceDownCards[PlayerEnum.PLAYER2]) {
     return {
       newBoardState: boardState,
       nextPlayerTurn: getNextPlayerTurn(PlayerEnum.PLAYER1),
@@ -345,32 +391,8 @@ export const flipInitialCardsLogic = (
       firstMove: { [PlayerEnum.PLAYER1]: false, [PlayerEnum.PLAYER2]: false },
     };
   }
-  const newBoardState: BoardState = JSON.parse(JSON.stringify(boardState));
-  let nextPlayerTurn: PlayerEnum = PlayerEnum.PLAYER1;
-  let tieBreaker = false;
-  let firstMove = { [PlayerEnum.PLAYER1]: false, [PlayerEnum.PLAYER2]: false };
-  Object.values(PlayerEnum).forEach((p) => {
-    const cardData = initialFaceDownCards[p];
-    if (cardData) {
-      const cellIndex = cardData.cellIndex;
-      if (newBoardState[cellIndex] && newBoardState[cellIndex].length > 0) {
-        const flippedCard = { ...cardData, faceDown: false };
-        newBoardState[cellIndex][newBoardState[cellIndex].length - 1] = flippedCard;
-      }
-    }
-  });
-  const card1 = initialFaceDownCards[PlayerEnum.PLAYER1];
-  const card2 = initialFaceDownCards[PlayerEnum.PLAYER2];
-  const rank1 = card1 ? rankOrder[card1.rank] : -1;
-  const rank2 = card2 ? rankOrder[card2.rank] : -1;
-  if (rank1 === rank2) {
-    tieBreaker = true;
-    firstMove = initialFirstMove();
-  } else {
-    tieBreaker = false;
-    nextPlayerTurn = rank1 < rank2 ? PlayerEnum.PLAYER1 : PlayerEnum.PLAYER2;
-    firstMove = { [PlayerEnum.PLAYER1]: false, [PlayerEnum.PLAYER2]: false };
-  }
+  const newBoardState = flipCardsInBoard(initialFaceDownCards, boardState);
+  const { nextPlayerTurn, tieBreaker, firstMove } = determineTurnAndTieBreaker(initialFaceDownCards);
   return { newBoardState, nextPlayerTurn, tieBreaker, firstMove };
 };
 
