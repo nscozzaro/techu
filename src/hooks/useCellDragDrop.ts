@@ -1,9 +1,9 @@
 // src/hooks/useCellDragDrop.ts
 import { useCallback } from 'react';
-import { Card, PlayerEnum } from '../types';
 import { useDispatch } from 'react-redux';
 import { AppDispatch } from '../store';
 import { triggerCardDragThunk } from '../features/gameThunks';
+import { Card, PlayerEnum } from '../types';
 
 interface UseCellDragDropProps {
   onDragStart?: () => void;
@@ -29,15 +29,15 @@ export const useCellDragDrop = (props: UseCellDragDropProps) => {
       if (playerId !== undefined && index !== undefined && card) {
         dispatch(triggerCardDragThunk({ cardIndex: index, playerId }));
       }
-      if (onDragStart) onDragStart();
+      onDragStart && onDragStart();
       e.dataTransfer.setData('text/plain', JSON.stringify({ cardIndex: index, playerId }));
     },
     [dispatch, onDragStart, index, card, playerId]
   );
 
   const onNativeDragEnd = useCallback(() => {
-    if (onDragEnd) onDragEnd();
-    if (clearHighlights) clearHighlights();
+    onDragEnd && onDragEnd();
+    clearHighlights && clearHighlights();
   }, [onDragEnd, clearHighlights]);
 
   const onNativeDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
@@ -47,14 +47,14 @@ export const useCellDragDrop = (props: UseCellDragDropProps) => {
   const onNativeDrop = useCallback(
     (e: React.DragEvent<HTMLDivElement>, dropHandler: (dragData: DragData) => void) => {
       e.preventDefault();
+      if (isDisabled) return;
       try {
         const dragData: DragData = JSON.parse(e.dataTransfer.getData('text/plain'));
-        if (isDisabled) return;
         dropHandler(dragData);
       } catch (err) {
         console.error(err);
       } finally {
-        if (clearHighlights) clearHighlights();
+        clearHighlights && clearHighlights();
       }
     },
     [isDisabled, clearHighlights]

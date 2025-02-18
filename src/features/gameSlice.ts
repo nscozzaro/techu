@@ -1,3 +1,4 @@
+// src/features/gameSlice.ts
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import {
   BoardState,
