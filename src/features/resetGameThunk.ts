@@ -1,7 +1,7 @@
 // src/features/resetGameThunk.ts
 import { createAsyncThunk } from '@reduxjs/toolkit';
-import { PlayerEnum, BoardState } from '../types';
-import { initializePlayer, initialBoardState } from '../utils';
+import { PlayerEnum, BoardState, ColorEnum } from '../types';
+import { initializePlayer, initialBoardState } from './gameLogic';
 import { updatePlayers } from './playersSlice';
 import { setBoardState } from './boardSlice';
 import { setTurn } from './turnSlice';
@@ -12,13 +12,13 @@ import { resetDiscardPiles } from './discardSlice';
 export const resetGameThunk = createAsyncThunk(
   'game/resetGame',
   async (_, { dispatch }) => {
-    // Reset players using the original initialization logic:
-    const initialPlayers = {
-      [PlayerEnum.PLAYER1]: initializePlayer('RED' as any, PlayerEnum.PLAYER1),
-      [PlayerEnum.PLAYER2]: initializePlayer('BLACK' as any, PlayerEnum.PLAYER2),
+    // Reset players using the new initialization logic:
+    const initialPlayersState = {
+      [PlayerEnum.PLAYER1]: initializePlayer(ColorEnum.RED, PlayerEnum.PLAYER1),
+      [PlayerEnum.PLAYER2]: initializePlayer(ColorEnum.BLACK, PlayerEnum.PLAYER2),
     };
 
-    // Reset board state using the initialBoardState utility (assumes BOARD_SIZE is defined)
+    // Reset board state using the initialBoardState utility
     const newBoardState: BoardState = initialBoardState();
 
     // Define initial first move status inline:
@@ -28,7 +28,7 @@ export const resetGameThunk = createAsyncThunk(
     };
 
     // Dispatch reset actions:
-    dispatch(updatePlayers(initialPlayers));
+    dispatch(updatePlayers(initialPlayersState));
     dispatch(setBoardState(newBoardState));
     dispatch(setTurn(PlayerEnum.PLAYER1));
     dispatch(setFirstMove(newFirstMove));
