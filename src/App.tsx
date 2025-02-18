@@ -1,3 +1,4 @@
+// src/App.tsx
 import React, { useEffect, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import Board from './components/Board';

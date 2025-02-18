@@ -1,3 +1,4 @@
+// src/components/Board.tsx
 import React from 'react';
 import Cell from './Cell';
 import { BoardState, PlayerEnum } from '../types';

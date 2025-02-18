@@ -1,3 +1,4 @@
+// src/components/Cell.tsx
 import React from 'react';
 import { useDrag, useDrop, DragSourceMonitor } from 'react-dnd';
 // Removed: DropTargetMonitor (was never used)

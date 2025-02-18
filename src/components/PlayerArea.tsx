@@ -1,3 +1,4 @@
+// src/components/PlayerArea.tsx
 import React from 'react';
 import Cell from './Cell';
 import { Card, PlayerEnum } from '../types';
