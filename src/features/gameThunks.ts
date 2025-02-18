@@ -7,6 +7,7 @@ import {
   getNextPlayerTurn,
   updatePlayerHandAndDrawCard,
   flipInitialCardsLogic,
+  handleCardDragLogic,
 } from './gameLogic';
 import { updatePlayers } from './playersSlice';
 import { setBoardState } from './boardSlice';
@@ -132,5 +133,33 @@ export const discardCardThunk = createAsyncThunk(
     dispatch(setHighlightDiscardPile(false));
 
     return newPlayers;
+  }
+);
+
+/**
+ * Thunk to trigger card drag logic.
+ */
+export const triggerCardDragThunk = createAsyncThunk(
+  'game/triggerCardDrag',
+  async (
+    { cardIndex, playerId }: { cardIndex: number; playerId: PlayerEnum },
+    { getState, dispatch }
+  ) => {
+    const state = getState() as RootState;
+    const { board, players, gameStatus, turn } = state;
+    const validMoves = handleCardDragLogic(
+      cardIndex,
+      playerId,
+      board,
+      players,
+      gameStatus.firstMove,
+      gameStatus.tieBreaker
+    );
+    dispatch(setHighlightedCells(validMoves));
+    if (turn.currentTurn === playerId) {
+      dispatch(setHighlightDiscardPile(!gameStatus.firstMove[playerId]));
+    } else {
+      dispatch(setHighlightDiscardPile(false));
+    }
   }
 );

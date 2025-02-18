@@ -15,14 +15,13 @@ interface CellProps {
   card?: Card;
   index?: number;
   playerId?: PlayerEnum;
-  handleCardDrag?: (cardIndex: number, playerId: PlayerEnum) => void;
+  // Removed: handleCardDrag prop
   stack?: (Card | undefined)[];
   isVisible?: boolean;
   handleCardDiscard?: (cardIndex: number, playerId: PlayerEnum) => void;
   count?: number;
   isFaceDown?: boolean;
   highlightedCells?: number[];
-  // Removed: placeCardOnBoard
   playerTurn?: boolean;
   clearHighlights?: () => void;
   onDragStart?: () => void;
@@ -38,13 +37,12 @@ const Cell: React.FC<CellProps> = ({
   card,
   index,
   playerId,
-  handleCardDrag,
+  // Removed: handleCardDrag,
   stack,
   isVisible,
   handleCardDiscard,
   count,
   highlightedCells,
-  // Removed: placeCardOnBoard,
   onDragStart,
   onDragEnd,
   isCurrentPlayer = false,
@@ -127,7 +125,6 @@ const Cell: React.FC<CellProps> = ({
 
   // --- Use custom drag/drop hook ---
   const { onNativeDragStart, onNativeDragEnd, onNativeDragOver, onNativeDrop } = useCellDragDrop({
-    handleCardDrag,
     onDragStart,
     onDragEnd,
     clearHighlights,

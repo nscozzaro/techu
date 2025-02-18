@@ -1,9 +1,11 @@
 // src/hooks/useCellDragDrop.ts
 import { useCallback } from 'react';
 import { Card, PlayerEnum } from '../types';
+import { useDispatch } from 'react-redux';
+import { AppDispatch } from '../store';
+import { triggerCardDragThunk } from '../features/gameThunks';
 
 interface UseCellDragDropProps {
-  handleCardDrag?: (cardIndex: number, playerId: PlayerEnum) => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;
   clearHighlights?: () => void;
@@ -19,17 +21,18 @@ interface DragData {
 }
 
 export const useCellDragDrop = (props: UseCellDragDropProps) => {
-  const { handleCardDrag, onDragStart, onDragEnd, clearHighlights, isDisabled, index, card, playerId } = props;
+  const { onDragStart, onDragEnd, clearHighlights, isDisabled, index, card, playerId } = props;
+  const dispatch = useDispatch<AppDispatch>();
 
   const onNativeDragStart = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
-      if (handleCardDrag && playerId !== undefined && index !== undefined && card) {
-        handleCardDrag(index, playerId);
+      if (playerId !== undefined && index !== undefined && card) {
+        dispatch(triggerCardDragThunk({ cardIndex: index, playerId }));
       }
       if (onDragStart) onDragStart();
       e.dataTransfer.setData('text/plain', JSON.stringify({ cardIndex: index, playerId }));
     },
-    [handleCardDrag, onDragStart, index, card, playerId]
+    [dispatch, onDragStart, index, card, playerId]
   );
 
   const onNativeDragEnd = useCallback(() => {

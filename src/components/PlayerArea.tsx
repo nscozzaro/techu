@@ -1,17 +1,12 @@
+// src/components/PlayerArea.tsx
 import React from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import Cell from './Cell';
 import { PlayerEnum } from '../types';
-import {
-  setHighlightedCells,
-  setDraggingPlayer,
-  setHighlightDiscardPile,
-  resetUI,
-} from '../features/uiSlice';
+import { setHighlightedCells, setDraggingPlayer, resetUI } from '../features/uiSlice';
 import { discardCardThunk } from '../features/gameThunks';
 import { swapCardsInHand } from '../features/playersSlice';
-import { handleCardDragLogic } from '../features/gameLogic';
 
 interface PlayerAreaProps {
   playerId: PlayerEnum;
@@ -21,13 +16,10 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ playerId }) => {
   const dispatch = useDispatch<AppDispatch>();
   const player = useSelector((state: RootState) => state.players[playerId]);
   const discardPile = useSelector((state: RootState) => state.discard[playerId]);
-  const boardState = useSelector((state: RootState) => state.board);
-  const players = useSelector((state: RootState) => state.players);
   const firstMoveAll = useSelector((state: RootState) => state.gameStatus.firstMove);
   const firstMove = firstMoveAll[playerId];
   const currentTurn = useSelector((state: RootState) => state.turn.currentTurn);
   const gameOver = useSelector((state: RootState) => state.gameStatus.gameOver);
-  const tieBreaker = useSelector((state: RootState) => state.gameStatus.tieBreaker);
   const highlightedCells = useSelector((state: RootState) => state.ui.highlightedCells);
   const highlightDiscardPile = useSelector((state: RootState) => state.ui.highlightDiscardPile);
 
@@ -35,25 +27,6 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ playerId }) => {
   const handCards = player.hand;
 
   const clearHighlights = () => dispatch(setHighlightedCells([]));
-
-  const handleCardDrag = (cardIndex: number) => {
-    if (gameOver || currentTurn !== playerId) return;
-    const validMoves = handleCardDragLogic(
-      cardIndex,
-      playerId,
-      boardState,
-      players,
-      firstMoveAll,
-      tieBreaker
-    );
-    dispatch(setHighlightedCells(validMoves));
-    // Only highlight discard pile for the active player
-    if (playerId === currentTurn) {
-      dispatch(setHighlightDiscardPile(!firstMove));
-    } else {
-      dispatch(setHighlightDiscardPile(false));
-    }
-  };
 
   const handleCardDiscard = (cardIndex: number) => {
     if (gameOver || firstMove) return;
@@ -87,7 +60,6 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ playerId }) => {
       clearHighlights={clearHighlights}
       isCurrentPlayer={currentTurn === playerId}
       isDisabled={firstMove}
-      // Only highlight discard pile for the active player
       isHighlighted={currentTurn === playerId ? highlightDiscardPile : false}
     />
   );
@@ -101,7 +73,6 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ playerId }) => {
         card={card}
         index={index}
         playerId={playerId}
-        handleCardDrag={currentTurn === playerId ? (cardIndex) => handleCardDrag(cardIndex) : undefined}
         highlightedCells={highlightedCells}
         clearHighlights={clearHighlights}
         onDragStart={handleDragStart}
