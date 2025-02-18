@@ -1,4 +1,3 @@
-// src/features/gameLogic.ts
 import {
   ColorEnum,
   Player,
@@ -16,6 +15,38 @@ import {
 import { rankOrder, initialFirstMove } from '../types';
 import { createDeck, shuffle } from '../logic/deck';
 import { getValidMoves, calculateValidMoves } from '../logic/moveCalculations';
+
+/* ---------- Helper: Draw a Card ---------- */
+const drawCard = (
+  hand: (Player['hand'][0])[],
+  deck: (Player['hand'][0])[],
+  insertSlot?: number
+): { hand: (Player['hand'][0])[]; deck: (Player['hand'][0])[] } => {
+  if (deck.length === 0) return { hand, deck };
+  const card = deck.pop()!;
+  const newHand = [...hand];
+  if (insertSlot !== undefined && insertSlot >= 0 && insertSlot < newHand.length) {
+    newHand[insertSlot] = card;
+  } else {
+    const firstEmpty = newHand.findIndex((c) => c === undefined);
+    if (firstEmpty !== -1) newHand[firstEmpty] = card;
+  }
+  return { hand: newHand, deck };
+};
+
+/* ---------- Hand & Deck Updates ---------- */
+export const updatePlayerHandAndDrawCard = (
+  players: Players,
+  playerId: PlayerEnum,
+  cardIndex: number,
+  insertSlot?: number
+): Players => {
+  const player = players[playerId];
+  const newHand = [...player.hand];
+  newHand[cardIndex] = undefined;
+  const result = drawCard(newHand, [...player.deck], insertSlot);
+  return { ...players, [playerId]: { ...player, hand: result.hand, deck: result.deck } };
+};
 
 /* ---------- Player & Board Initialization ---------- */
 export const initializePlayer = (color: ColorEnum, id: PlayerEnum): Player => {
@@ -42,33 +73,6 @@ export const initialDiscardPiles = (): DiscardPiles => ({
   [PlayerEnum.PLAYER2]: [],
 });
 
-/* ---------- Hand & Deck Updates ---------- */
-export const updatePlayerHandAndDrawCard = (
-  players: Players,
-  playerId: PlayerEnum,
-  cardIndex: number,
-  insertSlot?: number
-): Players => {
-  const player = players[playerId];
-  const newHand = [...player.hand];
-  const newDeck = [...player.deck];
-  if (cardIndex >= 0 && cardIndex < newHand.length) {
-    newHand[cardIndex] = undefined;
-    if (newDeck.length > 0) {
-      const newCard = newDeck.pop()!;
-      if (insertSlot !== undefined && insertSlot >= 0 && insertSlot < newHand.length) {
-        newHand[insertSlot] = newCard;
-      } else {
-        const firstEmpty = newHand.findIndex((c) => c === undefined);
-        if (firstEmpty !== -1) {
-          newHand[firstEmpty] = newCard;
-        }
-      }
-    }
-  }
-  return { ...players, [playerId]: { ...player, hand: newHand, deck: newDeck } };
-};
-
 /* ---------- Turn & Game Status ---------- */
 export const getNextPlayerTurn = (currentPlayer: PlayerEnum): PlayerEnum =>
   currentPlayer === PlayerEnum.PLAYER1 ? PlayerEnum.PLAYER2 : PlayerEnum.PLAYER1;
@@ -78,6 +82,10 @@ export const isGameOver = (players: Players): boolean =>
     (player) =>
       player.hand.every((card) => card === undefined) && player.deck.length === 0
   );
+
+/* ---------- Helper: Clone Board State ---------- */
+const cloneBoardState = (board: BoardState): BoardState =>
+  board.map((cell) => [...cell]);
 
 /* ---------- Move Execution Functions ---------- */
 const applyMoveToBoardState = (
@@ -305,7 +313,7 @@ export const placeCardOnBoardLogic = (
     };
   }
   const updatedPlayers = updatePlayerHandAndDrawCard(players, playerId, cardIndex, cardIndex);
-  let newBoard = boardState.map((cell) => [...cell]);
+  let newBoard = cloneBoardState(boardState);
   if (firstMove[playerId] && !tieBreaker) {
     const faceDownCard = { ...card, faceDown: true };
     setInitialFaceDownCards({ [playerId]: { ...faceDownCard, cellIndex: index } });
@@ -331,7 +339,7 @@ const flipCardsInBoard = (
   initialFaceDownCards: InitialFaceDownCards,
   boardState: BoardState
 ): BoardState => {
-  const newBoardState: BoardState = JSON.parse(JSON.stringify(boardState));
+  const newBoardState = cloneBoardState(boardState);
   Object.values(PlayerEnum).forEach((p) => {
     const cardData = initialFaceDownCards[p];
     if (cardData) {
@@ -360,7 +368,6 @@ const determineTurnAndTieBreaker = (
   const rank2 = card2 ? rankOrder[card2.rank] : -1;
   if (rank1 === rank2) {
     return {
-      // On a tie, ensure PLAYER1 goes first (instead of switching turn to PLAYER2)
       nextPlayerTurn: PlayerEnum.PLAYER1,
       tieBreaker: true,
       firstMove: initialFirstMove(),
@@ -374,7 +381,6 @@ const determineTurnAndTieBreaker = (
   }
 };
 
-/* ---------- Public Flip Initial Cards Logic ---------- */
 export const flipInitialCardsLogic = (
   initialFaceDownCards: InitialFaceDownCards,
   boardState: BoardState
@@ -399,13 +405,15 @@ export const flipInitialCardsLogic = (
 
 /* ---------- New: Calculate Scores ---------- */
 export const calculateScores = (boardState: BoardState): Scores => {
-  const scores: Scores = { [PlayerEnum.PLAYER1]: 0, [PlayerEnum.PLAYER2]: 0 };
-  boardState.forEach((cellStack) => {
-    if (cellStack.length > 0) {
-      const topCard = cellStack[cellStack.length - 1];
-      if (topCard?.color === ColorEnum.RED) scores[PlayerEnum.PLAYER1]++;
-      else if (topCard?.color === ColorEnum.BLACK) scores[PlayerEnum.PLAYER2]++;
-    }
-  });
-  return scores;
+  return boardState.reduce(
+    (scores, cellStack) => {
+      if (cellStack.length > 0) {
+        const topCard = cellStack[cellStack.length - 1];
+        if (topCard?.color === ColorEnum.RED) scores[PlayerEnum.PLAYER1]++;
+        else if (topCard?.color === ColorEnum.BLACK) scores[PlayerEnum.PLAYER2]++;
+      }
+      return scores;
+    },
+    { [PlayerEnum.PLAYER1]: 0, [PlayerEnum.PLAYER2]: 0 } as Scores
+  );
 };
