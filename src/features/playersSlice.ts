@@ -3,7 +3,7 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { Players, PlayerEnum, ColorEnum, Player } from '../types';
 import { createDeck, shuffle } from '../logic/deck';
 
-// Moved from utils.tsx: initializePlayer
+// Initialize a player with a deck and hand
 const initializePlayer = (color: ColorEnum, id: PlayerEnum): Player => {
   const deck = createDeck(color, id);
   shuffle(deck);
@@ -24,8 +24,27 @@ const playersSlice = createSlice({
   initialState,
   reducers: {
     updatePlayers: (state, action: PayloadAction<Players>) => action.payload,
+    swapCardsInHand: (
+      state,
+      action: PayloadAction<{ playerId: PlayerEnum; sourceIndex: number; targetIndex: number }>
+    ) => {
+      const { playerId, sourceIndex, targetIndex } = action.payload;
+      const player = state[playerId];
+      if (
+        sourceIndex < 0 ||
+        sourceIndex >= player.hand.length ||
+        targetIndex < 0 ||
+        targetIndex >= player.hand.length
+      ) {
+        return;
+      }
+      [player.hand[sourceIndex], player.hand[targetIndex]] = [
+        player.hand[targetIndex],
+        player.hand[sourceIndex],
+      ];
+    },
   },
 });
 
-export const { updatePlayers } = playersSlice.actions;
+export const { updatePlayers, swapCardsInHand } = playersSlice.actions;
 export default playersSlice.reducer;

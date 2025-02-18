@@ -21,6 +21,7 @@ import {
   flipInitialCardsThunk,
 } from './features/gameThunks';
 import { playTurnThunk } from './features/playTurnThunk';
+import { swapCardsInHand } from './features/playersSlice';
 
 function App() {
   const players = useSelector((state: RootState) => state.players);
@@ -72,31 +73,10 @@ function App() {
     dispatch(resetUI());
   };
 
-  const swapCardsInHand = (
-    playerId: PlayerEnum,
-    sourceIndex: number,
-    targetIndex: number
-  ) => {
+  // New: dispatch Redux action to swap cards in hand
+  const handleSwapCards = (playerId: PlayerEnum, sourceIndex: number, targetIndex: number) => {
     if (playerId !== PlayerEnum.PLAYER1) return;
-    const player = players[playerId];
-    if (
-      sourceIndex < 0 ||
-      sourceIndex >= player.hand.length ||
-      targetIndex < 0 ||
-      targetIndex >= player.hand.length
-    ) {
-      return;
-    }
-    const updatedHand = [...player.hand];
-    [updatedHand[sourceIndex], updatedHand[targetIndex]] = [
-      updatedHand[targetIndex],
-      updatedHand[sourceIndex],
-    ];
-    const updatedPlayers = {
-      ...players,
-      [playerId]: { ...player, hand: updatedHand },
-    };
-    dispatch({ type: 'players/updatePlayers', payload: updatedPlayers });
+    dispatch(swapCardsInHand({ playerId, sourceIndex, targetIndex }));
   };
 
   useEffect(() => {
@@ -162,7 +142,7 @@ function App() {
         handleDragEnd={handleDragEnd}
         isCurrentPlayer={currentTurn === PlayerEnum.PLAYER1}
         isDiscardPileHighlighted={highlightDiscardPile && currentTurn === PlayerEnum.PLAYER1}
-        swapCardsInHand={swapCardsInHand}
+        swapCardsInHand={handleSwapCards}
       />
     </div>
   );
