@@ -21,11 +21,7 @@ import { getValidMoves, calculateValidMoves } from '../logic/moveCalculations';
 export const initializePlayer = (color: ColorEnum, id: PlayerEnum): Player => {
   const deck = createDeck(color, id);
   shuffle(deck);
-  return {
-    id,
-    hand: deck.slice(0, 3),
-    deck: deck.slice(3),
-  };
+  return { id, hand: deck.slice(0, 3), deck: deck.slice(3) };
 };
 
 export const initialPlayers = (): Players => ({
@@ -70,10 +66,7 @@ export const updatePlayerHandAndDrawCard = (
       }
     }
   }
-  return {
-    ...players,
-    [playerId]: { ...player, hand: newHand, deck: newDeck },
-  };
+  return { ...players, [playerId]: { ...player, hand: newHand, deck: newDeck } };
 };
 
 /* ---------- Turn & Game Status ---------- */
@@ -82,8 +75,7 @@ export const getNextPlayerTurn = (currentPlayer: PlayerEnum): PlayerEnum =>
 
 export const isGameOver = (players: Players): boolean =>
   Object.values(players).every(
-    (player) =>
-      player.hand.every((card) => card === undefined) && player.deck.length === 0
+    (player) => player.hand.every((card) => card === undefined) && player.deck.length === 0
   );
 
 /* ---------- Move Execution Functions ---------- */
@@ -109,59 +101,46 @@ const applyMoveToBoardState = (
   return { newBoardState, updatedPlayers };
 };
 
-export const performFirstMoveForPlayer = (
+/* ---------- First Move Helpers ---------- */
+const handleFirstMoveTieBreaker = (
   players: Players,
   playerId: PlayerEnum,
   boardState: BoardState,
-  tieBreaker: boolean,
+  card: NonNullable<Player['hand'][0]>,
   setInitialFaceDownCards: (cards: InitialFaceDownCards) => void
-): {
-  updatedPlayers: Players;
-  newBoardState: BoardState;
-  newFirstMove: PlayerBooleans;
-  nextPlayerTurn: PlayerEnum;
-} => {
-  const cardIndex = 0;
-  const card = players[playerId].hand[cardIndex];
-  if (!card) {
-    return {
-      updatedPlayers: players,
-      newBoardState: boardState,
-      newFirstMove: initialFirstMove(),
-      nextPlayerTurn: getNextPlayerTurn(playerId),
-    };
+): { newBoardState: BoardState } => {
+  const validMoves = getValidMoves(
+    players[playerId].hand,
+    playerId,
+    boardState,
+    BOARD_SIZE,
+    true,
+    STARTING_INDICES,
+    true
+  );
+  let newBoard = [...boardState];
+  if (validMoves.length > 0) {
+    const move = validMoves[Math.floor(Math.random() * validMoves.length)];
+    newBoard[move.cellIndex!] = [
+      ...newBoard[move.cellIndex!],
+      { ...card, faceDown: false },
+    ];
+    setInitialFaceDownCards({
+      [playerId]: { ...card, faceDown: false, cellIndex: move.cellIndex! },
+    });
   }
-  if (tieBreaker) {
-    const validMoves = getValidMoves(
-      players[playerId].hand,
-      playerId,
-      boardState,
-      BOARD_SIZE,
-      true,
-      STARTING_INDICES,
-      true
-    );
-    let newBoard = [...boardState];
-    if (validMoves.length > 0) {
-      const move = validMoves[Math.floor(Math.random() * validMoves.length)];
-      newBoard[move.cellIndex!] = [
-        ...newBoard[move.cellIndex!],
-        { ...card, faceDown: false },
-      ];
-      setInitialFaceDownCards({
-        [playerId]: { ...card, faceDown: false, cellIndex: move.cellIndex! },
-      });
-    }
-    const newFirstMove = { ...initialFirstMove(), [playerId]: true };
-    return {
-      updatedPlayers: players,
-      newBoardState: newBoard,
-      newFirstMove,
-      nextPlayerTurn: getNextPlayerTurn(playerId),
-    };
-  }
+  return { newBoardState: newBoard };
+};
+
+const handleFirstMoveNormal = (
+  players: Players,
+  playerId: PlayerEnum,
+  boardState: BoardState,
+  card: NonNullable<Player['hand'][0]>,
+  setInitialFaceDownCards: (cards: InitialFaceDownCards) => void
+): { updatedPlayers: Players; newBoardState: BoardState } => {
   const faceDownCard = { ...card, faceDown: true };
-  const updatedPlayers = updatePlayerHandAndDrawCard(players, playerId, cardIndex, cardIndex);
+  const updatedPlayers = updatePlayerHandAndDrawCard(players, playerId, 0, 0);
   const validMoves = getValidMoves(
     players[playerId].hand,
     playerId,
@@ -181,8 +160,60 @@ export const performFirstMoveForPlayer = (
       newBoard[move.cellIndex] = [...newBoard[move.cellIndex], faceDownCard];
     }
   }
-  const newFirstMove = { ...initialFirstMove(), [playerId]: false };
-  return { updatedPlayers, newBoardState: newBoard, newFirstMove, nextPlayerTurn: getNextPlayerTurn(playerId) };
+  return { updatedPlayers, newBoardState: newBoard };
+};
+
+/* ---------- Public Move Execution Functions ---------- */
+export const performFirstMoveForPlayer = (
+  players: Players,
+  playerId: PlayerEnum,
+  boardState: BoardState,
+  tieBreaker: boolean,
+  setInitialFaceDownCards: (cards: InitialFaceDownCards) => void
+): {
+  updatedPlayers: Players;
+  newBoardState: BoardState;
+  newFirstMove: PlayerBooleans;
+  nextPlayerTurn: PlayerEnum;
+} => {
+  const card = players[playerId].hand[0];
+  if (!card) {
+    return {
+      updatedPlayers: players,
+      newBoardState: boardState,
+      newFirstMove: initialFirstMove(),
+      nextPlayerTurn: getNextPlayerTurn(playerId),
+    };
+  }
+  if (tieBreaker) {
+    const { newBoardState } = handleFirstMoveTieBreaker(
+      players,
+      playerId,
+      boardState,
+      card,
+      setInitialFaceDownCards
+    );
+    return {
+      updatedPlayers: players,
+      newBoardState,
+      newFirstMove: { ...initialFirstMove(), [playerId]: true },
+      nextPlayerTurn: getNextPlayerTurn(playerId),
+    };
+  } else {
+    const { updatedPlayers, newBoardState } = handleFirstMoveNormal(
+      players,
+      playerId,
+      boardState,
+      card,
+      setInitialFaceDownCards
+    );
+    return {
+      updatedPlayers,
+      newBoardState,
+      newFirstMove: { ...initialFirstMove(), [playerId]: false },
+      nextPlayerTurn: getNextPlayerTurn(playerId),
+    };
+  }
 };
 
 export const performRegularMoveForPlayer = (
@@ -341,4 +372,17 @@ export const flipInitialCardsLogic = (
     firstMove = { [PlayerEnum.PLAYER1]: false, [PlayerEnum.PLAYER2]: false };
   }
   return { newBoardState, nextPlayerTurn, tieBreaker, firstMove };
+};
+
+/* ---------- New: Calculate Scores ---------- */
+export const calculateScores = (boardState: BoardState): Scores => {
+  const scores: Scores = { [PlayerEnum.PLAYER1]: 0, [PlayerEnum.PLAYER2]: 0 };
+  boardState.forEach((cellStack) => {
+    if (cellStack.length > 0) {
+      const topCard = cellStack[cellStack.length - 1];
+      if (topCard?.color === ColorEnum.RED) scores[PlayerEnum.PLAYER1]++;
+      else if (topCard?.color === ColorEnum.BLACK) scores[PlayerEnum.PLAYER2]++;
+    }
+  });
+  return scores;
 };
