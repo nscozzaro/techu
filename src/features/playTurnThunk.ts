@@ -2,23 +2,17 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import { RootState } from '../store';
 import { PlayerEnum, InitialFaceDownCards } from '../types';
-import {
-  performFirstMoveForPlayer,
-  performRegularMoveForPlayer,
-} from './gameLogic';
-import { setInitialFaceDownCards, setFirstMove } from './gameStatusSlice';
-import { updatePlayers } from './playersSlice';
-import { setBoardState } from './boardSlice';
-import { setTurn } from './turnSlice';
-import { setHighlightedCells } from './uiSlice';
+import { performFirstMoveForPlayer, performRegularMoveForPlayer } from './gameLogic';
+import { setInitialFaceDownCards, setFirstMove, setTurn, updatePlayers, setBoardState } from './gameSlice';
+import { setHighlightedCells } from '../features/uiSlice';
 import { discardCardThunk } from './gameThunks';
 
 export const playTurnThunk = createAsyncThunk(
   'game/playTurn',
   async (playerId: PlayerEnum, { getState, dispatch }) => {
     const state = getState() as RootState;
-    const { players, board } = state;
-    const { firstMove, tieBreaker } = state.gameStatus;
+    const { players, board } = state.game;
+    const { firstMove, tieBreaker } = state.game.gameStatus;
 
     if (firstMove[playerId]) {
       const result = performFirstMoveForPlayer(

@@ -1,11 +1,10 @@
-// src/components/PlayerArea.tsx
 import React from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import Cell from './Cell';
-import { PlayerEnum } from '../types';
+import { PlayerEnum, Card } from '../types';
 import { setHighlightedCells, setDraggingPlayer, resetUI } from '../features/uiSlice';
-import { swapCardsInHand } from '../features/playersSlice';
+import { swapCardsInHand } from '../features/gameSlice';
 
 interface PlayerAreaProps {
   playerId: PlayerEnum;
@@ -13,11 +12,11 @@ interface PlayerAreaProps {
 
 const PlayerArea: React.FC<PlayerAreaProps> = ({ playerId }) => {
   const dispatch = useDispatch<AppDispatch>();
-  const player = useSelector((state: RootState) => state.players[playerId]);
-  const discardPile = useSelector((state: RootState) => state.discard[playerId]);
-  const firstMoveAll = useSelector((state: RootState) => state.gameStatus.firstMove);
+  const player = useSelector((state: RootState) => state.game.players[playerId]);
+  const discardPile = useSelector((state: RootState) => state.game.discard[playerId]);
+  const firstMoveAll = useSelector((state: RootState) => state.game.gameStatus.firstMove);
   const firstMove = firstMoveAll[playerId];
-  const currentTurn = useSelector((state: RootState) => state.turn.currentTurn);
+  const currentTurn = useSelector((state: RootState) => state.game.turn.currentTurn);
   const highlightedCells = useSelector((state: RootState) => state.ui.highlightedCells);
   const highlightDiscardPile = useSelector((state: RootState) => state.ui.highlightDiscardPile);
 
@@ -57,8 +56,9 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ playerId }) => {
   );
 
   const renderHand = () => {
-    const cards = playerId === PlayerEnum.PLAYER2 ? [...handCards].reverse() : handCards;
-    return cards.map((card, index) => (
+    const cards: (Card | undefined)[] =
+      playerId === PlayerEnum.PLAYER2 ? [...handCards].reverse() : handCards;
+    return cards.map((card, index: number) => (
       <Cell
         key={index}
         type="hand"

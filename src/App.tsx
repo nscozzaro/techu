@@ -6,16 +6,16 @@ import Scoreboard from './components/Scoreboard';
 import { isGameOver } from './features/gameLogic';
 import { PlayerEnum } from './types';
 import { RootState, AppDispatch } from './store';
-import { setGameOver } from './features/gameStatusSlice';
+import { setGameOver } from './features/gameSlice';
 import { setHighlightedCells } from './features/uiSlice';
 import { selectScores } from './selectors';
 import { flipInitialCardsThunk } from './features/gameThunks';
 import { playTurnThunk } from './features/playTurnThunk';
 
 function App() {
-  const players = useSelector((state: RootState) => state.players);
-  const currentTurn = useSelector((state: RootState) => state.turn.currentTurn);
-  const { initialFaceDownCards, gameOver } = useSelector((state: RootState) => state.gameStatus);
+  const players = useSelector((state: RootState) => state.game.players);
+  const currentTurn = useSelector((state: RootState) => state.game.turn.currentTurn);
+  const { initialFaceDownCards, gameOver } = useSelector((state: RootState) => state.game.gameStatus);
   const scores = useSelector(selectScores);
   const dispatch = useDispatch<AppDispatch>();
 

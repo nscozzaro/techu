@@ -1,4 +1,3 @@
-// src/features/gameThunks.ts
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import { RootState } from '../store';
 import {
@@ -9,40 +8,26 @@ import {
   flipInitialCardsLogic,
   handleCardDragLogic,
 } from './gameLogic';
-import { updatePlayers } from './playersSlice';
-import { setBoardState } from './boardSlice';
-import { setTurn } from './turnSlice';
-import {
-  setFirstMove,
-  setGameOver,
-  setInitialFaceDownCards,
-  clearInitialFaceDownCards,
-  setTieBreaker,
-  setTieBreakInProgress,
-} from './gameStatusSlice';
-import { setHighlightedCells, setHighlightDiscardPile } from './uiSlice';
-import { addDiscardCard } from './discardSlice';
+import { updatePlayers, setBoardState, setTurn, setFirstMove, setGameOver, setInitialFaceDownCards, clearInitialFaceDownCards, setTieBreaker, setTieBreakInProgress, addDiscardCard } from './gameSlice';
+import { setHighlightedCells, setHighlightDiscardPile } from '../features/uiSlice';
 import { PlayerEnum, InitialFaceDownCards } from '../types';
 
-/** 
- * Thunk to flip tie-breaker cards once both players have placed them.
- */
 export const flipInitialCardsThunk = createAsyncThunk(
   'game/flipInitialCards',
   async (_, { getState, dispatch }) => {
     const state = getState() as RootState;
-    const { initialFaceDownCards } = state.gameStatus;
+    const { initialFaceDownCards } = state.game.gameStatus;
 
     if (
       initialFaceDownCards[PlayerEnum.PLAYER1] &&
       initialFaceDownCards[PlayerEnum.PLAYER2]
     ) {
-      const result = flipInitialCardsLogic(initialFaceDownCards, state.board);
+      const result = flipInitialCardsLogic(initialFaceDownCards, state.game.board);
       dispatch(setBoardState(result.newBoardState));
       dispatch(setTieBreaker(result.tieBreaker));
       dispatch(setTieBreakInProgress(result.tieBreaker));
       dispatch(setTurn(result.nextPlayerTurn));
-      dispatch(setGameOver(isGameOver(state.players)));
+      dispatch(setGameOver(isGameOver(state.game.players)));
       dispatch(clearInitialFaceDownCards());
       dispatch(setFirstMove(result.firstMove));
       dispatch(setHighlightedCells([]));
@@ -55,21 +40,15 @@ interface PlaceCardPayload {
   cardIndex: number;
 }
 
-/**
- * Thunk to place a card on the board.
- */
 export const placeCardOnBoardThunk = createAsyncThunk(
   'game/placeCardOnBoard',
-  async (
-    { index, cardIndex }: PlaceCardPayload,
-    { getState, dispatch }
-  ) => {
+  async ({ index, cardIndex }: PlaceCardPayload, { getState, dispatch }) => {
     const state = getState() as RootState;
-    const players = state.players;
-    const boardState = state.board;
-    const firstMove = state.gameStatus.firstMove;
-    const tieBreaker = state.gameStatus.tieBreaker;
-    const currentPlayer = state.turn.currentTurn;
+    const players = state.game.players;
+    const boardState = state.game.board;
+    const firstMove = state.game.gameStatus.firstMove;
+    const tieBreaker = state.game.gameStatus.tieBreaker;
+    const currentPlayer = state.game.turn.currentTurn;
 
     const result = placeCardOnBoardLogic(
       index,
@@ -98,18 +77,12 @@ export const placeCardOnBoardThunk = createAsyncThunk(
   }
 );
 
-/**
- * Thunk to handle discarding a card.
- */
 export const discardCardThunk = createAsyncThunk(
   'game/discardCard',
-  async (
-    { cardIndex, playerId }: { cardIndex: number; playerId: PlayerEnum },
-    { getState, dispatch }
-  ) => {
+  async ({ cardIndex, playerId }: { cardIndex: number; playerId: PlayerEnum }, { getState, dispatch }) => {
     const state = getState() as RootState;
-    const players = state.players;
-    const { gameOver, firstMove } = state.gameStatus;
+    const players = state.game.players;
+    const { gameOver, firstMove } = state.game.gameStatus;
     if (gameOver || firstMove[playerId]) {
       return;
     }
@@ -136,17 +109,11 @@ export const discardCardThunk = createAsyncThunk(
   }
 );
 
-/**
- * Thunk to trigger card drag logic.
- */
 export const triggerCardDragThunk = createAsyncThunk(
   'game/triggerCardDrag',
-  async (
-    { cardIndex, playerId }: { cardIndex: number; playerId: PlayerEnum },
-    { getState, dispatch }
-  ) => {
+  async ({ cardIndex, playerId }: { cardIndex: number; playerId: PlayerEnum }, { getState, dispatch }) => {
     const state = getState() as RootState;
-    const { board, players, gameStatus, turn } = state;
+    const { board, players, gameStatus, turn } = state.game;
     const validMoves = handleCardDragLogic(
       cardIndex,
       playerId,
