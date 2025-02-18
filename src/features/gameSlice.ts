@@ -8,37 +8,38 @@ import {
   PlayerBooleans,
   DiscardPiles,
   BOARD_SIZE,
-  initialFirstMove,
 } from '../types';
 import { createDeck, shuffle } from '../logic/deck';
 import { ColorEnum } from '../types';
 
-// --- Initialize Board ---
-const initialBoard: BoardState = Array.from({ length: BOARD_SIZE * BOARD_SIZE }, () => []);
+// --- Helper Functions ---
+const initBoard = (): BoardState =>
+  Array.from({ length: BOARD_SIZE * BOARD_SIZE }, () => []);
 
-// --- Initialize Players ---
-const initializePlayer = (color: ColorEnum, id: PlayerEnum) => {
+const initPlayer = (color: ColorEnum, id: PlayerEnum) => {
   const deck = createDeck(color, id);
   shuffle(deck);
   return { id, hand: deck.slice(0, 3), deck: deck.slice(3) };
 };
-const initialPlayers: Players = {
-  [PlayerEnum.PLAYER1]: initializePlayer(ColorEnum.RED, PlayerEnum.PLAYER1),
-  [PlayerEnum.PLAYER2]: initializePlayer(ColorEnum.BLACK, PlayerEnum.PLAYER2),
-};
 
-// --- Initialize Discard Piles ---
-const initialDiscard: DiscardPiles = {
+const initPlayers = (): Players => ({
+  [PlayerEnum.PLAYER1]: initPlayer(ColorEnum.RED, PlayerEnum.PLAYER1),
+  [PlayerEnum.PLAYER2]: initPlayer(ColorEnum.BLACK, PlayerEnum.PLAYER2),
+});
+
+const initDiscard = (): DiscardPiles => ({
   [PlayerEnum.PLAYER1]: [],
   [PlayerEnum.PLAYER2]: [],
-};
+});
 
-// --- Initialize Turn ---
+const getNextTurn = (current: PlayerEnum): PlayerEnum =>
+  current === PlayerEnum.PLAYER1 ? PlayerEnum.PLAYER2 : PlayerEnum.PLAYER1;
+
+// --- Initial State ---
 const initialTurn = { currentTurn: PlayerEnum.PLAYER1 };
-
-// --- Initialize Game Status ---
+const initialFirstMove: PlayerBooleans = { [PlayerEnum.PLAYER1]: true, [PlayerEnum.PLAYER2]: true };
 const initialGameStatus = {
-  firstMove: initialFirstMove(),
+  firstMove: initialFirstMove,
   gameOver: false,
   tieBreaker: false,
   tieBreakInProgress: false,
@@ -54,13 +55,14 @@ export interface GameState {
 }
 
 const initialState: GameState = {
-  board: initialBoard,
-  players: initialPlayers,
-  discard: initialDiscard,
+  board: initBoard(),
+  players: initPlayers(),
+  discard: initDiscard(),
   turn: initialTurn,
   gameStatus: initialGameStatus,
 };
 
+// --- Slice with Short Reducer Functions ---
 const gameSlice = createSlice({
   name: 'game',
   initialState,
@@ -76,25 +78,21 @@ const gameSlice = createSlice({
       action: PayloadAction<{ playerId: PlayerEnum; sourceIndex: number; targetIndex: number }>
     ) => {
       const { playerId, sourceIndex, targetIndex } = action.payload;
-      const player = state.players[playerId];
+      const hand = state.players[playerId].hand;
       if (
         sourceIndex < 0 ||
-        sourceIndex >= player.hand.length ||
+        sourceIndex >= hand.length ||
         targetIndex < 0 ||
-        targetIndex >= player.hand.length
-      ) {
+        targetIndex >= hand.length
+      )
         return;
-      }
-      [player.hand[sourceIndex], player.hand[targetIndex]] = [
-        player.hand[targetIndex],
-        player.hand[sourceIndex],
-      ];
+      [hand[sourceIndex], hand[targetIndex]] = [hand[targetIndex], hand[sourceIndex]];
     },
     addDiscardCard: (state, action: PayloadAction<{ playerId: PlayerEnum; card: Card }>) => {
       state.discard[action.payload.playerId].push(action.payload.card);
     },
     resetDiscardPiles: (state) => {
-      state.discard = initialDiscard;
+      state.discard = initDiscard();
     },
     setFirstMove: (state, action: PayloadAction<PlayerBooleans>) => {
       state.gameStatus.firstMove = action.payload;
@@ -124,8 +122,7 @@ const gameSlice = createSlice({
       state.turn.currentTurn = action.payload;
     },
     nextTurn: (state) => {
-      state.turn.currentTurn =
-        state.turn.currentTurn === PlayerEnum.PLAYER1 ? PlayerEnum.PLAYER2 : PlayerEnum.PLAYER1;
+      state.turn.currentTurn = getNextTurn(state.turn.currentTurn);
     },
   },
 });
