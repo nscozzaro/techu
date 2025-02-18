@@ -360,7 +360,8 @@ const determineTurnAndTieBreaker = (
   const rank2 = card2 ? rankOrder[card2.rank] : -1;
   if (rank1 === rank2) {
     return {
-      nextPlayerTurn: getNextPlayerTurn(PlayerEnum.PLAYER1),
+      // On a tie, ensure PLAYER1 goes first (instead of switching turn to PLAYER2)
+      nextPlayerTurn: PlayerEnum.PLAYER1,
       tieBreaker: true,
       firstMove: initialFirstMove(),
     };
