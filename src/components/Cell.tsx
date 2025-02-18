@@ -1,9 +1,12 @@
 // src/components/Cell.tsx
 import React from 'react';
+import { useDispatch } from 'react-redux';
 import { Card, PlayerEnum } from '../types';
 import cardBackRed from '../assets/card-back-red.png';
 import cardBackBlue from '../assets/card-back-blue.png';
 import { useCellDragDrop } from '../hooks/useCellDragDrop';
+import { AppDispatch } from '../store';
+import { placeCardOnBoardThunk } from '../features/gameThunks';
 
 export type CellType = 'deck' | 'hand' | 'discard' | 'board';
 
@@ -19,7 +22,7 @@ interface CellProps {
   count?: number;
   isFaceDown?: boolean;
   highlightedCells?: number[];
-  placeCardOnBoard?: (index: number, cardIndex: number, playerId: PlayerEnum) => void;
+  // Removed: placeCardOnBoard
   playerTurn?: boolean;
   clearHighlights?: () => void;
   onDragStart?: () => void;
@@ -41,7 +44,7 @@ const Cell: React.FC<CellProps> = ({
   handleCardDiscard,
   count,
   highlightedCells,
-  placeCardOnBoard,
+  // Removed: placeCardOnBoard,
   onDragStart,
   onDragEnd,
   isCurrentPlayer = false,
@@ -50,6 +53,8 @@ const Cell: React.FC<CellProps> = ({
   swapCardsInHand,
   clearHighlights,
 }) => {
+  const dispatch = useDispatch<AppDispatch>();
+
   const isDeck = type === 'deck';
   const isHand = type === 'hand';
   const isDiscard = type === 'discard';
@@ -136,14 +141,13 @@ const Cell: React.FC<CellProps> = ({
   const handleDrop = (dragData: { cardIndex: number; playerId: PlayerEnum }) => {
     if (isDiscard && handleCardDiscard) {
       handleCardDiscard(dragData.cardIndex, dragData.playerId);
-    } else if (isBoard && placeCardOnBoard && index !== undefined) {
-      placeCardOnBoard(index, dragData.cardIndex, dragData.playerId);
+    } else if (isBoard && index !== undefined) {
+      dispatch(placeCardOnBoardThunk({ index, cardIndex: dragData.cardIndex }));
     } else if (isHand && playerId === PlayerEnum.PLAYER1 && swapCardsInHand && index !== undefined) {
       swapCardsInHand(PlayerEnum.PLAYER1, dragData.cardIndex, index);
     }
   };
 
-  // --- Draggable only if it's a hand cell for Player 1 on their turn ---
   const draggable =
     isHand &&
     playerId === PlayerEnum.PLAYER1 &&
