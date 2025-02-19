@@ -1,3 +1,4 @@
+// src/features/gameLogic.ts
 import {
   ColorEnum,
   Player,
@@ -117,7 +118,7 @@ const handleFirstMoveTieBreaker = (
   boardState: BoardState,
   card: NonNullable<Player['hand'][0]>,
   setInitialFaceDownCards: (cards: InitialFaceDownCards) => void
-): { newBoardState: BoardState } => {
+): { newBoardState: BoardState; updatedPlayers: Players } => {
   const validMoves = getValidMoves(
     players[playerId].hand,
     playerId,
@@ -128,6 +129,7 @@ const handleFirstMoveTieBreaker = (
     true
   );
   let newBoard = [...boardState];
+  let updatedPlayers = players;
   if (validMoves.length > 0) {
     const move = validMoves[Math.floor(Math.random() * validMoves.length)];
     newBoard[move.cellIndex!] = [
@@ -137,8 +139,10 @@ const handleFirstMoveTieBreaker = (
     setInitialFaceDownCards({
       [playerId]: { ...card, faceDown: false, cellIndex: move.cellIndex! },
     });
+    // Remove the played card from the hand and draw a replacement.
+    updatedPlayers = updatePlayerHandAndDrawCard(players, playerId, 0, 0);
   }
-  return { newBoardState: newBoard };
+  return { newBoardState: newBoard, updatedPlayers };
 };
 
 const handleFirstMoveNormal = (
@@ -195,7 +199,7 @@ export const performFirstMoveForPlayer = (
     };
   }
   if (tieBreaker) {
-    const { newBoardState } = handleFirstMoveTieBreaker(
+    const { newBoardState, updatedPlayers } = handleFirstMoveTieBreaker(
       players,
       playerId,
       boardState,
@@ -203,7 +207,7 @@ export const performFirstMoveForPlayer = (
       setInitialFaceDownCards
     );
     return {
-      updatedPlayers: players,
+      updatedPlayers,
       newBoardState,
       newFirstMove: { ...initialFirstMove(), [playerId]: true },
       nextPlayerTurn: getNextPlayerTurn(playerId),

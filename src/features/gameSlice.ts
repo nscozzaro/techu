@@ -12,32 +12,39 @@ import {
 import { createDeck, shuffle } from '../logic/deck';
 import { ColorEnum } from '../types';
 
-// --- Helper Functions ---
+// Initialize an empty board.
 const initBoard = (): BoardState =>
   Array.from({ length: BOARD_SIZE * BOARD_SIZE }, () => []);
 
+// Create a player by shuffling a deck and splitting it into hand and deck.
 const initPlayer = (color: ColorEnum, id: PlayerEnum) => {
   const deck = createDeck(color, id);
   shuffle(deck);
   return { id, hand: deck.slice(0, 3), deck: deck.slice(3) };
 };
 
+// Consolidate players into one object.
 const initPlayers = (): Players => ({
   [PlayerEnum.PLAYER1]: initPlayer(ColorEnum.RED, PlayerEnum.PLAYER1),
   [PlayerEnum.PLAYER2]: initPlayer(ColorEnum.BLACK, PlayerEnum.PLAYER2),
 });
 
+// Initialize empty discard piles.
 const initDiscard = (): DiscardPiles => ({
   [PlayerEnum.PLAYER1]: [],
   [PlayerEnum.PLAYER2]: [],
 });
 
+// Get the next turn based on the current player.
 const getNextTurn = (current: PlayerEnum): PlayerEnum =>
   current === PlayerEnum.PLAYER1 ? PlayerEnum.PLAYER2 : PlayerEnum.PLAYER1;
 
-// --- Initial State ---
+// Initial state slices.
 const initialTurn = { currentTurn: PlayerEnum.PLAYER1 };
-const initialFirstMove: PlayerBooleans = { [PlayerEnum.PLAYER1]: true, [PlayerEnum.PLAYER2]: true };
+const initialFirstMove: PlayerBooleans = {
+  [PlayerEnum.PLAYER1]: true,
+  [PlayerEnum.PLAYER2]: true,
+};
 const initialGameStatus = {
   firstMove: initialFirstMove,
   gameOver: false,
@@ -46,6 +53,7 @@ const initialGameStatus = {
   initialFaceDownCards: {} as { [key in PlayerEnum]?: Card & { cellIndex: number } },
 };
 
+// Define the complete game state.
 export interface GameState {
   board: BoardState;
   players: Players;
@@ -62,7 +70,7 @@ const initialState: GameState = {
   gameStatus: initialGameStatus,
 };
 
-// --- Slice with Short Reducer Functions ---
+// Create the game slice with short, modular reducers.
 const gameSlice = createSlice({
   name: 'game',
   initialState,
@@ -75,20 +83,27 @@ const gameSlice = createSlice({
     },
     swapCardsInHand: (
       state,
-      action: PayloadAction<{ playerId: PlayerEnum; sourceIndex: number; targetIndex: number }>
+      action: PayloadAction<{
+        playerId: PlayerEnum;
+        sourceIndex: number;
+        targetIndex: number;
+      }>
     ) => {
       const { playerId, sourceIndex, targetIndex } = action.payload;
       const hand = state.players[playerId].hand;
       if (
-        sourceIndex < 0 ||
-        sourceIndex >= hand.length ||
-        targetIndex < 0 ||
-        targetIndex >= hand.length
-      )
-        return;
-      [hand[sourceIndex], hand[targetIndex]] = [hand[targetIndex], hand[sourceIndex]];
+        sourceIndex >= 0 &&
+        sourceIndex < hand.length &&
+        targetIndex >= 0 &&
+        targetIndex < hand.length
+      ) {
+        [hand[sourceIndex], hand[targetIndex]] = [hand[targetIndex], hand[sourceIndex]];
+      }
     },
-    addDiscardCard: (state, action: PayloadAction<{ playerId: PlayerEnum; card: Card }>) => {
+    addDiscardCard: (
+      state,
+      action: PayloadAction<{ playerId: PlayerEnum; card: Card }>
+    ) => {
       state.discard[action.payload.playerId].push(action.payload.card);
     },
     resetDiscardPiles: (state) => {
