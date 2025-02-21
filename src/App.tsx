@@ -1,4 +1,3 @@
-// src/App.tsx
 import React, { useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import Board from './components/Board';
@@ -7,31 +6,30 @@ import Scoreboard from './components/Scoreboard';
 import { isGameOver } from './features/gameLogic';
 import { PlayerEnum } from './types';
 import { RootState, AppDispatch } from './store';
-import { setGameOver } from './features/gameSlice';
-import { setHighlightedCells } from './features/gameSlice';
+import { setGameOver, setHighlightedCells } from './features/gameSlice';
+import { flipInitialCards } from './features/gameActions';
+import { playTurn } from './features/playTurnAction';
 import { selectScores } from './selectors';
-import { flipInitialCardsThunk } from './features/gameThunks';
-import { playTurnThunk } from './features/playTurnThunk';
 
 function App() {
   const players = useSelector((state: RootState) => state.game.players);
   const currentTurn = useSelector((state: RootState) => state.game.turn.currentTurn);
-  const { initialFaceDownCards, gameOver } = useSelector((state: RootState) => state.game.gameStatus);
+  const { initialFaceDownCards, gameOver } = useSelector(
+    (state: RootState) => state.game.gameStatus
+  );
   const scores = useSelector(selectScores);
   const dispatch = useDispatch<AppDispatch>();
 
   useEffect(() => {
     if (initialFaceDownCards[PlayerEnum.PLAYER1] && initialFaceDownCards[PlayerEnum.PLAYER2]) {
       dispatch(setHighlightedCells([]));
-      dispatch(flipInitialCardsThunk());
+      dispatch(flipInitialCards());
     }
   }, [initialFaceDownCards, dispatch]);
 
   useEffect(() => {
     if (currentTurn === PlayerEnum.PLAYER2 && !gameOver) {
-      setTimeout(() => {
-        dispatch(playTurnThunk(PlayerEnum.PLAYER2));
-      }, 500);
+      dispatch(playTurn(PlayerEnum.PLAYER2));
     }
   }, [currentTurn, gameOver, dispatch]);
 

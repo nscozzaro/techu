@@ -1,4 +1,3 @@
-// src/components/Cell.tsx
 import React from 'react';
 import { useDispatch } from 'react-redux';
 import { Card, PlayerEnum } from '../types';
@@ -6,7 +5,7 @@ import cardBackRed from '../assets/card-back-red.png';
 import cardBackBlue from '../assets/card-back-blue.png';
 import { useCellDragDrop } from '../hooks/useCellDragDrop';
 import { AppDispatch } from '../store';
-import { placeCardOnBoardThunk, discardCardThunk } from '../features/gameThunks';
+import { placeCardOnBoard, discardCard } from '../features/gameActions';
 
 export type CellType = 'deck' | 'hand' | 'discard' | 'board';
 
@@ -125,9 +124,9 @@ const Cell: React.FC<CellProps> = ({
 
   const handleDrop = (dragData: { cardIndex: number; playerId: PlayerEnum }) => {
     if (isDiscard && playerId) {
-      dispatch(discardCardThunk({ cardIndex: dragData.cardIndex, playerId }));
+      dispatch(discardCard({ cardIndex: dragData.cardIndex, playerId }));
     } else if (isBoard && index !== undefined) {
-      dispatch(placeCardOnBoardThunk({ index, cardIndex: dragData.cardIndex }));
+      dispatch(placeCardOnBoard({ index, cardIndex: dragData.cardIndex }));
     } else if (isHand && playerId === PlayerEnum.PLAYER1 && swapCardsInHand && index !== undefined) {
       swapCardsInHand(PlayerEnum.PLAYER1, dragData.cardIndex, index);
     }
