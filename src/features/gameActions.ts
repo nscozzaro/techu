@@ -19,6 +19,7 @@ import {
   setTieBreaker,
   setTieBreakInProgress,
   addDiscardCard,
+  resetUI,
   setHighlightedCells,
   setHighlightDiscardPile,
 } from './gameSlice';
@@ -30,9 +31,6 @@ import {
   PlayerBooleans,
 } from '../types';
 
-/** 
- * Consolidates common state updates into a single dispatch helper.
- */
 interface GameUpdate {
   updatedPlayers: Players;
   newBoardState: BoardState;
@@ -43,20 +41,17 @@ interface GameUpdate {
 export const applyGameUpdate = (dispatch: AppDispatch, update: GameUpdate): void => {
   dispatch(updatePlayers(update.updatedPlayers));
   dispatch(setBoardState(update.newBoardState));
-  if (update.newFirstMove !== undefined) {
-    dispatch(setFirstMove(update.newFirstMove));
-  }
+  if (update.newFirstMove !== undefined) dispatch(setFirstMove(update.newFirstMove));
   dispatch(setTurn(update.nextPlayerTurn));
-  dispatch(setHighlightedCells([]));
+  dispatch(resetUI());
 };
 
-export const flipInitialCards = () => (dispatch: any, getState: () => RootState) => {
+export const flipInitialCards = () => (dispatch: AppDispatch, getState: () => RootState) => {
   const { initialFaceDownCards } = getState().game.gameStatus;
   if (initialFaceDownCards[PlayerEnum.PLAYER1] && initialFaceDownCards[PlayerEnum.PLAYER2]) {
     const result = flipInitialCardsLogic(initialFaceDownCards, getState().game.board);
-    // Use applyGameUpdate to consolidate common dispatches.
     applyGameUpdate(dispatch, {
-      updatedPlayers: getState().game.players, // Players remain unchanged in flip.
+      updatedPlayers: getState().game.players,
       newBoardState: result.newBoardState,
       newFirstMove: result.firstMove,
       nextPlayerTurn: result.nextPlayerTurn,
@@ -69,21 +64,18 @@ export const flipInitialCards = () => (dispatch: any, getState: () => RootState)
 };
 
 export const placeCardOnBoard = ({ index, cardIndex }: { index: number; cardIndex: number }) => (
-  dispatch: any,
+  dispatch: AppDispatch,
   getState: () => RootState
 ) => {
-  const state = getState();
-  const { players, board } = state.game;
-  const { firstMove, tieBreaker } = state.game.gameStatus;
-  const currentPlayer = state.game.turn.currentTurn;
+  const state = getState().game;
   const result = placeCardOnBoardLogic(
     index,
     cardIndex,
-    currentPlayer,
-    players,
-    board,
-    firstMove,
-    tieBreaker,
+    state.turn.currentTurn,
+    state.players,
+    state.board,
+    state.gameStatus.firstMove,
+    state.gameStatus.tieBreaker,
     (cards: InitialFaceDownCards) => dispatch(setInitialFaceDownCards(cards))
   );
   applyGameUpdate(dispatch, {
@@ -93,33 +85,29 @@ export const placeCardOnBoard = ({ index, cardIndex }: { index: number; cardInde
     nextPlayerTurn: result.nextPlayerTurn,
   });
   if (isGameOver(result.updatedPlayers)) dispatch(setGameOver(true));
-  dispatch(setHighlightDiscardPile(false));
 };
 
 export const discardCard = ({ cardIndex, playerId }: { cardIndex: number; playerId: PlayerEnum }) => (
-  dispatch: any,
+  dispatch: AppDispatch,
   getState: () => RootState
 ) => {
-  const state = getState();
-  const { players } = state.game;
-  const { gameOver, firstMove } = state.game.gameStatus;
-  if (gameOver || firstMove[playerId]) return;
-  const updatedPlayers = { ...players };
-  const player = updatedPlayers[playerId];
+  const { players, board, gameStatus } = getState().game;
+  if (gameStatus.gameOver || gameStatus.firstMove[playerId]) return;
+  const player = players[playerId];
   if (cardIndex < 0 || cardIndex >= player.hand.length) return;
   const cardToDiscard = player.hand[cardIndex];
   if (!cardToDiscard) return;
-  const discardedCard = { ...cardToDiscard, faceDown: true };
-  dispatch(addDiscardCard({ playerId, card: discardedCard }));
-  const newPlayers = updatePlayerHandAndDrawCard(updatedPlayers, playerId, cardIndex, cardIndex);
-  dispatch(updatePlayers(newPlayers));
-  dispatch(setTurn(getNextPlayerTurn(playerId)));
-  dispatch(setHighlightedCells([]));
-  dispatch(setHighlightDiscardPile(false));
+  dispatch(addDiscardCard({ playerId, card: { ...cardToDiscard, faceDown: true } }));
+  const newPlayers = updatePlayerHandAndDrawCard(players, playerId, cardIndex, cardIndex);
+  applyGameUpdate(dispatch, {
+    updatedPlayers: newPlayers,
+    newBoardState: board,
+    nextPlayerTurn: getNextPlayerTurn(playerId),
+  });
 };
 
 export const triggerCardDrag = ({ cardIndex, playerId }: { cardIndex: number; playerId: PlayerEnum }) => (
-  dispatch: any,
+  dispatch: AppDispatch,
   getState: () => RootState
 ) => {
   const { board, players, gameStatus, turn } = getState().game;
@@ -132,7 +120,5 @@ export const triggerCardDrag = ({ cardIndex, playerId }: { cardIndex: number; pl
     gameStatus.tieBreaker
   );
   dispatch(setHighlightedCells(validMoves));
-  if (turn.currentTurn === playerId)
-    dispatch(setHighlightDiscardPile(!gameStatus.firstMove[playerId]));
-  else dispatch(setHighlightDiscardPile(false));
+  dispatch(setHighlightDiscardPile(turn.currentTurn === playerId && !gameStatus.firstMove[playerId]));
 };
