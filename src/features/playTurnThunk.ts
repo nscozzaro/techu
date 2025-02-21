@@ -1,10 +1,8 @@
-// src/features/playTurnThunk.ts
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import { RootState } from '../store';
 import { PlayerEnum, InitialFaceDownCards } from '../types';
 import { performFirstMoveForPlayer, performRegularMoveForPlayer } from './gameLogic';
-import { setInitialFaceDownCards, setFirstMove, setTurn, updatePlayers, setBoardState } from './gameSlice';
-import { setHighlightedCells } from '../features/uiSlice';
+import { setInitialFaceDownCards, setFirstMove, setTurn, updatePlayers, setBoardState, setHighlightedCells } from './gameSlice';
 import { discardCardThunk } from './gameThunks';
 
 export const playTurnThunk = createAsyncThunk(

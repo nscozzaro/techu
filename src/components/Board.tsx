@@ -1,4 +1,3 @@
-// src/components/Board.tsx
 import React from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
@@ -9,7 +8,7 @@ const Board: React.FC = () => {
   const { board, highlightedCells, currentTurn, gameOver } = useSelector(
     (state: RootState) => ({
       board: state.game.board as BoardState,
-      highlightedCells: state.ui.highlightedCells,
+      highlightedCells: state.game.highlightedCells,
       currentTurn: state.game.turn.currentTurn,
       gameOver: state.game.gameStatus.gameOver,
     })

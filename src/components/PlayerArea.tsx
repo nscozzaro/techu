@@ -1,10 +1,9 @@
-// src/components/PlayerArea.tsx
 import React from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import Cell from './Cell';
 import { PlayerEnum, Card } from '../types';
-import { setHighlightedCells, setDraggingPlayer, resetUI } from '../features/uiSlice';
+import { setHighlightedCells, setDraggingPlayer, resetUI } from '../features/gameSlice';
 import { swapCardsInHand } from '../features/gameSlice';
 
 interface PlayerAreaProps {
@@ -25,8 +24,8 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ playerId }) => {
     discardPile: state.game.discard[playerId],
     firstMove: state.game.gameStatus.firstMove[playerId],
     currentTurn: state.game.turn.currentTurn,
-    highlightedCells: state.ui.highlightedCells,
-    highlightDiscardPile: state.ui.highlightDiscardPile,
+    highlightedCells: state.game.highlightedCells,
+    highlightDiscardPile: state.game.highlightDiscardPile,
   }));
 
   const deckCount = player.deck.length;

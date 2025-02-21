@@ -8,7 +8,7 @@ import { isGameOver } from './features/gameLogic';
 import { PlayerEnum } from './types';
 import { RootState, AppDispatch } from './store';
 import { setGameOver } from './features/gameSlice';
-import { setHighlightedCells } from './features/uiSlice';
+import { setHighlightedCells } from './features/gameSlice';
 import { selectScores } from './selectors';
 import { flipInitialCardsThunk } from './features/gameThunks';
 import { playTurnThunk } from './features/playTurnThunk';

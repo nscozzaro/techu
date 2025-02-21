@@ -1,4 +1,3 @@
-// src/features/gameThunks.ts
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import { RootState } from '../store';
 import {
@@ -9,8 +8,20 @@ import {
   flipInitialCardsLogic,
   handleCardDragLogic,
 } from './gameLogic';
-import { updatePlayers, setBoardState, setTurn, setFirstMove, setGameOver, setInitialFaceDownCards, clearInitialFaceDownCards, setTieBreaker, setTieBreakInProgress, addDiscardCard } from './gameSlice';
-import { setHighlightedCells, setHighlightDiscardPile } from '../features/uiSlice';
+import {
+  updatePlayers,
+  setBoardState,
+  setTurn,
+  setFirstMove,
+  setGameOver,
+  setInitialFaceDownCards,
+  clearInitialFaceDownCards,
+  setTieBreaker,
+  setTieBreakInProgress,
+  addDiscardCard,
+  setHighlightedCells,
+  setHighlightDiscardPile,
+} from './gameSlice';
 import { PlayerEnum, InitialFaceDownCards } from '../types';
 
 export const flipInitialCardsThunk = createAsyncThunk(

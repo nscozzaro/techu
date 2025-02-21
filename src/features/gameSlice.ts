@@ -1,4 +1,3 @@
-// src/features/gameSlice.ts
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import {
   BoardState,
@@ -54,12 +53,16 @@ const initialGameStatus = {
 };
 
 // Define the complete game state.
+// (Now including UI state merged from uiSlice.ts)
 export interface GameState {
   board: BoardState;
   players: Players;
   discard: DiscardPiles;
   turn: typeof initialTurn;
   gameStatus: typeof initialGameStatus;
+  highlightedCells: number[];
+  draggingPlayer: PlayerEnum | null;
+  highlightDiscardPile: boolean;
 }
 
 const initialState: GameState = {
@@ -68,9 +71,12 @@ const initialState: GameState = {
   discard: initDiscard(),
   turn: initialTurn,
   gameStatus: initialGameStatus,
+  highlightedCells: [],
+  draggingPlayer: null,
+  highlightDiscardPile: false,
 };
 
-// Create the game slice with short, modular reducers.
+// Create the game slice with modular reducers (including the merged UI reducers).
 const gameSlice = createSlice({
   name: 'game',
   initialState,
@@ -139,6 +145,21 @@ const gameSlice = createSlice({
     nextTurn: (state) => {
       state.turn.currentTurn = getNextTurn(state.turn.currentTurn);
     },
+    // Merged UI reducers:
+    setHighlightedCells: (state, action: PayloadAction<number[]>) => {
+      state.highlightedCells = action.payload;
+    },
+    setDraggingPlayer: (state, action: PayloadAction<PlayerEnum | null>) => {
+      state.draggingPlayer = action.payload;
+    },
+    setHighlightDiscardPile: (state, action: PayloadAction<boolean>) => {
+      state.highlightDiscardPile = action.payload;
+    },
+    resetUI: (state) => {
+      state.highlightedCells = [];
+      state.draggingPlayer = null;
+      state.highlightDiscardPile = false;
+    },
   },
 });
 
@@ -156,5 +177,9 @@ export const {
   clearInitialFaceDownCards,
   setTurn,
   nextTurn,
+  setHighlightedCells,
+  setDraggingPlayer,
+  setHighlightDiscardPile,
+  resetUI,
 } = gameSlice.actions;
 export default gameSlice.reducer;
