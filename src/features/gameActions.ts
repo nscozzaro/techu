@@ -1,4 +1,5 @@
-import { RootState } from '../store';
+// src/features/gameActions.ts
+import { RootState, AppDispatch } from '../store';
 import {
   placeCardOnBoardLogic,
   isGameOver,
@@ -21,20 +22,49 @@ import {
   setHighlightedCells,
   setHighlightDiscardPile,
 } from './gameSlice';
-import { PlayerEnum, InitialFaceDownCards } from '../types';
+import {
+  PlayerEnum,
+  InitialFaceDownCards,
+  Players,
+  BoardState,
+  PlayerBooleans,
+} from '../types';
+
+/** 
+ * Consolidates common state updates into a single dispatch helper.
+ */
+interface GameUpdate {
+  updatedPlayers: Players;
+  newBoardState: BoardState;
+  newFirstMove?: PlayerBooleans;
+  nextPlayerTurn: PlayerEnum;
+}
+
+export const applyGameUpdate = (dispatch: AppDispatch, update: GameUpdate): void => {
+  dispatch(updatePlayers(update.updatedPlayers));
+  dispatch(setBoardState(update.newBoardState));
+  if (update.newFirstMove !== undefined) {
+    dispatch(setFirstMove(update.newFirstMove));
+  }
+  dispatch(setTurn(update.nextPlayerTurn));
+  dispatch(setHighlightedCells([]));
+};
 
 export const flipInitialCards = () => (dispatch: any, getState: () => RootState) => {
   const { initialFaceDownCards } = getState().game.gameStatus;
   if (initialFaceDownCards[PlayerEnum.PLAYER1] && initialFaceDownCards[PlayerEnum.PLAYER2]) {
     const result = flipInitialCardsLogic(initialFaceDownCards, getState().game.board);
-    dispatch(setBoardState(result.newBoardState));
+    // Use applyGameUpdate to consolidate common dispatches.
+    applyGameUpdate(dispatch, {
+      updatedPlayers: getState().game.players, // Players remain unchanged in flip.
+      newBoardState: result.newBoardState,
+      newFirstMove: result.firstMove,
+      nextPlayerTurn: result.nextPlayerTurn,
+    });
     dispatch(setTieBreaker(result.tieBreaker));
     dispatch(setTieBreakInProgress(result.tieBreaker));
-    dispatch(setTurn(result.nextPlayerTurn));
-    dispatch(setGameOver(isGameOver(getState().game.players)));
     dispatch(clearInitialFaceDownCards());
-    dispatch(setFirstMove(result.firstMove));
-    dispatch(setHighlightedCells([]));
+    dispatch(setGameOver(isGameOver(getState().game.players)));
   }
 };
 
@@ -46,7 +76,6 @@ export const placeCardOnBoard = ({ index, cardIndex }: { index: number; cardInde
   const { players, board } = state.game;
   const { firstMove, tieBreaker } = state.game.gameStatus;
   const currentPlayer = state.game.turn.currentTurn;
-
   const result = placeCardOnBoardLogic(
     index,
     cardIndex,
@@ -57,12 +86,13 @@ export const placeCardOnBoard = ({ index, cardIndex }: { index: number; cardInde
     tieBreaker,
     (cards: InitialFaceDownCards) => dispatch(setInitialFaceDownCards(cards))
   );
-  dispatch(updatePlayers(result.updatedPlayers));
-  dispatch(setBoardState(result.newBoardState));
-  dispatch(setFirstMove(result.newFirstMove));
-  dispatch(setTurn(result.nextPlayerTurn));
+  applyGameUpdate(dispatch, {
+    updatedPlayers: result.updatedPlayers,
+    newBoardState: result.newBoardState,
+    newFirstMove: result.newFirstMove,
+    nextPlayerTurn: result.nextPlayerTurn,
+  });
   if (isGameOver(result.updatedPlayers)) dispatch(setGameOver(true));
-  dispatch(setHighlightedCells([]));
   dispatch(setHighlightDiscardPile(false));
 };
 

@@ -1,15 +1,9 @@
+// src/features/playTurnAction.ts
 import { RootState } from '../store';
 import { PlayerEnum, InitialFaceDownCards } from '../types';
 import { performFirstMoveForPlayer, performRegularMoveForPlayer } from './gameLogic';
-import {
-  setInitialFaceDownCards,
-  setFirstMove,
-  setTurn,
-  updatePlayers,
-  setBoardState,
-  setHighlightedCells,
-} from './gameSlice';
-import { discardCard } from './gameActions';
+import { setInitialFaceDownCards } from './gameSlice';
+import { discardCard, applyGameUpdate } from './gameActions';
 
 export const playTurn = (playerId: PlayerEnum) => (dispatch: any, getState: () => RootState) => {
   const state = getState();
@@ -24,16 +18,19 @@ export const playTurn = (playerId: PlayerEnum) => (dispatch: any, getState: () =
       tieBreaker,
       (cards: InitialFaceDownCards) => dispatch(setInitialFaceDownCards(cards))
     );
-    dispatch(updatePlayers(result.updatedPlayers));
-    dispatch(setBoardState(result.newBoardState));
-    dispatch(setFirstMove(result.newFirstMove));
-    dispatch(setTurn(result.nextPlayerTurn));
-    dispatch(setHighlightedCells([]));
+    applyGameUpdate(dispatch, {
+      updatedPlayers: result.updatedPlayers,
+      newBoardState: result.newBoardState,
+      newFirstMove: result.newFirstMove,
+      nextPlayerTurn: result.nextPlayerTurn,
+    });
   } else {
     const result = performRegularMoveForPlayer(players, playerId, board);
-    dispatch(updatePlayers(result.updatedPlayers));
-    dispatch(setBoardState(result.newBoardState));
-    dispatch(setTurn(result.nextPlayerTurn));
+    applyGameUpdate(dispatch, {
+      updatedPlayers: result.updatedPlayers,
+      newBoardState: result.newBoardState,
+      nextPlayerTurn: result.nextPlayerTurn,
+    });
     if (
       result.moveMade &&
       result.move &&
