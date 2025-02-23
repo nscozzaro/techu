@@ -1,3 +1,4 @@
+// src/components/PlayerArea.tsx
 import React from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
@@ -63,7 +64,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ playerId }) => {
   );
 
   const renderHand = () => {
-    const cards: (Card | undefined)[] =
+    const cards: (Card | null)[] =
       playerId === PlayerEnum.PLAYER2 ? [...handCards].reverse() : handCards;
     return cards.map((card, index: number) => (
       <Cell

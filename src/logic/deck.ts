@@ -20,6 +20,6 @@ export const createDeck = (color: ColorEnum, owner: PlayerEnum): Cards => {
     : [SuitEnum.CLUBS, SuitEnum.SPADES];
   const ranks = Object.values(RankEnum);
   return suits.flatMap(suit =>
-    ranks.map(rank => ({ suit, rank, color, owner }))
+    ranks.map(rank => ({ suit, rank, color, owner, faceDown: false }))
   );
 };

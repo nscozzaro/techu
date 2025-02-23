@@ -1,4 +1,4 @@
-// types.ts
+// src/types.ts
 import { Dispatch, SetStateAction } from 'react';
 
 export enum PlayerEnum {
@@ -56,7 +56,7 @@ export interface Card {
   rank: RankEnum;
   color: ColorEnum;
   owner: PlayerEnum;
-  faceDown?: boolean;
+  faceDown: boolean;
 }
 
 export interface Player {
@@ -65,7 +65,7 @@ export interface Player {
   id: PlayerEnum;
 }
 
-export type Cards = (Card | undefined)[];
+export type Cards = (Card | null)[];
 
 export type BoardState = Cards[];
 

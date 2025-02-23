@@ -10,7 +10,7 @@ interface UseCellDragDropProps {
   clearHighlights?: () => void;
   isDisabled?: boolean;
   index?: number;
-  card?: Card;
+  card?: Card | null;
   playerId?: PlayerEnum;
 }
 

@@ -12,6 +12,7 @@ import {
   InitialFaceDownCards,
   BOARD_SIZE,
   STARTING_INDICES,
+  Cards
 } from '../types';
 import { rankOrder, initialFirstMove } from '../types';
 import { createDeck, shuffle } from '../logic/deck';
@@ -19,17 +20,17 @@ import { getValidMoves, calculateValidMoves } from '../logic/moveCalculations';
 
 /* ---------- Helper: Draw a Card ---------- */
 const drawCard = (
-  hand: (Player['hand'][0])[],
-  deck: (Player['hand'][0])[],
+  hand: Cards,
+  deck: Cards,
   insertSlot?: number
-): { hand: (Player['hand'][0])[]; deck: (Player['hand'][0])[] } => {
+): { hand: Cards; deck: Cards } => {
   if (deck.length === 0) return { hand, deck };
   const card = deck.pop()!;
   const newHand = [...hand];
   if (insertSlot !== undefined && insertSlot >= 0 && insertSlot < newHand.length) {
     newHand[insertSlot] = card;
   } else {
-    const firstEmpty = newHand.findIndex((c) => c === undefined);
+    const firstEmpty = newHand.findIndex((c) => c === null);
     if (firstEmpty !== -1) newHand[firstEmpty] = card;
   }
   return { hand: newHand, deck };
@@ -44,7 +45,7 @@ export const updatePlayerHandAndDrawCard = (
 ): Players => {
   const player = players[playerId];
   const newHand = [...player.hand];
-  newHand[cardIndex] = undefined;
+  newHand[cardIndex] = null;
   const result = drawCard(newHand, [...player.deck], insertSlot);
   return { ...players, [playerId]: { ...player, hand: result.hand, deck: result.deck } };
 };
@@ -81,7 +82,7 @@ export const getNextPlayerTurn = (currentPlayer: PlayerEnum): PlayerEnum =>
 export const isGameOver = (players: Players): boolean =>
   Object.values(players).every(
     (player) =>
-      player.hand.every((card) => card === undefined) && player.deck.length === 0
+      player.hand.every((card) => card === null) && player.deck.length === 0
   );
 
 /* ---------- Helper: Clone Board State ---------- */

@@ -1,3 +1,4 @@
+// src/components/Cell.tsx
 import React from 'react';
 import { useDispatch } from 'react-redux';
 import { Card, PlayerEnum } from '../types';
@@ -11,10 +12,10 @@ export type CellType = 'deck' | 'hand' | 'discard' | 'board';
 
 interface CellProps {
   type: CellType;
-  card?: Card;
+  card?: Card | null;
   index?: number;
   playerId?: PlayerEnum;
-  stack?: (Card | undefined)[];
+  stack?: (Card | null)[];
   isVisible?: boolean;
   count?: number;
   highlightedCells?: number[];
@@ -28,7 +29,6 @@ interface CellProps {
   swapCardsInHand?: (playerId: PlayerEnum, sourceIndex: number, targetIndex: number) => void;
 }
 
-// --- Render Helpers ---
 const renderCardContent = (card: Card) => (
   <div className={`card-content ${card.color.toLowerCase()}`}>
     <div className="top-left">{card.rank}</div>
@@ -67,8 +67,8 @@ const renderDeck = (count: number, owner: PlayerEnum) =>
 
 const getTopCard = (
   type: CellType,
-  card: Card | undefined,
-  stack?: (Card | undefined)[]
+  card: Card | null | undefined,
+  stack?: (Card | null)[]
 ): Card | null =>
   type === 'hand'
     ? card ?? null
@@ -101,7 +101,7 @@ const Cell: React.FC<CellProps> = ({
   const isBoard = type === 'board';
   const isEmpty =
     isHand
-      ? card === undefined
+      ? card === null
       : (isDiscard || isBoard)
       ? (stack?.length ?? 0) === 0
       : false;
