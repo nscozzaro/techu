@@ -82,9 +82,15 @@ export const isGameOver = (players: Players): boolean =>
     player => player.hand.every(card => card === null) && player.deck.length === 0
   );
 
+// Clone board state
 const cloneBoardState = (board: BoardState): BoardState =>
   board.map(cell => [...cell]);
 
+// Helper: select a random move from list
+const selectRandomMove = (moves: Move[]): Move | null =>
+  moves.length ? moves[Math.floor(Math.random() * moves.length)] : null;
+
+// Helper: Apply a move to board state
 const applyMoveToBoardState = (
   boardState: BoardState,
   players: Players,
@@ -98,15 +104,11 @@ const applyMoveToBoardState = (
   if (!card) return { newBoardState: boardState, updatedPlayers: players };
   const newBoardState = [...boardState];
   newBoardState[move.cellIndex] = [...boardState[move.cellIndex], card];
-  const updatedPlayers = updatePlayerHandAndDrawCard(
-    players,
-    playerId,
-    move.cardIndex,
-    move.cardIndex
-  );
+  const updatedPlayers = updatePlayerHandAndDrawCard(players, playerId, move.cardIndex, move.cardIndex);
   return { newBoardState, updatedPlayers };
 };
 
+// Refactored: First move tie breaker (kept under ~10 lines)
 const handleFirstMoveTieBreaker = (
   players: Players,
   playerId: PlayerEnum,
@@ -125,20 +127,16 @@ const handleFirstMoveTieBreaker = (
   );
   let newBoard = [...boardState];
   let updatedPlayers = players;
-  if (validMoves.length > 0) {
-    const move = validMoves[Math.floor(Math.random() * validMoves.length)];
-    newBoard[move.cellIndex!] = [
-      ...newBoard[move.cellIndex!],
-      { ...card, faceDown: false },
-    ];
-    setInitialFaceDownCards({
-      [playerId]: { ...card, faceDown: false, cellIndex: move.cellIndex! },
-    });
+  const move = selectRandomMove(validMoves);
+  if (move && move.cellIndex !== undefined) {
+    newBoard[move.cellIndex] = [...newBoard[move.cellIndex], { ...card, faceDown: false }];
+    setInitialFaceDownCards({ [playerId]: { ...card, faceDown: false, cellIndex: move.cellIndex } });
     updatedPlayers = updatePlayerHandAndDrawCard(players, playerId, 0, 0);
   }
   return { newBoardState: newBoard, updatedPlayers };
 };
 
+// Refactored: First move normal (kept under ~10 lines)
 const handleFirstMoveNormal = (
   players: Players,
   playerId: PlayerEnum,
@@ -158,14 +156,10 @@ const handleFirstMoveNormal = (
     false
   );
   let newBoard = [...boardState];
-  if (validMoves.length > 0) {
-    const move = validMoves[Math.floor(Math.random() * validMoves.length)];
-    if (move.type === 'board' && move.cellIndex !== undefined) {
-      setInitialFaceDownCards({
-        [playerId]: { ...faceDownCard, cellIndex: move.cellIndex },
-      });
-      newBoard[move.cellIndex] = [...newBoard[move.cellIndex], faceDownCard];
-    }
+  const move = selectRandomMove(validMoves);
+  if (move && move.type === 'board' && move.cellIndex !== undefined) {
+    setInitialFaceDownCards({ [playerId]: { ...faceDownCard, cellIndex: move.cellIndex } });
+    newBoard[move.cellIndex] = [...newBoard[move.cellIndex], faceDownCard];
   }
   return { updatedPlayers, newBoardState: newBoard };
 };
@@ -245,9 +239,8 @@ export const performRegularMoveForPlayer = (
   let newBoard = [...boardState];
   let updatedPlayers = { ...players };
   let moveMade = false;
-  let selectedMove: Move | undefined;
-  if (validMoves.length > 0) {
-    selectedMove = validMoves[Math.floor(Math.random() * validMoves.length)];
+  let selectedMove: Move | undefined = selectRandomMove(validMoves) || undefined;
+  if (selectedMove) {
     if (selectedMove.type === 'board') {
       const result = applyMoveToBoardState(boardState, players, selectedMove, playerId);
       newBoard = result.newBoardState;
@@ -285,6 +278,7 @@ export const handleCardDragLogic = (
     tieBreaker
   );
 
+/* ---------- UI Helpers ---------- */
 const flipCardsInBoard = (
   initialFaceDownCards: InitialFaceDownCards,
   boardState: BoardState
