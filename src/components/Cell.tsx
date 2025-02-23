@@ -1,4 +1,3 @@
-// src/components/Cell.tsx
 import React from 'react';
 import { useDispatch } from 'react-redux';
 import { Card, PlayerEnum } from '../types';
@@ -6,7 +5,7 @@ import cardBackRed from '../assets/card-back-red.png';
 import cardBackBlue from '../assets/card-back-blue.png';
 import { useCellDragDrop } from '../hooks/useCellDragDrop';
 import { AppDispatch } from '../store';
-import { placeCardOnBoard, discardCard } from '../features/gameActions';
+import { placeCardOnBoard, discardCard } from '../features/game';
 
 export type CellType = 'deck' | 'hand' | 'discard' | 'board';
 

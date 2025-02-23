@@ -6,9 +6,7 @@ import Scoreboard from './components/Scoreboard';
 import { isGameOver } from './features/gameLogic';
 import { PlayerEnum } from './types';
 import { RootState, AppDispatch } from './store';
-import { setGameOver, setHighlightedCells } from './features/gameSlice';
-import { flipInitialCards } from './features/gameActions';
-import { playTurn } from './features/playTurnAction';
+import { setGameOver, setHighlightedCells, flipInitialCards, playTurn } from './features/game';
 import { selectScores } from './selectors';
 
 function App() {

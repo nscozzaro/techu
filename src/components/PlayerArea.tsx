@@ -1,11 +1,9 @@
-// src/components/PlayerArea.tsx
 import React from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import Cell from './Cell';
 import { PlayerEnum, Card } from '../types';
-import { setHighlightedCells, setDraggingPlayer, resetUI } from '../features/gameSlice';
-import { swapCardsInHand } from '../features/gameSlice';
+import { setHighlightedCells, setDraggingPlayer, resetUI, swapCardsInHand } from '../features/game';
 
 interface PlayerAreaProps {
   playerId: PlayerEnum;

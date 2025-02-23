@@ -1,7 +1,6 @@
-// src/hooks/useCellDragDrop.ts
 import { useDispatch } from 'react-redux';
 import { AppDispatch } from '../store';
-import { triggerCardDrag } from '../features/gameActions';
+import { triggerCardDrag } from '../features/game';
 import { Card, PlayerEnum } from '../types';
 
 interface UseCellDragDropProps {
