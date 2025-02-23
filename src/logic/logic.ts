@@ -1,19 +1,35 @@
-// src/logic/moveCalculations.ts
+// src/logic/logic.ts
 import {
-    BoardState,
     Cards,
-    Card,
     ColorEnum,
-    Move,
     PlayerEnum,
+    SuitEnum,
     RankEnum,
+    BoardState,
+    Card,
+    Move,
     StartingIndices,
   } from '../types';
   import { rankOrder } from '../types';
   
-  /**
-   * Compute valid moves (board + discard) for a given player.
-   */
+  /* ---------- Deck Functions ---------- */
+  export const shuffle = (deck: Cards): void => {
+    for (let i = deck.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [deck[i], deck[j]] = [deck[j], deck[i]];
+    }
+  };
+  
+  export const createDeck = (color: ColorEnum, owner: PlayerEnum): Cards => {
+    const suits =
+      color === ColorEnum.RED ? [SuitEnum.HEARTS, SuitEnum.DIAMONDS] : [SuitEnum.CLUBS, SuitEnum.SPADES];
+    const ranks = Object.values(RankEnum);
+    return suits.flatMap(suit =>
+      ranks.map(rank => ({ suit, rank, color, owner, faceDown: false }))
+    );
+  };
+  
+  /* ---------- Move Calculation Functions ---------- */
   export const getValidMoves = (
     playerHand: Cards,
     playerId: PlayerEnum,
@@ -34,7 +50,7 @@ import {
             playerHand,
             startingIndices,
             tieBreaker
-          ).map((cellIndex) => ({ type: 'board', cellIndex, cardIndex }))
+          ).map(cellIndex => ({ type: 'board', cellIndex, cardIndex }))
         : []
     );
     if (!isFirst) {
@@ -46,10 +62,6 @@ import {
     return boardMoves;
   };
   
-  /**
-   * Calculate valid board indices for a single card.
-   * If tieBreaker is true, the entire home row is considered.
-   */
   export const calculateValidMoves = (
     cardIndex: number,
     playerType: PlayerEnum,
@@ -69,52 +81,32 @@ import {
     if (isFirstMove) return [startingIndices[playerType]];
     const homeRow = getHomeRowIndices(playerType, boardSize);
     const homeRowValid = getValidMoveIndices(homeRow, boardState, selectedCard);
-    const connected = findConnectedCellsToHomeRow(
-      playerType,
-      boardState,
-      selectedCard.color,
-      boardSize
-    );
-    const connectedValid = connected.flatMap((index) => {
+    const connected = findConnectedCellsToHomeRow(playerType, boardState, selectedCard.color, boardSize);
+    const connectedValid = connected.flatMap(index => {
       const adjacent = getAdjacentIndices(index, boardSize);
       return getValidMoveIndices(adjacent, boardState, selectedCard);
     });
     return Array.from(new Set([...homeRowValid, ...connectedValid]));
   };
   
-  /**
-   * Return the indices of the player's home row.
-   */
-  export const getHomeRowIndices = (
-    playerType: PlayerEnum,
-    boardSize: number
-  ): number[] => {
+  export const getHomeRowIndices = (playerType: PlayerEnum, boardSize: number): number[] => {
     const row = playerType === PlayerEnum.PLAYER1 ? boardSize - 1 : 0;
     return Array.from({ length: boardSize }, (_, i) => row * boardSize + i);
   };
   
-  /**
-   * Filter indices where the top card’s rank is lower than the selected card’s.
-   */
   export const getValidMoveIndices = (
     indices: number[],
     boardState: BoardState,
     selectedCard: Card
   ): number[] =>
-    indices.filter((index) => {
+    indices.filter(index => {
       const cell = boardState[index];
       const topCard = cell[cell.length - 1];
       return !topCard || getCardRank(selectedCard.rank) > getCardRank(topCard.rank);
     });
   
-  /**
-   * Convert a RankEnum to its numeric value.
-   */
   export const getCardRank = (rank: RankEnum): number => rankOrder[rank];
   
-  /**
-   * Return all adjacent cell indices (up, down, left, right).
-   */
   export const getAdjacentIndices = (index: number, boardSize: number): number[] => {
     const row = Math.floor(index / boardSize);
     const col = index % boardSize;
@@ -126,16 +118,13 @@ import {
     return indices;
   };
   
-  /**
-   * Find cells connected to the player's home row that have the same color.
-   */
   export const findConnectedCellsToHomeRow = (
     playerType: PlayerEnum,
     boardState: BoardState,
     color: ColorEnum,
     boardSize: number
   ): number[] => {
-    const homeRow = getHomeRowIndices(playerType, boardSize).filter((i) => {
+    const homeRow = getHomeRowIndices(playerType, boardSize).filter(i => {
       const cell = boardState[i];
       const topCard = cell[cell.length - 1];
       return topCard && topCard.color === color;
@@ -143,9 +132,6 @@ import {
     return Array.from(exploreConnectedCells(homeRow, boardState, boardSize, color));
   };
   
-  /**
-   * Explore adjacent cells recursively that share the same color.
-   */
   const exploreConnectedCells = (
     initialCells: number[],
     boardState: BoardState,

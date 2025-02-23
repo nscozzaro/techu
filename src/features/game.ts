@@ -16,8 +16,12 @@ import {
   initialFirstMove,
   STARTING_INDICES,
 } from '../types';
-import { createDeck, shuffle } from '../logic/deck';
-import { getValidMoves, calculateValidMoves } from '../logic/moveCalculations';
+import {
+  createDeck,
+  shuffle,
+  getValidMoves,
+  calculateValidMoves,
+} from '../logic/logic';
 
 /* ---------- Helper Functions ---------- */
 const drawCard = (
@@ -27,7 +31,7 @@ const drawCard = (
   if (deck.length === 0) return { hand, deck };
   const card = deck.pop()!;
   const newHand = [...hand];
-  const firstEmpty = newHand.findIndex((c) => c === null);
+  const firstEmpty = newHand.findIndex(c => c === null);
   if (firstEmpty !== -1) newHand[firstEmpty] = card;
   else newHand.push(card);
   return { hand: newHand, deck };
@@ -75,12 +79,11 @@ export const getNextPlayerTurn = (current: PlayerEnum): PlayerEnum =>
 
 export const isGameOver = (players: Players): boolean =>
   Object.values(players).every(
-    (player) =>
-      player.hand.every((card) => card === null) && player.deck.length === 0
+    player => player.hand.every(card => card === null) && player.deck.length === 0
   );
 
 const cloneBoardState = (board: BoardState): BoardState =>
-  board.map((cell) => [...cell]);
+  board.map(cell => [...cell]);
 
 const applyMoveToBoardState = (
   boardState: BoardState,
@@ -287,7 +290,7 @@ const flipCardsInBoard = (
   boardState: BoardState
 ): BoardState => {
   const newBoardState = cloneBoardState(boardState);
-  (Object.values(PlayerEnum) as PlayerEnum[]).forEach((p) => {
+  (Object.values(PlayerEnum) as PlayerEnum[]).forEach(p => {
     const cardData = initialFaceDownCards[p];
     if (cardData) {
       const cellIndex = cardData.cellIndex;
@@ -418,7 +421,7 @@ const gameSlice = createSlice({
     addDiscardCard: (state, action: PayloadAction<{ playerId: PlayerEnum; card: Card }>) => {
       state.discard[action.payload.playerId].push(action.payload.card);
     },
-    resetDiscardPiles: (state) => {
+    resetDiscardPiles: state => {
       state.discard = initialDiscardPiles();
     },
     setFirstMove: (state, action: PayloadAction<PlayerBooleans>) => {
@@ -442,13 +445,13 @@ const gameSlice = createSlice({
         ...action.payload,
       };
     },
-    clearInitialFaceDownCards: (state) => {
+    clearInitialFaceDownCards: state => {
       state.gameStatus.initialFaceDownCards = {};
     },
     setTurn: (state, action: PayloadAction<PlayerEnum>) => {
       state.turn.currentTurn = action.payload;
     },
-    nextTurn: (state) => {
+    nextTurn: state => {
       state.turn.currentTurn = getNextPlayerTurn(state.turn.currentTurn);
     },
     setHighlightedCells: (state, action: PayloadAction<number[]>) => {
@@ -460,7 +463,7 @@ const gameSlice = createSlice({
     setHighlightDiscardPile: (state, action: PayloadAction<boolean>) => {
       state.highlightDiscardPile = action.payload;
     },
-    resetUI: (state) => {
+    resetUI: state => {
       state.highlightedCells = [];
       state.draggingPlayer = null;
       state.highlightDiscardPile = false;
@@ -641,7 +644,7 @@ const performRegularTurn = (dispatch: any, game: GameState, playerId: PlayerEnum
     if (result.moveMade && result.move && result.move.type === 'discard')
       dispatch(discardCard({ cardIndex: result.move.cardIndex, playerId }));
     else {
-      const idx = game.players[playerId].hand.findIndex((c) => c !== null);
+      const idx = game.players[playerId].hand.findIndex(c => c !== null);
       if (idx !== -1) dispatch(discardCard({ cardIndex: idx, playerId }));
     }
   }
