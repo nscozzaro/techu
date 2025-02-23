@@ -1,7 +1,7 @@
 // src/selectors.ts
 import { createSelector } from '@reduxjs/toolkit';
 import { RootState } from './store';
-import { calculateScores } from './features/gameLogic';
+import { calculateScores } from './features/game';
 
 export const selectScores = createSelector(
   (state: RootState) => state.game.board,

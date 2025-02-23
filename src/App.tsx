@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import Board from './components/Board';
 import PlayerArea from './components/PlayerArea';
 import Scoreboard from './components/Scoreboard';
-import { isGameOver } from './features/gameLogic';
+import { isGameOver } from './features/game';
 import { PlayerEnum } from './types';
 import { RootState, AppDispatch } from './store';
 import { setGameOver, setHighlightedCells, flipInitialCards, playTurn } from './features/game';
