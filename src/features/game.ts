@@ -494,18 +494,26 @@ export const applyGameUpdate = (
 export const flipInitialCards = () => (dispatch: AppDispatch, getState: () => RootState) => {
   const { initialFaceDownCards } = getState().game.gameStatus;
   if (initialFaceDownCards[PlayerEnum.PLAYER1] && initialFaceDownCards[PlayerEnum.PLAYER2]) {
-    dispatch(setHighlightedCells([]));
-    const result = flipInitialCardsLogic(initialFaceDownCards, getState().game.board);
-    applyGameUpdate(dispatch, getState, {
-      updatedPlayers: getState().game.players,
-      newBoardState: result.newBoardState,
-      newFirstMove: result.firstMove,
-      nextPlayerTurn: result.nextPlayerTurn,
-    });
-    dispatch(setTieBreaker(result.tieBreaker));
-    dispatch(setTieBreakInProgress(result.tieBreaker));
-    dispatch(clearInitialFaceDownCards());
-    dispatch(setGameOver(isGameOver(getState().game.players)));
+    const state = getState().game;
+    const result = flipInitialCardsLogic(initialFaceDownCards, state.board);
+    dispatch(
+      updateGame({
+        players: state.players,
+        board: result.newBoardState,
+        turn: { currentTurn: result.nextPlayerTurn },
+        gameStatus: {
+          ...state.gameStatus,
+          firstMove: result.firstMove,
+          tieBreaker: result.tieBreaker,
+          tieBreakInProgress: result.tieBreaker,
+          initialFaceDownCards: {},
+          gameOver: isGameOver(state.players),
+        },
+        highlightedCells: [],
+        draggingPlayer: null,
+        highlightDiscardPile: false,
+      })
+    );
   }
 };
 
