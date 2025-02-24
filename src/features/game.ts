@@ -16,6 +16,7 @@ import {
   rankOrder,
   initialFirstMove,
   STARTING_INDICES,
+  CardIndex,
 } from '../types';
 import {
   createDeck,
@@ -41,8 +42,8 @@ const drawCard = (
 export const updatePlayerHandAndDrawCard = (
   players: Players,
   playerId: PlayerEnum,
-  cardIndex: number,
-  insertSlot?: number
+  cardIndex: CardIndex,
+  insertSlot?: CardIndex
 ): Players => {
   const player = players[playerId];
   const newHand = [...player.hand];
@@ -90,7 +91,7 @@ const selectRandomMove = (moves: Move[]): Move | null =>
   moves.length ? moves[Math.floor(Math.random() * moves.length)] : null;
 
 /* ---------- New Helper: update board cell ---------- */
-const updateBoardCell = (board: BoardState, cellIndex: number, card: Card): BoardState =>
+const updateBoardCell = (board: BoardState, cellIndex: CardIndex, card: Card): BoardState =>
   board.map((cell, idx) => (idx === cellIndex ? [...cell, card] : cell));
 
 /* ---------- Helper: Apply a move to board state ---------- */
@@ -222,7 +223,7 @@ export const performRegularMoveForPlayer = (
 };
 
 export const handleCardDragLogic = (
-  cardIndex: number,
+  cardIndex: CardIndex,
   playerId: PlayerEnum,
   boardState: BoardState,
   players: Players,
@@ -328,7 +329,7 @@ export interface GameState {
     gameOver: boolean;
     tieBreaker: boolean;
     tieBreakInProgress: boolean;
-    initialFaceDownCards: { [key in PlayerEnum]?: Card & { cellIndex: number } };
+    initialFaceDownCards: { [key in PlayerEnum]?: Card & { cellIndex: CardIndex } };
   };
   highlightedCells: number[];
   draggingPlayer: PlayerEnum | null;
@@ -364,7 +365,7 @@ const gameSlice = createSlice({
     },
     swapCardsInHand: (
       state,
-      action: PayloadAction<{ playerId: PlayerEnum; sourceIndex: number; targetIndex: number }>
+      action: PayloadAction<{ playerId: PlayerEnum; sourceIndex: CardIndex; targetIndex: CardIndex }>
     ) => {
       const { playerId, sourceIndex, targetIndex } = action.payload;
       const hand = state.players[playerId].hand;
@@ -392,7 +393,7 @@ const gameSlice = createSlice({
     },
     setInitialFaceDownCards: (
       state,
-      action: PayloadAction<{ [key in PlayerEnum]?: Card & { cellIndex: number } }>
+      action: PayloadAction<{ [key in PlayerEnum]?: Card & { cellIndex: CardIndex } }>
     ) => {
       state.gameStatus.initialFaceDownCards = {
         ...state.gameStatus.initialFaceDownCards,
@@ -429,7 +430,7 @@ const gameSlice = createSlice({
     },
     pushCardToBoard: (
       state,
-      action: PayloadAction<{ cellIndex: number; card: Card }>
+      action: PayloadAction<{ cellIndex: CardIndex; card: Card }>
     ) => {
       state.board[action.payload.cellIndex].push(action.payload.card);
     },
@@ -517,7 +518,7 @@ export const flipInitialCards = () => (dispatch: AppDispatch, getState: () => Ro
   }
 };
 
-export const placeCardOnBoard = ({ index, cardIndex }: { index: number; cardIndex: number }) => (
+export const placeCardOnBoard = ({ index, cardIndex }: { index: CardIndex; cardIndex: CardIndex }) => (
   dispatch: AppDispatch,
   getState: () => RootState
 ) => {
@@ -544,7 +545,7 @@ export const placeCardOnBoard = ({ index, cardIndex }: { index: number; cardInde
   if (isGameOver(updatedPlayers)) dispatch(setGameOver(true));
 };
 
-export const discardCard = ({ cardIndex, playerId }: { cardIndex: number; playerId: PlayerEnum }) => (
+export const discardCard = ({ cardIndex, playerId }: { cardIndex: CardIndex; playerId: PlayerEnum }) => (
   dispatch: AppDispatch,
   getState: () => RootState
 ) => {
@@ -563,7 +564,16 @@ export const discardCard = ({ cardIndex, playerId }: { cardIndex: number; player
   });
 };
 
-export const triggerCardDrag = ({ cardIndex, playerId }: { cardIndex: number; playerId: PlayerEnum }) => (
+// Helper: Extract discard index to simplify nested logic.
+const getDiscardIndex = (
+  result: ReturnType<typeof performRegularMoveForPlayer>,
+  player: Players[PlayerEnum]
+): CardIndex => {
+  if (result.moveMade && result.move?.type === 'discard') return result.move.cardIndex;
+  return player.hand.findIndex(c => c !== null);
+};
+
+export const triggerCardDrag = ({ cardIndex, playerId }: { cardIndex: CardIndex; playerId: PlayerEnum }) => (
   dispatch: AppDispatch,
   getState: () => RootState
 ) => {
@@ -620,11 +630,7 @@ const performRegularTurn = (
     nextPlayerTurn: result.nextPlayerTurn,
   });
   if (playerId !== PlayerEnum.PLAYER2) return;
-  const discardIndex =
-    result.moveMade && result.move && result.move.type === 'discard'
-      ? result.move.cardIndex
-      : game.players[playerId].hand.findIndex(c => c !== null);
-  if (discardIndex !== -1) {
-    dispatch(discardCard({ cardIndex: discardIndex, playerId }));
-  }
+  const discardIndex = getDiscardIndex(result, game.players[playerId]);
+  if (discardIndex === -1) return;
+  dispatch(discardCard({ cardIndex: discardIndex, playerId }));
 };
