@@ -22,7 +22,9 @@ export const shuffle = (deck: Cards): void => {
 
 export const createDeck = (color: ColorEnum, owner: PlayerEnum): Cards => {
   const suits =
-    color === ColorEnum.RED ? [SuitEnum.HEARTS, SuitEnum.DIAMONDS] : [SuitEnum.CLUBS, SuitEnum.SPADES];
+    color === ColorEnum.RED
+      ? [SuitEnum.HEARTS, SuitEnum.DIAMONDS]
+      : [SuitEnum.CLUBS, SuitEnum.SPADES];
   const ranks = Object.values(RankEnum);
   return suits.flatMap(suit =>
     ranks.map(rank => ({ suit, rank, color, owner, faceDown: false }))
@@ -30,7 +32,6 @@ export const createDeck = (color: ColorEnum, owner: PlayerEnum): Cards => {
 };
 
 /* ---------- Move Calculation Functions ---------- */
-
 export const getValidMoves = (
   playerHand: Cards,
   playerId: PlayerEnum,
@@ -54,7 +55,8 @@ export const getValidMoves = (
         ).map(cellIndex => ({ type: 'board', cellIndex, cardIndex }))
       : []
   );
-  if (!isFirst) {
+  // Discard moves are only added if it's not the first move and not a tie breaker.
+  if (!isFirst && !tieBreaker) {
     const discardMoves: Move[] = playerHand
       .map((card, cardIndex) => (card ? { type: 'discard', cardIndex } : null))
       .filter((move): move is Move => move !== null);
