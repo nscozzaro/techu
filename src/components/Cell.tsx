@@ -1,3 +1,4 @@
+// src/components/Cell.tsx
 import React from 'react';
 import { useDispatch } from 'react-redux';
 import { Card, PlayerEnum } from '../types';
@@ -164,9 +165,9 @@ const Cell: React.FC<CellProps> = ({
       playerId,
     });
 
-  // Unified drop handler
-  const handleDrop = (dragData: { cardIndex: number; playerId: PlayerEnum }) => {
-    if (type === 'discard') {
+  // Consolidated drop handler using a mapping object.
+  const dropActions: { [key in 'discard' | 'board' | 'hand']: (dragData: { cardIndex: number; playerId: PlayerEnum }) => void } = {
+    discard: (dragData) => {
       dispatch(
         moveCard({
           cardIndex: dragData.cardIndex,
@@ -174,25 +175,35 @@ const Cell: React.FC<CellProps> = ({
           destination: 'discard',
         })
       );
-    } else if (type === 'board' && index !== undefined) {
-      dispatch(
-        moveCard({
-          cardIndex: dragData.cardIndex,
-          playerId: dragData.playerId,
-          destination: 'board',
-          boardIndex: index,
-        })
-      );
-    } else if (type === 'hand' && index !== undefined) {
-      dispatch(
-        moveCard({
-          cardIndex: dragData.cardIndex,
-          playerId: dragData.playerId,
-          destination: 'hand',
-          handIndex: index,
-        })
-      );
-    }
+    },
+    board: (dragData) => {
+      if (index !== undefined) {
+        dispatch(
+          moveCard({
+            cardIndex: dragData.cardIndex,
+            playerId: dragData.playerId,
+            destination: 'board',
+            boardIndex: index,
+          })
+        );
+      }
+    },
+    hand: (dragData) => {
+      if (index !== undefined) {
+        dispatch(
+          moveCard({
+            cardIndex: dragData.cardIndex,
+            playerId: dragData.playerId,
+            destination: 'hand',
+            handIndex: index,
+          })
+        );
+      }
+    },
+  };
+
+  const handleDrop = (dragData: { cardIndex: number; playerId: PlayerEnum }) => {
+    (dropActions[type as 'discard' | 'board' | 'hand'])(dragData);
   };
 
   const draggable =
@@ -207,9 +218,7 @@ const Cell: React.FC<CellProps> = ({
       draggable={draggable}
       onDragStart={draggable ? onNativeDragStart : undefined}
       onDragEnd={draggable ? onNativeDragEnd : undefined}
-      onDragOver={
-        isDiscard || isBoard || isHand ? onNativeDragOver : undefined
-      }
+      onDragOver={isDiscard || isBoard || isHand ? onNativeDragOver : undefined}
       onDrop={
         isDiscard || isBoard || isHand
           ? (e) => onNativeDrop(e, handleDrop)
