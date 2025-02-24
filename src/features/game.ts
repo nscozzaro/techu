@@ -608,7 +608,59 @@ export default gameSlice.reducer;
 
 /* ---------- Thunk Actions ---------- */
 
-// No changes in these thunks for now
+/** Merges both first-move & regular-move logic into one function. */
+export const performPlayerTurn =
+  (playerId: PlayerEnum) => (dispatch: AppDispatch, getState: () => RootState) => {
+    const game = getState().game;
+    const isFirst = game.gameStatus.firstMove[playerId];
+
+    // If it's a first move
+    if (isFirst) {
+      const result = performFirstMoveForPlayer(
+        game.players,
+        playerId,
+        game.board,
+        game.gameStatus.tieBreaker,
+        (cards: InitialFaceDownCards) =>
+          dispatch(setInitialFaceDownCards(cards))
+      );
+      applyGameUpdate(dispatch, getState, {
+        updatedPlayers: result.updatedPlayers,
+        newBoardState: result.newBoardState,
+        newFirstMove: result.newFirstMove,
+        nextPlayerTurn: result.nextPlayerTurn,
+      });
+    } else {
+      // Otherwise a regular move
+      const result = performRegularMoveForPlayer(
+        game.players,
+        playerId,
+        game.board
+      );
+      applyGameUpdate(dispatch, getState, {
+        updatedPlayers: result.updatedPlayers,
+        newBoardState: result.newBoardState,
+        nextPlayerTurn: result.nextPlayerTurn,
+      });
+      // If AI discards
+      if (playerId === PlayerEnum.PLAYER2 && result.move?.type === 'discard') {
+        dispatch(
+          moveCard({
+            cardIndex: result.move.cardIndex,
+            playerId,
+            destination: 'discard',
+          })
+        );
+      }
+    }
+  };
+
+/** Replaces old playTurn with a single-liner. */
+export const playTurn =
+  (playerId: PlayerEnum) => (dispatch: AppDispatch) => {
+    dispatch(performPlayerTurn(playerId));
+  };
+
 export const applyGameUpdate = (
   dispatch: AppDispatch,
   getState: () => RootState,
@@ -690,57 +742,3 @@ export const triggerCardDrag =
       )
     );
   };
-
-/* ---------- Thunk: Play Turn ---------- */
-export const playTurn =
-  (playerId: PlayerEnum) => (dispatch: AppDispatch, getState: () => RootState) => {
-    const state = getState().game;
-    if (state.gameStatus.firstMove[playerId])
-      performFirstMove(dispatch, state, playerId, getState);
-    else performRegularTurn(dispatch, state, playerId, getState);
-  };
-
-const performFirstMove = (
-  dispatch: AppDispatch,
-  game: GameState,
-  playerId: PlayerEnum,
-  getState: () => RootState
-) => {
-  const result = performFirstMoveForPlayer(
-    game.players,
-    playerId,
-    game.board,
-    game.gameStatus.tieBreaker,
-    (cards: InitialFaceDownCards) => dispatch(setInitialFaceDownCards(cards))
-  );
-  applyGameUpdate(dispatch, getState, {
-    updatedPlayers: result.updatedPlayers,
-    newBoardState: result.newBoardState,
-    newFirstMove: result.newFirstMove,
-    nextPlayerTurn: result.nextPlayerTurn,
-  });
-};
-
-const performRegularTurn = (
-  dispatch: AppDispatch,
-  game: GameState,
-  playerId: PlayerEnum,
-  getState: () => RootState
-) => {
-  const result = performRegularMoveForPlayer(game.players, playerId, game.board);
-  applyGameUpdate(dispatch, getState, {
-    updatedPlayers: result.updatedPlayers,
-    newBoardState: result.newBoardState,
-    nextPlayerTurn: result.nextPlayerTurn,
-  });
-  // Discard action for Player 2 if AI chooses discard.
-  if (playerId === PlayerEnum.PLAYER2 && result.move?.type === 'discard') {
-    dispatch(
-      moveCard({
-        cardIndex: result.move.cardIndex,
-        playerId,
-        destination: 'discard',
-      })
-    );
-  }
-};
