@@ -1,5 +1,3 @@
-// src/components/Cell.tsx
-
 import React from 'react';
 import { useDispatch } from 'react-redux';
 import { Card, PlayerEnum } from '../types';
@@ -7,7 +5,7 @@ import cardBackRed from '../assets/card-back-red.png';
 import cardBackBlue from '../assets/card-back-blue.png';
 import { useCellDragDrop } from '../hooks/useCellDragDrop';
 import { AppDispatch } from '../store';
-import { placeCardOnBoard, discardCard } from '../features/game';
+import { moveCard } from '../features/game';
 
 export type CellType = 'deck' | 'hand' | 'discard' | 'board';
 
@@ -59,7 +57,9 @@ const renderDeckContent = (count: number | undefined, playerId?: PlayerEnum): JS
     <div
       className="card-back deck-back"
       style={{
-        backgroundImage: `url(${playerId === PlayerEnum.PLAYER1 ? cardBackRed : cardBackBlue})`,
+        backgroundImage: `url(${
+          playerId === PlayerEnum.PLAYER1 ? cardBackRed : cardBackBlue
+        })`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
       }}
@@ -67,7 +67,12 @@ const renderDeckContent = (count: number | undefined, playerId?: PlayerEnum): JS
       <div className="deck-count">{count}</div>
     </div>
   ) : (
-    <div className="card-back empty-deck" style={{ backgroundColor: playerId === PlayerEnum.PLAYER1 ? '#800000' : '#000080' }}>
+    <div
+      className="card-back empty-deck"
+      style={{
+        backgroundColor: playerId === PlayerEnum.PLAYER1 ? '#800000' : '#000080',
+      }}
+    >
       <div className="deck-count">0</div>
     </div>
   );
@@ -152,34 +157,54 @@ const Cell: React.FC<CellProps> = ({
       playerId,
     });
 
+  // New unified drop handler
   const handleDrop = (dragData: { cardIndex: number; playerId: PlayerEnum }) => {
-    const dropActions: { [key in CellType]?: (data: { cardIndex: number; playerId: PlayerEnum }) => void } = {
-      discard: (data) => {
-        if (playerId) dispatch(discardCard({ cardIndex: data.cardIndex, playerId }));
-      },
-      board: (data) => {
-        if (index !== undefined) dispatch(placeCardOnBoard({ index, cardIndex: data.cardIndex }));
-      },
-      hand: (data) => {
-        if (playerId === PlayerEnum.PLAYER1 && swapCardsInHand && index !== undefined)
-          swapCardsInHand(PlayerEnum.PLAYER1, data.cardIndex, index);
-      },
-    };
-    dropActions[type]?.(dragData);
+    if (type === 'discard') {
+      dispatch(
+        moveCard({
+          cardIndex: dragData.cardIndex,
+          playerId: dragData.playerId,
+          destination: 'discard',
+        })
+      );
+    } else if (type === 'board' && index !== undefined) {
+      dispatch(
+        moveCard({
+          cardIndex: dragData.cardIndex,
+          playerId: dragData.playerId,
+          destination: 'board',
+          boardIndex: index,
+        })
+      );
+    } else if (type === 'hand' && swapCardsInHand && index !== undefined) {
+      // Hand-swapping remains as is
+      if (playerId === PlayerEnum.PLAYER1) {
+        swapCardsInHand(PlayerEnum.PLAYER1, dragData.cardIndex, index);
+      }
+    }
   };
 
-  const draggable = isHand && playerId === PlayerEnum.PLAYER1 && isCurrentPlayer && !isDisabled && !!card;
+  const draggable =
+    isHand && playerId === PlayerEnum.PLAYER1 && isCurrentPlayer && !isDisabled && !!card;
 
   return (
     <div
       draggable={draggable}
       onDragStart={draggable ? onNativeDragStart : undefined}
       onDragEnd={draggable ? onNativeDragEnd : undefined}
-      onDragOver={(isDiscard || isBoard || (isHand && swapCardsInHand)) ? onNativeDragOver : undefined}
-      onDrop={(isDiscard || isBoard || (isHand && swapCardsInHand))
-        ? (e) => onNativeDrop(e, handleDrop)
-        : undefined}
-      className={`cell ${isEmpty ? 'empty' : ''} ${cellHighlighted ? 'highlight' : ''} ${isDisabled ? 'disabled' : ''}`}
+      onDragOver={
+        isDiscard || isBoard || (isHand && swapCardsInHand)
+          ? onNativeDragOver
+          : undefined
+      }
+      onDrop={
+        isDiscard || isBoard || (isHand && swapCardsInHand)
+          ? (e) => onNativeDrop(e, handleDrop)
+          : undefined
+      }
+      className={`cell ${isEmpty ? 'empty' : ''} ${cellHighlighted ? 'highlight' : ''} ${
+        isDisabled ? 'disabled' : ''
+      }`}
     >
       {renderCellContent({ type, card, stack, count, playerId, isVisible })}
     </div>

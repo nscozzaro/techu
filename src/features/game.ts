@@ -33,7 +33,7 @@ const drawCard = (
   if (deck.length === 0) return { hand, deck };
   const card = deck.pop()!;
   const newHand = [...hand];
-  const firstEmpty = newHand.findIndex(c => c === null);
+  const firstEmpty = newHand.findIndex((c) => c === null);
   if (firstEmpty !== -1) newHand[firstEmpty] = card;
   else newHand.push(card);
   return { hand: newHand, deck };
@@ -49,7 +49,10 @@ export const updatePlayerHandAndDrawCard = (
   const newHand = [...player.hand];
   newHand[cardIndex] = null;
   const result = drawCard(newHand, [...player.deck]);
-  return { ...players, [playerId]: { ...player, hand: result.hand, deck: result.deck } };
+  return {
+    ...players,
+    [playerId]: { ...player, hand: result.hand, deck: result.deck },
+  };
 };
 
 export const initializePlayer = (color: ColorEnum, id: PlayerEnum) => {
@@ -81,17 +84,19 @@ export const getNextPlayerTurn = (current: PlayerEnum): PlayerEnum =>
 
 export const isGameOver = (players: Players): boolean =>
   Object.values(players).every(
-    player => player.hand.every(card => card === null) && player.deck.length === 0
+    (player) => player.hand.every((card) => card === null) && player.deck.length === 0
   );
-
-// (Removed cloneBoardState since board updates will now be handled by Redux)
 
 /* ---------- Helper: select a random move from list ---------- */
 const selectRandomMove = (moves: Move[]): Move | null =>
   moves.length ? moves[Math.floor(Math.random() * moves.length)] : null;
 
 /* ---------- New Helper: update board cell ---------- */
-const updateBoardCell = (board: BoardState, cellIndex: CardIndex, card: Card): BoardState =>
+const updateBoardCell = (
+  board: BoardState,
+  cellIndex: CardIndex,
+  card: Card
+): BoardState =>
   board.map((cell, idx) => (idx === cellIndex ? [...cell, card] : cell));
 
 /* ---------- Helper: Apply a move to board state ---------- */
@@ -105,9 +110,16 @@ const applyMoveToBoardState = (
     return { newBoardState: boardState, updatedPlayers: players };
   }
   const newBoardState = boardState.map((cell, idx) =>
-    idx === move.cellIndex ? [...cell, players[playerId].hand[move.cardIndex]!] : cell
+    idx === move.cellIndex
+      ? [...cell, players[playerId].hand[move.cardIndex]!]
+      : cell
   );
-  const updatedPlayers = updatePlayerHandAndDrawCard(players, playerId, move.cardIndex, move.cardIndex);
+  const updatedPlayers = updatePlayerHandAndDrawCard(
+    players,
+    playerId,
+    move.cardIndex,
+    move.cardIndex
+  );
   return { newBoardState, updatedPlayers };
 };
 
@@ -135,7 +147,9 @@ const handleFirstMove = (
   const move = selectRandomMove(validMoves);
   if (move && move.cellIndex !== undefined) {
     const cardToPlace = { ...card, faceDown: shouldFaceDown };
-    setInitialFaceDownCards({ [playerId]: { ...cardToPlace, cellIndex: move.cellIndex } });
+    setInitialFaceDownCards({
+      [playerId]: { ...cardToPlace, cellIndex: move.cellIndex },
+    });
     newBoard = updateBoardCell(newBoard, move.cellIndex, cardToPlace);
   }
   return { updatedPlayers, newBoardState: newBoard };
@@ -247,7 +261,7 @@ const flipCardsInBoard = (
   initialFaceDownCards: InitialFaceDownCards,
   boardState: BoardState
 ): BoardState => {
-  let newBoardState = boardState.map(cell => [...cell]);
+  let newBoardState = boardState.map((cell) => [...cell]);
   Object.entries(initialFaceDownCards).forEach(([player, cardData]) => {
     if (cardData) {
       const cellIndex = cardData.cellIndex;
@@ -296,16 +310,23 @@ export const flipInitialCardsLogic = (
   tieBreaker: boolean;
   firstMove: { [key in PlayerEnum]: boolean };
 } => {
-  if (!initialFaceDownCards[PlayerEnum.PLAYER1] || !initialFaceDownCards[PlayerEnum.PLAYER2]) {
+  if (
+    !initialFaceDownCards[PlayerEnum.PLAYER1] ||
+    !initialFaceDownCards[PlayerEnum.PLAYER2]
+  ) {
     return {
       newBoardState: boardState,
       nextPlayerTurn: getNextPlayerTurn(PlayerEnum.PLAYER1),
       tieBreaker: false,
-      firstMove: { [PlayerEnum.PLAYER1]: false, [PlayerEnum.PLAYER2]: false },
+      firstMove: {
+        [PlayerEnum.PLAYER1]: false,
+        [PlayerEnum.PLAYER2]: false,
+      },
     };
   }
   const newBoardState = flipCardsInBoard(initialFaceDownCards, boardState);
-  const { nextPlayerTurn, tieBreaker, firstMove } = determineTurnAndTieBreaker(initialFaceDownCards);
+  const { nextPlayerTurn, tieBreaker, firstMove } =
+    determineTurnAndTieBreaker(initialFaceDownCards);
   return { newBoardState, nextPlayerTurn, tieBreaker, firstMove };
 };
 
@@ -364,18 +385,33 @@ const gameSlice = createSlice({
     },
     swapCardsInHand: (
       state,
-      action: PayloadAction<{ playerId: PlayerEnum; sourceIndex: CardIndex; targetIndex: CardIndex }>
+      action: PayloadAction<{
+        playerId: PlayerEnum;
+        sourceIndex: CardIndex;
+        targetIndex: CardIndex;
+      }>
     ) => {
       const { playerId, sourceIndex, targetIndex } = action.payload;
       const hand = state.players[playerId].hand;
-      if (sourceIndex >= 0 && sourceIndex < hand.length && targetIndex >= 0 && targetIndex < hand.length) {
-        [hand[sourceIndex], hand[targetIndex]] = [hand[targetIndex], hand[sourceIndex]];
+      if (
+        sourceIndex >= 0 &&
+        sourceIndex < hand.length &&
+        targetIndex >= 0 &&
+        targetIndex < hand.length
+      ) {
+        [hand[sourceIndex], hand[targetIndex]] = [
+          hand[targetIndex],
+          hand[sourceIndex],
+        ];
       }
     },
-    addDiscardCard: (state, action: PayloadAction<{ playerId: PlayerEnum; card: Card }>) => {
+    addDiscardCard: (
+      state,
+      action: PayloadAction<{ playerId: PlayerEnum; card: Card }>
+    ) => {
       state.discard[action.payload.playerId].push(action.payload.card);
     },
-    resetDiscardPiles: state => {
+    resetDiscardPiles: (state) => {
       state.discard = initialDiscardPiles();
     },
     setFirstMove: (state, action: PayloadAction<PlayerBooleans>) => {
@@ -389,20 +425,22 @@ const gameSlice = createSlice({
     },
     setInitialFaceDownCards: (
       state,
-      action: PayloadAction<{ [key in PlayerEnum]?: Card & { cellIndex: CardIndex } }>
+      action: PayloadAction<{
+        [key in PlayerEnum]?: Card & { cellIndex: CardIndex };
+      }>
     ) => {
       state.gameStatus.initialFaceDownCards = {
         ...state.gameStatus.initialFaceDownCards,
         ...action.payload,
       };
     },
-    clearInitialFaceDownCards: state => {
+    clearInitialFaceDownCards: (state) => {
       state.gameStatus.initialFaceDownCards = {};
     },
     setTurn: (state, action: PayloadAction<PlayerEnum>) => {
       state.turn.currentTurn = action.payload;
     },
-    nextTurn: state => {
+    nextTurn: (state) => {
       state.turn.currentTurn = getNextPlayerTurn(state.turn.currentTurn);
     },
     setHighlightedCells: (state, action: PayloadAction<number[]>) => {
@@ -414,7 +452,7 @@ const gameSlice = createSlice({
     setHighlightDiscardPile: (state, action: PayloadAction<boolean>) => {
       state.highlightDiscardPile = action.payload;
     },
-    resetUI: state => {
+    resetUI: (state) => {
       state.highlightedCells = [];
       state.draggingPlayer = null;
       state.highlightDiscardPile = false;
@@ -429,6 +467,77 @@ const gameSlice = createSlice({
       action: PayloadAction<{ cellIndex: CardIndex; card: Card }>
     ) => {
       state.board[action.payload.cellIndex].push(action.payload.card);
+    },
+    moveCard: (
+      state,
+      action: PayloadAction<{
+        cardIndex: CardIndex;
+        playerId: PlayerEnum;
+        destination: 'discard' | 'board';
+        boardIndex?: number;
+      }>
+    ) => {
+      const { cardIndex, playerId, destination, boardIndex } = action.payload;
+      if (state.gameStatus.gameOver) return;
+
+      const player = state.players[playerId];
+      const cardToMove = player.hand[cardIndex];
+      if (!cardToMove) {
+        // If hand is out of sync, just skip turn
+        state.turn.currentTurn = getNextPlayerTurn(playerId);
+        return;
+      }
+
+      // Discard requires that it's not the first move
+      if (destination === 'discard') {
+        if (state.gameStatus.firstMove[playerId]) return;
+        // Discard logic:
+        state.discard[playerId].push({ ...cardToMove, faceDown: true });
+        state.players = updatePlayerHandAndDrawCard(
+          state.players,
+          playerId,
+          cardIndex,
+          cardIndex
+        );
+        state.turn.currentTurn = getNextPlayerTurn(playerId);
+      }
+
+      // Board placement:
+      else if (destination === 'board' && boardIndex !== undefined) {
+        const isFirst = state.gameStatus.firstMove[playerId];
+        const tieBreaker = state.gameStatus.tieBreaker;
+        const cardCopy =
+          isFirst && !tieBreaker
+            ? { ...cardToMove, faceDown: true }
+            : { ...cardToMove, faceDown: false };
+
+        if (isFirst || tieBreaker) {
+          state.gameStatus.initialFaceDownCards[playerId] = {
+            ...cardCopy,
+            cellIndex: boardIndex,
+          };
+        }
+
+        state.board[boardIndex].push(cardCopy);
+        state.players = updatePlayerHandAndDrawCard(
+          state.players,
+          playerId,
+          cardIndex,
+          cardIndex
+        );
+        state.gameStatus.firstMove[playerId] = false;
+        state.turn.currentTurn = getNextPlayerTurn(playerId);
+      }
+
+      // Check if game is over after moving
+      if (isGameOver(state.players)) {
+        state.gameStatus.gameOver = true;
+      }
+
+      // Clean up UI
+      state.highlightedCells = [];
+      state.draggingPlayer = null;
+      state.highlightDiscardPile = false;
     },
   },
 });
@@ -452,14 +561,16 @@ export const {
   resetUI,
   updateGame,
   pushCardToBoard,
+  moveCard,
 } = gameSlice.actions;
 
 export default gameSlice.reducer;
 
 /* ---------- Thunk Actions ---------- */
-const computeCardToPlace = (card: Card, isFirst: boolean, tieBreaker: boolean): Card =>
-  isFirst && !tieBreaker ? { ...card, faceDown: true } : { ...card, faceDown: false };
 
+// Removed placeCardOnBoard and discardCard thunks since they're now handled by moveCard.
+
+// applyGameUpdate remains for AI-based moves
 export const applyGameUpdate = (
   dispatch: AppDispatch,
   getState: () => RootState,
@@ -487,101 +598,69 @@ export const applyGameUpdate = (
   );
 };
 
-export const flipInitialCards = () => (dispatch: AppDispatch, getState: () => RootState) => {
-  const { initialFaceDownCards } = getState().game.gameStatus;
-  if (initialFaceDownCards[PlayerEnum.PLAYER1] && initialFaceDownCards[PlayerEnum.PLAYER2]) {
-    const state = getState().game;
-    const result = flipInitialCardsLogic(initialFaceDownCards, state.board);
-    dispatch(
-      updateGame({
-        players: state.players,
-        board: result.newBoardState,
-        turn: { currentTurn: result.nextPlayerTurn },
-        gameStatus: {
-          ...state.gameStatus,
-          firstMove: result.firstMove,
-          tieBreaker: result.tieBreaker,
-          initialFaceDownCards: {},
-          gameOver: isGameOver(state.players),
-        },
-        highlightedCells: [],
-        draggingPlayer: null,
-        highlightDiscardPile: false,
-      })
-    );
-  }
-};
+export const flipInitialCards =
+  () => (dispatch: AppDispatch, getState: () => RootState) => {
+    const { initialFaceDownCards } = getState().game.gameStatus;
+    if (
+      initialFaceDownCards[PlayerEnum.PLAYER1] &&
+      initialFaceDownCards[PlayerEnum.PLAYER2]
+    ) {
+      const state = getState().game;
+      const result = flipInitialCardsLogic(initialFaceDownCards, state.board);
+      dispatch(
+        updateGame({
+          players: state.players,
+          board: result.newBoardState,
+          turn: { currentTurn: result.nextPlayerTurn },
+          gameStatus: {
+            ...state.gameStatus,
+            firstMove: result.firstMove,
+            tieBreaker: result.tieBreaker,
+            initialFaceDownCards: {},
+            gameOver: isGameOver(state.players),
+          },
+          highlightedCells: [],
+          draggingPlayer: null,
+          highlightDiscardPile: false,
+        })
+      );
+    }
+  };
 
-export const placeCardOnBoard = ({ index, cardIndex }: { index: CardIndex; cardIndex: CardIndex }) => (
-  dispatch: AppDispatch,
-  getState: () => RootState
-) => {
-  const state = getState().game;
-  const currentTurn = state.turn.currentTurn;
-  const card = state.players[currentTurn].hand[cardIndex];
-  if (!card) {
-    dispatch(setTurn(getNextPlayerTurn(currentTurn)));
-    return;
-  }
-  const { firstMove, tieBreaker } = state.gameStatus;
-  const cardToPlace = computeCardToPlace(card, firstMove[currentTurn], tieBreaker);
-  if (firstMove[currentTurn] || tieBreaker) {
-    dispatch(setInitialFaceDownCards({ [currentTurn]: { ...cardToPlace, cellIndex: index } }));
-  }
-  const updatedPlayers = updatePlayerHandAndDrawCard(state.players, currentTurn, cardIndex, cardIndex);
-  const newBoard = updateBoardCell(state.board, index, cardToPlace);
-  applyGameUpdate(dispatch, getState, {
-    updatedPlayers,
-    newBoardState: newBoard,
-    newFirstMove: { ...state.gameStatus.firstMove, [currentTurn]: false },
-    nextPlayerTurn: getNextPlayerTurn(currentTurn),
-  });
-  if (isGameOver(updatedPlayers)) dispatch(setGameOver(true));
-};
-
-export const discardCard = ({ cardIndex, playerId }: { cardIndex: CardIndex; playerId: PlayerEnum }) => (
-  dispatch: AppDispatch,
-  getState: () => RootState
-) => {
-  const { players, board, gameStatus } = getState().game;
-  if (gameStatus.gameOver || gameStatus.firstMove[playerId]) return;
-  const player = players[playerId];
-  if (cardIndex < 0 || cardIndex >= player.hand.length) return;
-  const cardToDiscard = player.hand[cardIndex];
-  if (!cardToDiscard) return;
-  dispatch(addDiscardCard({ playerId, card: { ...cardToDiscard, faceDown: true } }));
-  const newPlayers = updatePlayerHandAndDrawCard(players, playerId, cardIndex, cardIndex);
-  applyGameUpdate(dispatch, getState, {
-    updatedPlayers: newPlayers,
-    newBoardState: board,
-    nextPlayerTurn: getNextPlayerTurn(playerId),
-  });
-};
-
-/* ---------- Thunk: Trigger Card Drag ---------- */
-export const triggerCardDrag = ({ cardIndex, playerId }: { cardIndex: CardIndex; playerId: PlayerEnum }) => (
-  dispatch: AppDispatch,
-  getState: () => RootState
-) => {
-  const { board, players, gameStatus, turn } = getState().game;
-  const validMoves = handleCardDragLogic(
+export const triggerCardDrag =
+  ({
     cardIndex,
     playerId,
-    board,
-    players,
-    gameStatus.firstMove,
-    gameStatus.tieBreaker
-  );
-  dispatch(setHighlightedCells(validMoves));
-  dispatch(setHighlightDiscardPile(turn.currentTurn === playerId && !gameStatus.firstMove[playerId]));
-};
+  }: {
+    cardIndex: CardIndex;
+    playerId: PlayerEnum;
+  }) =>
+  (dispatch: AppDispatch, getState: () => RootState) => {
+    const { board, players, gameStatus, turn } = getState().game;
+    const validMoves = handleCardDragLogic(
+      cardIndex,
+      playerId,
+      board,
+      players,
+      gameStatus.firstMove,
+      gameStatus.tieBreaker
+    );
+    dispatch(setHighlightedCells(validMoves));
+    dispatch(
+      setHighlightDiscardPile(
+        turn.currentTurn === playerId && !gameStatus.firstMove[playerId]
+      )
+    );
+  };
 
 /* ---------- Thunk: Play Turn ---------- */
-export const playTurn = (playerId: PlayerEnum) => (dispatch: AppDispatch, getState: () => RootState) => {
-  const state = getState().game;
-  if (state.gameStatus.firstMove[playerId]) performFirstMove(dispatch, state, playerId, getState);
-  else performRegularTurn(dispatch, state, playerId, getState);
-};
+export const playTurn =
+  (playerId: PlayerEnum) => (dispatch: AppDispatch, getState: () => RootState) => {
+    const state = getState().game;
+    if (state.gameStatus.firstMove[playerId])
+      performFirstMove(dispatch, state, playerId, getState);
+    else performRegularTurn(dispatch, state, playerId, getState);
+  };
 
 const performFirstMove = (
   dispatch: AppDispatch,
@@ -616,8 +695,14 @@ const performRegularTurn = (
     newBoardState: result.newBoardState,
     nextPlayerTurn: result.nextPlayerTurn,
   });
-  // Only dispatch a discard action for Player 2 if the chosen move was a discard move.
+  // Discard action for Player 2 if AI chooses discard.
   if (playerId === PlayerEnum.PLAYER2 && result.move?.type === 'discard') {
-    dispatch(discardCard({ cardIndex: result.move.cardIndex, playerId }));
+    dispatch(
+      moveCard({
+        cardIndex: result.move.cardIndex,
+        playerId,
+        destination: 'discard',
+      })
+    );
   }
 };
