@@ -645,32 +645,19 @@ const gameSlice = createSlice({
         discard: () => {
           if (state.gameStatus.firstMove[playerId]) return;
           state.discard[playerId].push({ ...cardToMove, faceDown: true });
-          player.hand[cardIndex] = null;
-          {
-            const result = drawCard(player.hand, player.deck);
-            player.hand = result.hand;
-            player.deck = result.deck;
-          }
+          state.players = updatePlayerHandAndDrawCard(state.players, playerId, cardIndex);
           state.turn.currentTurn = getNextPlayerTurn(playerId);
         },
         board: () => {
           if (boardIndex === undefined) return;
           const isFirst = state.gameStatus.firstMove[playerId];
           const tieBreaker = state.gameStatus.tieBreaker;
-          const cardCopy =
-            isFirst && !tieBreaker
-              ? { ...cardToMove, faceDown: true }
-              : { ...cardToMove, faceDown: false };
+          const cardCopy = { ...cardToMove, faceDown: isFirst && !tieBreaker };
           if (isFirst || tieBreaker) {
             state.gameStatus.initialFaceDownCards[playerId] = { ...cardCopy, cellIndex: boardIndex };
           }
           state.board[boardIndex].push(cardCopy);
-          player.hand[cardIndex] = null;
-          {
-            const result = drawCard(player.hand, player.deck);
-            player.hand = result.hand;
-            player.deck = result.deck;
-          }
+          state.players = updatePlayerHandAndDrawCard(state.players, playerId, cardIndex);
           state.gameStatus.firstMove[playerId] = false;
           state.turn.currentTurn = getNextPlayerTurn(playerId);
         },
