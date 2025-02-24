@@ -26,6 +26,7 @@ import {
 } from '../logic/logic';
 
 /* ---------- Helper Functions ---------- */
+// (We still keep these helpers for now, though in later steps we can consolidate more logic into reducers.)
 const drawCard = (
   hand: (Card | null)[],
   deck: (Card | null)[]
@@ -467,19 +468,23 @@ const gameSlice = createSlice({
         return;
       }
 
-      // Discard requires that it's not the first move
+      // Discard: ensure it's not the first move
       if (destination === 'discard') {
         if (state.gameStatus.firstMove[playerId]) return;
         state.discard[playerId].push({ ...cardToMove, faceDown: true });
-        state.players = updatePlayerHandAndDrawCard(
-          state.players,
-          playerId,
-          cardIndex,
-          cardIndex
-        );
+        // Inline logic to update hand and draw from deck:
+        player.hand[cardIndex] = null;
+        if (player.deck.length > 0) {
+          const drawnCard = player.deck.pop()!;
+          const emptyIndex = player.hand.findIndex(c => c === null);
+          if (emptyIndex !== -1) {
+            player.hand[emptyIndex] = drawnCard;
+          } else {
+            player.hand.push(drawnCard);
+          }
+        }
         state.turn.currentTurn = getNextPlayerTurn(playerId);
       }
-
       // Board placement:
       else if (destination === 'board' && boardIndex !== undefined) {
         const isFirst = state.gameStatus.firstMove[playerId];
@@ -497,24 +502,28 @@ const gameSlice = createSlice({
         }
 
         state.board[boardIndex].push(cardCopy);
-        state.players = updatePlayerHandAndDrawCard(
-          state.players,
-          playerId,
-          cardIndex,
-          cardIndex
-        );
+        // Inline update of hand and drawing a card:
+        player.hand[cardIndex] = null;
+        if (player.deck.length > 0) {
+          const drawnCard = player.deck.pop()!;
+          const emptyIndex = player.hand.findIndex(c => c === null);
+          if (emptyIndex !== -1) {
+            player.hand[emptyIndex] = drawnCard;
+          } else {
+            player.hand.push(drawnCard);
+          }
+        }
         state.gameStatus.firstMove[playerId] = false;
         state.turn.currentTurn = getNextPlayerTurn(playerId);
       }
-
       // Swapping within hand (do not end turn)
       else if (destination === 'hand' && handIndex !== undefined) {
-        const hand = state.players[playerId].hand;
+        const hand = player.hand;
         [hand[cardIndex], hand[handIndex]] = [hand[handIndex], hand[cardIndex]];
-        // Note: No turn switch here!
+        // No turn switch here.
       }
 
-      // Check if game is over after any actual move to board/discard
+      // Check if game is over after any move to board/discard
       if (isGameOver(state.players)) {
         state.gameStatus.gameOver = true;
       }
