@@ -17,7 +17,6 @@ import {
   STARTING_INDICES,
   CardIndex,
   FaceDownCard,
-  // Removed Player as it is not used.
   rankOrder,
 } from '../types';
 import {
@@ -265,6 +264,13 @@ const resetUIState = (state: GameState): GameState => {
   state.draggingPlayer = null;
   state.highlightDiscardPile = false;
   return state;
+};
+
+/* ---------- Constant: Default UI State ---------- */
+const defaultUIState = {
+  highlightedCells: [] as number[],
+  draggingPlayer: null as PlayerEnum | null,
+  highlightDiscardPile: false,
 };
 
 /* ---------- New Helpers for Flipping Initial Cards ---------- */
@@ -615,9 +621,7 @@ export const applyGameUpdate = (
         update.newFirstMove !== undefined
           ? { ...currentGameStatus, firstMove: update.newFirstMove }
           : currentGameStatus,
-      highlightedCells: [],
-      draggingPlayer: null,
-      highlightDiscardPile: false,
+      ...defaultUIState,
     })
   );
 };
@@ -643,9 +647,7 @@ export const flipInitialCards =
             initialFaceDownCards: {},
             gameOver: isGameOver(state.players),
           },
-          highlightedCells: [],
-          draggingPlayer: null,
-          highlightDiscardPile: false,
+          ...defaultUIState,
         })
       );
     }
