@@ -110,43 +110,16 @@ const applyMoveToBoardState = (
   return { newBoardState, updatedPlayers };
 };
 
-/* ---------- First Move Handlers ---------- */
-const handleFirstMoveTieBreaker = (
+/* ---------- New Helper: Handle First Move ---------- */
+const handleFirstMove = (
   players: Players,
   playerId: PlayerEnum,
   boardState: BoardState,
   card: NonNullable<Card>,
-  setInitialFaceDownCards: (cards: InitialFaceDownCards) => void
-): { newBoardState: BoardState; updatedPlayers: Players } => {
-  const validMoves = getValidMoves(
-    players[playerId].hand,
-    playerId,
-    boardState,
-    BOARD_SIZE,
-    true,
-    STARTING_INDICES,
-    true
-  );
-  let newBoard = [...boardState];
-  let updatedPlayers = players;
-  const move = selectRandomMove(validMoves);
-  if (move && move.cellIndex !== undefined) {
-    newBoard[move.cellIndex] = [...newBoard[move.cellIndex], { ...card, faceDown: false }];
-    setInitialFaceDownCards({ [playerId]: { ...card, faceDown: false, cellIndex: move.cellIndex } });
-    updatedPlayers = updatePlayerHandAndDrawCard(players, playerId, 0, 0);
-  }
-  return { newBoardState: newBoard, updatedPlayers };
-};
-
-const handleFirstMoveNormal = (
-  players: Players,
-  playerId: PlayerEnum,
-  boardState: BoardState,
-  card: NonNullable<Card>,
+  tieBreaker: boolean,
   setInitialFaceDownCards: (cards: InitialFaceDownCards) => void
 ): { updatedPlayers: Players; newBoardState: BoardState } => {
-  // In a normal first move, the card is initially placed face down.
-  const faceDownCard = { ...card, faceDown: true };
+  const shouldFaceDown = !tieBreaker; // Normal move: face down; tieBreaker: face up.
   const updatedPlayers = updatePlayerHandAndDrawCard(players, playerId, 0, 0);
   const validMoves = getValidMoves(
     players[playerId].hand,
@@ -155,17 +128,19 @@ const handleFirstMoveNormal = (
     BOARD_SIZE,
     true,
     STARTING_INDICES,
-    false
+    tieBreaker
   );
   let newBoard = [...boardState];
   const move = selectRandomMove(validMoves);
-  if (move && move.type === 'board' && move.cellIndex !== undefined) {
-    setInitialFaceDownCards({ [playerId]: { ...faceDownCard, cellIndex: move.cellIndex } });
-    newBoard[move.cellIndex] = [...newBoard[move.cellIndex], faceDownCard];
+  if (move && move.cellIndex !== undefined) {
+    const cardToPlace = { ...card, faceDown: shouldFaceDown };
+    setInitialFaceDownCards({ [playerId]: { ...cardToPlace, cellIndex: move.cellIndex } });
+    newBoard = updateBoardCell(newBoard, move.cellIndex, cardToPlace);
   }
   return { updatedPlayers, newBoardState: newBoard };
 };
 
+/* ---------- First Move Handler ---------- */
 export const performFirstMoveForPlayer = (
   players: Players,
   playerId: PlayerEnum,
@@ -187,35 +162,20 @@ export const performFirstMoveForPlayer = (
       nextPlayerTurn: getNextPlayerTurn(playerId),
     };
   }
-  if (tieBreaker) {
-    const { newBoardState, updatedPlayers } = handleFirstMoveTieBreaker(
-      players,
-      playerId,
-      boardState,
-      card,
-      setInitialFaceDownCards
-    );
-    return {
-      updatedPlayers,
-      newBoardState,
-      newFirstMove: { ...initialFirstMove(), [playerId]: true },
-      nextPlayerTurn: getNextPlayerTurn(playerId),
-    };
-  } else {
-    const { updatedPlayers, newBoardState } = handleFirstMoveNormal(
-      players,
-      playerId,
-      boardState,
-      card,
-      setInitialFaceDownCards
-    );
-    return {
-      updatedPlayers,
-      newBoardState,
-      newFirstMove: { ...initialFirstMove(), [playerId]: false },
-      nextPlayerTurn: getNextPlayerTurn(playerId),
-    };
-  }
+  const { updatedPlayers, newBoardState } = handleFirstMove(
+    players,
+    playerId,
+    boardState,
+    card,
+    tieBreaker,
+    setInitialFaceDownCards
+  );
+  return {
+    updatedPlayers,
+    newBoardState,
+    newFirstMove: { ...initialFirstMove(), [playerId]: tieBreaker },
+    nextPlayerTurn: getNextPlayerTurn(playerId),
+  };
 };
 
 export const performRegularMoveForPlayer = (
