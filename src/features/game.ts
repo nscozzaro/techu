@@ -1,5 +1,6 @@
 // src/features/game.ts
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { RootState, AppDispatch } from '../store';
 import {
   BoardState,
   Players,
@@ -509,8 +510,8 @@ const computeCardToPlace = (card: Card, isFirst: boolean, tieBreaker: boolean): 
 
 // Refactored applyGameUpdate now uses updateGame to combine state updates.
 export const applyGameUpdate = (
-  dispatch: any,
-  getState: any,
+  dispatch: AppDispatch,
+  getState: () => RootState,
   update: {
     updatedPlayers: Players;
     newBoardState: BoardState;
@@ -535,7 +536,7 @@ export const applyGameUpdate = (
   );
 };
 
-export const flipInitialCards = () => (dispatch: any, getState: any) => {
+export const flipInitialCards = () => (dispatch: AppDispatch, getState: () => RootState) => {
   const { initialFaceDownCards } = getState().game.gameStatus;
   if (initialFaceDownCards[PlayerEnum.PLAYER1] && initialFaceDownCards[PlayerEnum.PLAYER2]) {
     dispatch(setHighlightedCells([]));
@@ -555,8 +556,8 @@ export const flipInitialCards = () => (dispatch: any, getState: any) => {
 
 // Refactored placeCardOnBoard thunk with simplified board update using updateBoardCell.
 export const placeCardOnBoard = ({ index, cardIndex }: { index: number; cardIndex: number }) => (
-  dispatch: any,
-  getState: any
+  dispatch: AppDispatch,
+  getState: () => RootState
 ) => {
   const state = getState().game;
   const currentTurn = state.turn.currentTurn;
@@ -582,8 +583,8 @@ export const placeCardOnBoard = ({ index, cardIndex }: { index: number; cardInde
 };
 
 export const discardCard = ({ cardIndex, playerId }: { cardIndex: number; playerId: PlayerEnum }) => (
-  dispatch: any,
-  getState: any
+  dispatch: AppDispatch,
+  getState: () => RootState
 ) => {
   const { players, board, gameStatus } = getState().game;
   if (gameStatus.gameOver || gameStatus.firstMove[playerId]) return;
@@ -601,8 +602,8 @@ export const discardCard = ({ cardIndex, playerId }: { cardIndex: number; player
 };
 
 export const triggerCardDrag = ({ cardIndex, playerId }: { cardIndex: number; playerId: PlayerEnum }) => (
-  dispatch: any,
-  getState: any
+  dispatch: AppDispatch,
+  getState: () => RootState
 ) => {
   const { board, players, gameStatus, turn } = getState().game;
   const validMoves = handleCardDragLogic(
@@ -617,13 +618,18 @@ export const triggerCardDrag = ({ cardIndex, playerId }: { cardIndex: number; pl
   dispatch(setHighlightDiscardPile(turn.currentTurn === playerId && !gameStatus.firstMove[playerId]));
 };
 
-export const playTurn = (playerId: PlayerEnum) => (dispatch: any, getState: any) => {
+export const playTurn = (playerId: PlayerEnum) => (dispatch: AppDispatch, getState: () => RootState) => {
   const state = getState().game;
   if (state.gameStatus.firstMove[playerId]) performFirstMove(dispatch, state, playerId, getState);
   else performRegularTurn(dispatch, state, playerId, getState);
 };
 
-const performFirstMove = (dispatch: any, game: GameState, playerId: PlayerEnum, getState: any) => {
+const performFirstMove = (
+  dispatch: AppDispatch,
+  game: GameState,
+  playerId: PlayerEnum,
+  getState: () => RootState
+) => {
   const result = performFirstMoveForPlayer(
     game.players,
     playerId,
@@ -639,7 +645,12 @@ const performFirstMove = (dispatch: any, game: GameState, playerId: PlayerEnum, 
   });
 };
 
-const performRegularTurn = (dispatch: any, game: GameState, playerId: PlayerEnum, getState: any) => {
+const performRegularTurn = (
+  dispatch: AppDispatch,
+  game: GameState,
+  playerId: PlayerEnum,
+  getState: () => RootState
+) => {
   const result = performRegularMoveForPlayer(game.players, playerId, game.board);
   applyGameUpdate(dispatch, getState, {
     updatedPlayers: result.updatedPlayers,
