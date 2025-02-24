@@ -1,9 +1,15 @@
+// PlayerArea.tsx
+
 import React from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import Cell from './Cell';
-import { PlayerEnum, Card } from '../types';
+import { PlayerEnum } from '../types';
 import { setHighlightedCells, setDraggingPlayer, resetUI } from '../features/game';
+import {
+  selectHandForPlayer,
+  selectDeckCountForPlayer,
+} from '../selectors';
 
 interface PlayerAreaProps {
   playerId: PlayerEnum;
@@ -11,15 +17,15 @@ interface PlayerAreaProps {
 
 const PlayerArea: React.FC<PlayerAreaProps> = ({ playerId }) => {
   const dispatch = useDispatch<AppDispatch>();
+
+  // Get what we need from Redux:
   const {
-    player,
     discardPile,
     firstMove,
     currentTurn,
     highlightedCells,
     highlightDiscardPile,
   } = useSelector((state: RootState) => ({
-    player: state.game.players[playerId],
     discardPile: state.game.discard[playerId],
     firstMove: state.game.gameStatus.firstMove[playerId],
     currentTurn: state.game.turn.currentTurn,
@@ -27,8 +33,13 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ playerId }) => {
     highlightDiscardPile: state.game.highlightDiscardPile,
   }));
 
-  const deckCount = player.deck.length;
-  const handCards = player.hand;
+  // Use our new selectors:
+  const deckCount = useSelector((state: RootState) =>
+    selectDeckCountForPlayer(state, playerId)
+  );
+  const handCards = useSelector((state: RootState) =>
+    selectHandForPlayer(state, playerId)
+  );
 
   const clearHighlights = () => dispatch(setHighlightedCells([]));
   const handleDragStart = () => dispatch(setDraggingPlayer(playerId));
@@ -58,9 +69,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ playerId }) => {
   );
 
   const renderHand = () => {
-    const cards: (Card | null)[] =
-      playerId === PlayerEnum.PLAYER2 ? [...handCards].reverse() : handCards;
-    return cards.map((card, index: number) => (
+    return handCards.map((card, index: number) => (
       <Cell
         key={index}
         type="hand"

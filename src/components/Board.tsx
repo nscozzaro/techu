@@ -1,20 +1,20 @@
+// Board.tsx
+
 import React from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import Cell from './Cell';
-import { PlayerEnum, BoardState } from '../types';
+import { BoardState } from '../types';
+import { selectIsPlayer1Turn } from '../selectors';
 
 const Board: React.FC = () => {
-  const { board, highlightedCells, currentTurn, gameOver } = useSelector(
-    (state: RootState) => ({
-      board: state.game.board as BoardState,
-      highlightedCells: state.game.highlightedCells,
-      currentTurn: state.game.turn.currentTurn,
-      gameOver: state.game.gameStatus.gameOver,
-    })
-  );
+  const { board, highlightedCells } = useSelector((state: RootState) => ({
+    board: state.game.board as BoardState,
+    highlightedCells: state.game.highlightedCells,
+  }));
 
-  const isPlayerTurn = currentTurn === PlayerEnum.PLAYER1 && !gameOver;
+  // Use the new selector for determining if it's Player 1's turn
+  const isPlayerTurn = useSelector(selectIsPlayer1Turn);
 
   return (
     <div className="board">
