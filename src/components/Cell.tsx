@@ -19,7 +19,6 @@ interface CellProps {
   count?: number;
   highlightedCells?: number[];
   playerTurn?: boolean;
-  clearHighlights?: () => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;
   isCurrentPlayer?: boolean;
@@ -50,7 +49,10 @@ const renderCardBack = (owner: PlayerEnum, extraStyle?: React.CSSProperties) => 
   );
 };
 
-const renderDeckContent = (count: number | undefined, playerId?: PlayerEnum): JSX.Element | null => {
+const renderDeckContent = (
+  count: number | undefined,
+  playerId?: PlayerEnum
+): JSX.Element | null => {
   if (count === undefined || !playerId) return null;
   return count > 0 ? (
     <div
@@ -69,7 +71,8 @@ const renderDeckContent = (count: number | undefined, playerId?: PlayerEnum): JS
     <div
       className="card-back empty-deck"
       style={{
-        backgroundColor: playerId === PlayerEnum.PLAYER1 ? '#800000' : '#000080',
+        backgroundColor:
+          playerId === PlayerEnum.PLAYER1 ? '#800000' : '#000080',
       }}
     >
       <div className="deck-count">0</div>
@@ -78,9 +81,16 @@ const renderDeckContent = (count: number | undefined, playerId?: PlayerEnum): JS
 };
 
 const renderHandContent = (card?: Card | null): JSX.Element =>
-  card ? (card.faceDown ? renderCardBack(card.owner) : renderCardContent(card)) : <div className="empty-placeholder" />;
+  card
+    ? card.faceDown
+      ? renderCardBack(card.owner)
+      : renderCardContent(card)
+    : <div className="empty-placeholder" />;
 
-const renderDiscardContent = (stack?: (Card | null)[], isVisible?: boolean): JSX.Element | null => {
+const renderDiscardContent = (
+  stack?: (Card | null)[],
+  isVisible?: boolean
+): JSX.Element | null => {
   if (!isVisible) return null;
   const topCard = stack && stack.length ? stack[stack.length - 1] : null;
   return topCard
@@ -129,7 +139,6 @@ const Cell: React.FC<CellProps> = ({
   isCurrentPlayer = false,
   isDisabled = false,
   isHighlighted = false,
-  clearHighlights,
 }) => {
   const dispatch = useDispatch<AppDispatch>();
 
@@ -141,14 +150,14 @@ const Cell: React.FC<CellProps> = ({
     : (isDiscard || isBoard)
     ? (stack?.length ?? 0) === 0
     : false;
-  const shouldHighlight = (isBoard || isDiscard) && highlightedCells?.includes(index ?? -1);
+  const shouldHighlight =
+    (isBoard || isDiscard) && highlightedCells?.includes(index ?? -1);
   const cellHighlighted = isHighlighted || shouldHighlight;
 
   const { onNativeDragStart, onNativeDragEnd, onNativeDragOver, onNativeDrop } =
     useCellDragDrop({
       onDragStart,
       onDragEnd,
-      clearHighlights,
       isDisabled,
       index,
       card,
@@ -175,7 +184,6 @@ const Cell: React.FC<CellProps> = ({
         })
       );
     } else if (type === 'hand' && index !== undefined) {
-      // Now handled entirely by Redux
       dispatch(
         moveCard({
           cardIndex: dragData.cardIndex,
@@ -188,7 +196,11 @@ const Cell: React.FC<CellProps> = ({
   };
 
   const draggable =
-    isHand && playerId === PlayerEnum.PLAYER1 && isCurrentPlayer && !isDisabled && !!card;
+    isHand &&
+    playerId === PlayerEnum.PLAYER1 &&
+    isCurrentPlayer &&
+    !isDisabled &&
+    !!card;
 
   return (
     <div
@@ -196,18 +208,16 @@ const Cell: React.FC<CellProps> = ({
       onDragStart={draggable ? onNativeDragStart : undefined}
       onDragEnd={draggable ? onNativeDragEnd : undefined}
       onDragOver={
-        isDiscard || isBoard || isHand
-          ? onNativeDragOver
-          : undefined
+        isDiscard || isBoard || isHand ? onNativeDragOver : undefined
       }
       onDrop={
         isDiscard || isBoard || isHand
           ? (e) => onNativeDrop(e, handleDrop)
           : undefined
       }
-      className={`cell ${isEmpty ? 'empty' : ''} ${cellHighlighted ? 'highlight' : ''} ${
-        isDisabled ? 'disabled' : ''
-      }`}
+      className={`cell ${isEmpty ? 'empty' : ''} ${
+        cellHighlighted ? 'highlight' : ''
+      } ${isDisabled ? 'disabled' : ''}`}
     >
       {renderCellContent({ type, card, stack, count, playerId, isVisible })}
     </div>

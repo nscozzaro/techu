@@ -1,12 +1,11 @@
 import { useDispatch } from 'react-redux';
 import { AppDispatch } from '../store';
-import { triggerCardDrag } from '../features/game';
+import { triggerCardDrag, setHighlightedCells } from '../features/game';
 import { Card, PlayerEnum } from '../types';
 
 interface UseCellDragDropProps {
   onDragStart?: () => void;
   onDragEnd?: () => void;
-  clearHighlights?: () => void;
   isDisabled?: boolean;
   index?: number;
   card?: Card | null;
@@ -19,7 +18,7 @@ interface DragData {
 }
 
 export const useCellDragDrop = (props: UseCellDragDropProps) => {
-  const { onDragStart, onDragEnd, clearHighlights, isDisabled, index, card, playerId } = props;
+  const { onDragStart, onDragEnd, isDisabled, index, card, playerId } = props;
   const dispatch = useDispatch<AppDispatch>();
 
   const onNativeDragStart = (e: React.DragEvent<HTMLDivElement>) => {
@@ -27,30 +26,45 @@ export const useCellDragDrop = (props: UseCellDragDropProps) => {
       dispatch(triggerCardDrag({ cardIndex: index, playerId }));
     }
     onDragStart && onDragStart();
-    e.dataTransfer.setData('text/plain', JSON.stringify({ cardIndex: index, playerId }));
+    e.dataTransfer.setData(
+      'text/plain',
+      JSON.stringify({ cardIndex: index, playerId })
+    );
   };
 
   const onNativeDragEnd = () => {
     onDragEnd && onDragEnd();
-    clearHighlights && clearHighlights();
+    // Directly clear highlights in Redux, no separate callback
+    dispatch(setHighlightedCells([]));
   };
 
   const onNativeDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
   };
 
-  const onNativeDrop = (e: React.DragEvent<HTMLDivElement>, dropHandler: (dragData: DragData) => void) => {
+  const onNativeDrop = (
+    e: React.DragEvent<HTMLDivElement>,
+    dropHandler: (dragData: DragData) => void
+  ) => {
     e.preventDefault();
     if (isDisabled) return;
     try {
-      const dragData: DragData = JSON.parse(e.dataTransfer.getData('text/plain'));
+      const dragData: DragData = JSON.parse(
+        e.dataTransfer.getData('text/plain')
+      );
       dropHandler(dragData);
     } catch (err) {
       console.error(err);
     } finally {
-      clearHighlights && clearHighlights();
+      // Directly clear highlights in Redux
+      dispatch(setHighlightedCells([]));
     }
   };
 
-  return { onNativeDragStart, onNativeDragEnd, onNativeDragOver, onNativeDrop };
+  return {
+    onNativeDragStart,
+    onNativeDragEnd,
+    onNativeDragOver,
+    onNativeDrop,
+  };
 };

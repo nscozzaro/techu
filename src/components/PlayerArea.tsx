@@ -1,15 +1,13 @@
-// PlayerArea.tsx
-
 import React from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import Cell from './Cell';
 import { PlayerEnum } from '../types';
-import { setHighlightedCells, setDraggingPlayer, resetUI } from '../features/game';
 import {
-  selectHandForPlayer,
-  selectDeckCountForPlayer,
-} from '../selectors';
+  setDraggingPlayer,
+  resetUI,
+} from '../features/game';
+import { selectHandForPlayer, selectDeckCountForPlayer } from '../selectors';
 
 interface PlayerAreaProps {
   playerId: PlayerEnum;
@@ -33,7 +31,7 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ playerId }) => {
     highlightDiscardPile: state.game.highlightDiscardPile,
   }));
 
-  // Use our new selectors:
+  // Use our selectors:
   const deckCount = useSelector((state: RootState) =>
     selectDeckCountForPlayer(state, playerId)
   );
@@ -41,7 +39,8 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ playerId }) => {
     selectHandForPlayer(state, playerId)
   );
 
-  const clearHighlights = () => dispatch(setHighlightedCells([]));
+  // Removed clearHighlights entirely; we now clear highlights directly in the drag-drop hook
+
   const handleDragStart = () => dispatch(setDraggingPlayer(playerId));
   const handleDragEnd = () => dispatch(resetUI());
 
@@ -50,7 +49,6 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ playerId }) => {
       type="deck"
       count={deckCount}
       playerId={playerId}
-      clearHighlights={clearHighlights}
       isCurrentPlayer={currentTurn === playerId}
     />
   );
@@ -61,7 +59,6 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ playerId }) => {
       stack={discardPile}
       playerId={playerId}
       isVisible={true}
-      clearHighlights={clearHighlights}
       isCurrentPlayer={currentTurn === playerId}
       isDisabled={firstMove}
       isHighlighted={currentTurn === playerId ? highlightDiscardPile : false}
@@ -77,7 +74,6 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ playerId }) => {
         index={index}
         playerId={playerId}
         highlightedCells={highlightedCells}
-        clearHighlights={clearHighlights}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
         isCurrentPlayer={currentTurn === playerId}
