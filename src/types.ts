@@ -34,6 +34,10 @@ export enum RankEnum {
   ACE = 'A',
 }
 
+// New type aliases for clarity and strong typing.
+export type CellIndex = number;
+export type CardIndex = number;
+
 // Rank order mapping
 export const rankOrder: { [key in RankEnum]: number } = {
   [RankEnum.TWO]: 2,
@@ -71,8 +75,8 @@ export type BoardState = Cards[];
 
 export interface Move {
   type: 'board' | 'discard';
-  cellIndex?: number;
-  cardIndex: number;
+  cellIndex?: CellIndex;
+  cardIndex: CardIndex;
 }
 
 export type Moves = Move[];
@@ -83,7 +87,7 @@ export type SetHand = Dispatch<SetStateAction<Cards>>;
 export const BOARD_SIZE = 5;
 
 export type StartingIndices = {
-  [key in PlayerEnum]: number;
+  [key in PlayerEnum]: CellIndex;
 };
 
 export const STARTING_INDICES: StartingIndices = {
@@ -99,7 +103,7 @@ export type PlayerBooleans = { [key in PlayerEnum]: boolean };
 export type Scores = { [key in PlayerEnum]: number };
 
 export interface FaceDownCard extends Card {
-  cellIndex: number;
+  cellIndex: CellIndex;
 }
 
 export type InitialFaceDownCards = { [key in PlayerEnum]?: FaceDownCard };
