@@ -7,7 +7,7 @@ import Scoreboard from './components/Scoreboard';
 import { isGameOver } from './features/game';
 import { PlayerEnum } from './types';
 import { RootState, AppDispatch } from './store';
-import { setGameOver, setHighlightedCells, flipInitialCards, playTurn } from './features/game';
+import { setGameOver, setHighlightedCells, flipInitialCards, processTurn } from './features/game';
 import { selectScores } from './selectors';
 
 function App() {
@@ -23,9 +23,9 @@ function App() {
       dispatch(setHighlightedCells([]));
       dispatch(flipInitialCards());
     }
-    // If it's Player2's turn and the game isn't over, play their turn
+    // If it's Player2's turn and the game isn't over, process their turn
     if (currentTurn === PlayerEnum.PLAYER2 && !gameOver) {
-      dispatch(playTurn(PlayerEnum.PLAYER2));
+      dispatch(processTurn({ playerId: PlayerEnum.PLAYER2 }));
     }
     // Check if the game is over
     if (isGameOver(players)) {

@@ -1,7 +1,7 @@
 // src/hooks/useCellDragDrop.ts
 import { useDispatch } from 'react-redux';
 import { AppDispatch } from '../store';
-import { triggerCardDrag, setHighlightedCells } from '../features/game';
+import { startCardDrag, setHighlightedCells } from '../features/game';
 import { Card, PlayerEnum } from '../types';
 
 interface UseCellDragDropProps {
@@ -27,7 +27,7 @@ export const useCellDragDrop = (props: UseCellDragDropProps) => {
 
   const onNativeDragStart = (e: React.DragEvent<HTMLDivElement>) => {
     if (playerId !== undefined && index !== undefined && card) {
-      dispatch(triggerCardDrag({ cardIndex: index, playerId }));
+      dispatch(startCardDrag({ cardIndex: index, playerId }));
     }
     onDragStart && onDragStart();
     e.dataTransfer.setData('text/plain', JSON.stringify({ cardIndex: index, playerId }));
