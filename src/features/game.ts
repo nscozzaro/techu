@@ -241,7 +241,6 @@ export const handleCardDragLogic = (
   );
 
 /* ---------- UI Helpers ---------- */
-// Updated flipCardsInBoard: iterate over all entries in initialFaceDownCards
 const flipCardsInBoard = (
   initialFaceDownCards: InitialFaceDownCards,
   boardState: BoardState
@@ -423,13 +422,11 @@ const gameSlice = createSlice({
       state.draggingPlayer = null;
       state.highlightDiscardPile = false;
     },
-    // New reducer that lets us update several parts of the state at once.
     updateGame: (state, action: PayloadAction<Partial<GameState>>) => {
       for (const key in action.payload) {
         (state as any)[key] = action.payload[key as keyof GameState];
       }
     },
-    // New reducer action that pushes a card to a board cell without manual cloning:
     pushCardToBoard: (
       state,
       action: PayloadAction<{ cellIndex: number; card: Card }>
@@ -464,11 +461,9 @@ export const {
 export default gameSlice.reducer;
 
 /* ---------- Thunk Actions ---------- */
-// Helper to compute card to place without nested ifs.
 const computeCardToPlace = (card: Card, isFirst: boolean, tieBreaker: boolean): Card =>
   isFirst && !tieBreaker ? { ...card, faceDown: true } : { ...card, faceDown: false };
 
-// Refactored applyGameUpdate now uses updateGame to combine state updates.
 export const applyGameUpdate = (
   dispatch: AppDispatch,
   getState: () => RootState,
@@ -514,7 +509,6 @@ export const flipInitialCards = () => (dispatch: AppDispatch, getState: () => Ro
   }
 };
 
-// Refactored placeCardOnBoard thunk with simplified board update using updateBoardCell.
 export const placeCardOnBoard = ({ index, cardIndex }: { index: number; cardIndex: number }) => (
   dispatch: AppDispatch,
   getState: () => RootState
@@ -617,12 +611,12 @@ const performRegularTurn = (
     newBoardState: result.newBoardState,
     nextPlayerTurn: result.nextPlayerTurn,
   });
-  if (playerId === PlayerEnum.PLAYER2) {
-    if (result.moveMade && result.move && result.move.type === 'discard')
-      dispatch(discardCard({ cardIndex: result.move.cardIndex, playerId }));
-    else {
-      const idx = game.players[playerId].hand.findIndex(c => c !== null);
-      if (idx !== -1) dispatch(discardCard({ cardIndex: idx, playerId }));
-    }
+  if (playerId !== PlayerEnum.PLAYER2) return;
+  const discardIndex =
+    result.moveMade && result.move && result.move.type === 'discard'
+      ? result.move.cardIndex
+      : game.players[playerId].hand.findIndex(c => c !== null);
+  if (discardIndex !== -1) {
+    dispatch(discardCard({ cardIndex: discardIndex, playerId }));
   }
 };
