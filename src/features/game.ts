@@ -88,6 +88,10 @@ export const isGameOver = (players: Players): boolean =>
 const selectRandomMove = (moves: Move[]): Move | null =>
   moves.length ? moves[Math.floor(Math.random() * moves.length)] : null;
 
+/* ---------- New Helper: update board cell ---------- */
+const updateBoardCell = (board: BoardState, cellIndex: number, card: Card): BoardState =>
+  board.map((cell, idx) => (idx === cellIndex ? [...cell, card] : cell));
+
 /* ---------- Helper: Apply a move to board state ---------- */
 const applyMoveToBoardState = (
   boardState: BoardState,
@@ -549,7 +553,7 @@ export const flipInitialCards = () => (dispatch: any, getState: any) => {
   }
 };
 
-// Refactored placeCardOnBoard thunk with simplified logic.
+// Refactored placeCardOnBoard thunk with simplified board update using updateBoardCell.
 export const placeCardOnBoard = ({ index, cardIndex }: { index: number; cardIndex: number }) => (
   dispatch: any,
   getState: any
@@ -567,9 +571,7 @@ export const placeCardOnBoard = ({ index, cardIndex }: { index: number; cardInde
     dispatch(setInitialFaceDownCards({ [currentTurn]: { ...cardToPlace, cellIndex: index } }));
   }
   const updatedPlayers = updatePlayerHandAndDrawCard(state.players, currentTurn, cardIndex, cardIndex);
-  const newBoard = state.board.map((cell: (Card | null)[], idx: number) =>
-    idx === index ? [...cell, cardToPlace] : cell
-  );
+  const newBoard = updateBoardCell(state.board, index, cardToPlace);
   applyGameUpdate(dispatch, getState, {
     updatedPlayers,
     newBoardState: newBoard,
