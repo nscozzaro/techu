@@ -222,6 +222,7 @@ export const performRegularMoveForPlayer = (
   };
 };
 
+/* ---------- New Helper: Handle Card Drag Logic ---------- */
 export const handleCardDragLogic = (
   cardIndex: CardIndex,
   playerId: PlayerEnum,
@@ -564,15 +565,7 @@ export const discardCard = ({ cardIndex, playerId }: { cardIndex: CardIndex; pla
   });
 };
 
-// Helper: Extract discard index to simplify nested logic.
-const getDiscardIndex = (
-  result: ReturnType<typeof performRegularMoveForPlayer>,
-  player: Players[PlayerEnum]
-): CardIndex => {
-  if (result.moveMade && result.move?.type === 'discard') return result.move.cardIndex;
-  return player.hand.findIndex(c => c !== null);
-};
-
+/* ---------- Thunk: Trigger Card Drag ---------- */
 export const triggerCardDrag = ({ cardIndex, playerId }: { cardIndex: CardIndex; playerId: PlayerEnum }) => (
   dispatch: AppDispatch,
   getState: () => RootState
@@ -590,6 +583,7 @@ export const triggerCardDrag = ({ cardIndex, playerId }: { cardIndex: CardIndex;
   dispatch(setHighlightDiscardPile(turn.currentTurn === playerId && !gameStatus.firstMove[playerId]));
 };
 
+/* ---------- Thunk: Play Turn ---------- */
 export const playTurn = (playerId: PlayerEnum) => (dispatch: AppDispatch, getState: () => RootState) => {
   const state = getState().game;
   if (state.gameStatus.firstMove[playerId]) performFirstMove(dispatch, state, playerId, getState);
@@ -629,8 +623,9 @@ const performRegularTurn = (
     newBoardState: result.newBoardState,
     nextPlayerTurn: result.nextPlayerTurn,
   });
-  if (playerId !== PlayerEnum.PLAYER2) return;
-  const discardIndex = getDiscardIndex(result, game.players[playerId]);
-  if (discardIndex === -1) return;
-  dispatch(discardCard({ cardIndex: discardIndex, playerId }));
+  // Only dispatch a discard action for Player 2 if the chosen move was a discard move.
+  if (playerId === PlayerEnum.PLAYER2 && result.move?.type === 'discard') {
+    dispatch(discardCard({ cardIndex: result.move.cardIndex, playerId }));
+  }
 };
+
