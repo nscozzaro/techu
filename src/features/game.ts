@@ -329,7 +329,6 @@ export interface GameState {
     firstMove: PlayerBooleans;
     gameOver: boolean;
     tieBreaker: boolean;
-    tieBreakInProgress: boolean;
     initialFaceDownCards: { [key in PlayerEnum]?: Card & { cellIndex: CardIndex } };
   };
   highlightedCells: number[];
@@ -346,7 +345,6 @@ const initialState: GameState = {
     firstMove: initialFirstMove(),
     gameOver: false,
     tieBreaker: false,
-    tieBreakInProgress: false,
     initialFaceDownCards: {},
   },
   highlightedCells: [],
@@ -388,9 +386,6 @@ const gameSlice = createSlice({
     },
     setTieBreaker: (state, action: PayloadAction<boolean>) => {
       state.gameStatus.tieBreaker = action.payload;
-    },
-    setTieBreakInProgress: (state, action: PayloadAction<boolean>) => {
-      state.gameStatus.tieBreakInProgress = action.payload;
     },
     setInitialFaceDownCards: (
       state,
@@ -447,7 +442,6 @@ export const {
   setFirstMove,
   setGameOver,
   setTieBreaker,
-  setTieBreakInProgress,
   setInitialFaceDownCards,
   clearInitialFaceDownCards,
   setTurn,
@@ -507,7 +501,6 @@ export const flipInitialCards = () => (dispatch: AppDispatch, getState: () => Ro
           ...state.gameStatus,
           firstMove: result.firstMove,
           tieBreaker: result.tieBreaker,
-          tieBreakInProgress: result.tieBreaker,
           initialFaceDownCards: {},
           gameOver: isGameOver(state.players),
         },
@@ -628,4 +621,3 @@ const performRegularTurn = (
     dispatch(discardCard({ cardIndex: result.move.cardIndex, playerId }));
   }
 };
-
