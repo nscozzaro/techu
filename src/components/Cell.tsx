@@ -1,4 +1,4 @@
-// Cell.tsx
+// src/components/Cell.tsx
 
 import React from 'react';
 import { useDispatch } from 'react-redux';
@@ -43,17 +43,23 @@ const renderCardBack = (owner: PlayerEnum, extraStyle?: React.CSSProperties) => 
   return (
     <div
       className="card-back"
-      style={{ backgroundImage: `url(${image})`, backgroundSize: 'cover', backgroundPosition: 'center', ...extraStyle }}
+      style={{
+        backgroundImage: `url(${image})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        ...extraStyle,
+      }}
     />
   );
 };
 
-const renderDeck = (count: number, owner: PlayerEnum) =>
-  count > 0 ? (
+const renderDeckContent = (count: number | undefined, playerId?: PlayerEnum): JSX.Element | null => {
+  if (count === undefined || !playerId) return null;
+  return count > 0 ? (
     <div
       className="card-back deck-back"
       style={{
-        backgroundImage: `url(${owner === PlayerEnum.PLAYER1 ? cardBackRed : cardBackBlue})`,
+        backgroundImage: `url(${playerId === PlayerEnum.PLAYER1 ? cardBackRed : cardBackBlue})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
       }}
@@ -61,27 +67,45 @@ const renderDeck = (count: number, owner: PlayerEnum) =>
       <div className="deck-count">{count}</div>
     </div>
   ) : (
-    <div className="card-back empty-deck" style={{ backgroundColor: owner === PlayerEnum.PLAYER1 ? '#800000' : '#000080' }}>
+    <div className="card-back empty-deck" style={{ backgroundColor: playerId === PlayerEnum.PLAYER1 ? '#800000' : '#000080' }}>
       <div className="deck-count">0</div>
     </div>
   );
+};
+
+const renderHandContent = (card?: Card | null): JSX.Element =>
+  card ? (card.faceDown ? renderCardBack(card.owner) : renderCardContent(card)) : <div className="empty-placeholder" />;
+
+const renderDiscardContent = (stack?: (Card | null)[], isVisible?: boolean): JSX.Element | null => {
+  if (!isVisible) return null;
+  const topCard = stack && stack.length ? stack[stack.length - 1] : null;
+  return topCard
+    ? topCard.faceDown
+      ? renderCardBack(topCard.owner)
+      : renderCardContent(topCard)
+    : <span>Discard</span>;
+};
+
+const renderBoardContent = (stack?: (Card | null)[]): JSX.Element | null => {
+  const topCard = stack && stack.length ? stack[stack.length - 1] : null;
+  return topCard
+    ? topCard.faceDown
+      ? renderCardBack(topCard.owner)
+      : renderCardContent(topCard)
+    : null;
+};
 
 const renderCellContent = (props: CellProps): JSX.Element | null => {
   const { type, card, stack, count, playerId, isVisible } = props;
   switch (type) {
     case 'deck':
-      return count !== undefined && playerId ? renderDeck(count, playerId) : null;
+      return renderDeckContent(count, playerId);
     case 'hand':
-      return card ? (card.faceDown ? renderCardBack(card.owner) : renderCardContent(card)) : <div className="empty-placeholder" />;
-    case 'discard': {
-      if (!isVisible) return null;
-      const topCard = stack && stack.length ? stack[stack.length - 1] : null;
-      return topCard ? (topCard.faceDown ? renderCardBack(topCard.owner) : renderCardContent(topCard)) : <span>Discard</span>;
-    }
-    case 'board': {
-      const topCard = stack && stack.length ? stack[stack.length - 1] : null;
-      return topCard ? (topCard.faceDown ? renderCardBack(topCard.owner) : renderCardContent(topCard)) : null;
-    }
+      return renderHandContent(card);
+    case 'discard':
+      return renderDiscardContent(stack, isVisible);
+    case 'board':
+      return renderBoardContent(stack);
     default:
       return null;
   }
@@ -109,14 +133,12 @@ const Cell: React.FC<CellProps> = ({
   const isHand = type === 'hand';
   const isDiscard = type === 'discard';
   const isBoard = type === 'board';
-  const isEmpty =
-    isHand
-      ? card === null
-      : (isDiscard || isBoard)
-      ? (stack?.length ?? 0) === 0
-      : false;
-  const shouldHighlight =
-    (isBoard || isDiscard) && highlightedCells?.includes(index ?? -1);
+  const isEmpty = isHand
+    ? card === null
+    : (isDiscard || isBoard)
+    ? (stack?.length ?? 0) === 0
+    : false;
+  const shouldHighlight = (isBoard || isDiscard) && highlightedCells?.includes(index ?? -1);
   const cellHighlighted = isHighlighted || shouldHighlight;
 
   const { onNativeDragStart, onNativeDragEnd, onNativeDragOver, onNativeDrop } =
@@ -147,9 +169,7 @@ const Cell: React.FC<CellProps> = ({
       draggable={draggable}
       onDragStart={draggable ? onNativeDragStart : undefined}
       onDragEnd={draggable ? onNativeDragEnd : undefined}
-      onDragOver={(isDiscard || isBoard || (isHand && swapCardsInHand))
-        ? onNativeDragOver
-        : undefined}
+      onDragOver={(isDiscard || isBoard || (isHand && swapCardsInHand)) ? onNativeDragOver : undefined}
       onDrop={(isDiscard || isBoard || (isHand && swapCardsInHand))
         ? (e) => onNativeDrop(e, handleDrop)
         : undefined}
