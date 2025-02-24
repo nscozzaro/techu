@@ -281,7 +281,6 @@ const flipCardsInBoard = (
   initialFaceDownCards: InitialFaceDownCards,
   boardState: BoardState
 ): BoardState => {
-  // Create a shallow clone of the board.
   let newBoardState = boardState.map(cell => [...cell]);
   Object.entries(initialFaceDownCards).forEach(([player, cardData]) => {
     if (cardData) {
@@ -355,7 +354,7 @@ export const calculateScores = (boardState: BoardState): Scores =>
   }, { [PlayerEnum.PLAYER1]: 0, [PlayerEnum.PLAYER2]: 0 } as Scores);
 
 /* ---------- Redux Slice ---------- */
-interface GameState {
+export interface GameState {
   board: BoardState;
   players: Players;
   discard: DiscardPiles;
@@ -459,6 +458,12 @@ const gameSlice = createSlice({
       state.draggingPlayer = null;
       state.highlightDiscardPile = false;
     },
+    // New reducer that lets us update several parts of the state at once.
+    updateGame: (state, action: PayloadAction<Partial<GameState>>) => {
+      for (const key in action.payload) {
+        (state as any)[key] = action.payload[key as keyof GameState];
+      }
+    },
     // New reducer action that pushes a card to a board cell without manual cloning:
     pushCardToBoard: (
       state,
@@ -487,12 +492,17 @@ export const {
   setDraggingPlayer,
   setHighlightDiscardPile,
   resetUI,
+  updateGame,
   pushCardToBoard,
 } = gameSlice.actions;
 
+export default gameSlice.reducer;
+
 /* ---------- Thunk Actions ---------- */
+// Refactored applyGameUpdate now uses updateGame to combine state updates.
 export const applyGameUpdate = (
   dispatch: any,
+  getState: any,
   update: {
     updatedPlayers: Players;
     newBoardState: BoardState;
@@ -500,11 +510,21 @@ export const applyGameUpdate = (
     nextPlayerTurn: PlayerEnum;
   }
 ): void => {
-  dispatch(updatePlayers(update.updatedPlayers));
-  dispatch(setBoardState(update.newBoardState));
-  if (update.newFirstMove !== undefined) dispatch(setFirstMove(update.newFirstMove));
-  dispatch(setTurn(update.nextPlayerTurn));
-  dispatch(resetUI());
+  const currentGameStatus = getState().game.gameStatus;
+  dispatch(
+    updateGame({
+      players: update.updatedPlayers,
+      board: update.newBoardState,
+      turn: { currentTurn: update.nextPlayerTurn },
+      gameStatus:
+        update.newFirstMove !== undefined
+          ? { ...currentGameStatus, firstMove: update.newFirstMove }
+          : currentGameStatus,
+      highlightedCells: [],
+      draggingPlayer: null,
+      highlightDiscardPile: false,
+    })
+  );
 };
 
 export const flipInitialCards = () => (dispatch: any, getState: any) => {
@@ -512,7 +532,7 @@ export const flipInitialCards = () => (dispatch: any, getState: any) => {
   if (initialFaceDownCards[PlayerEnum.PLAYER1] && initialFaceDownCards[PlayerEnum.PLAYER2]) {
     dispatch(setHighlightedCells([]));
     const result = flipInitialCardsLogic(initialFaceDownCards, getState().game.board);
-    applyGameUpdate(dispatch, {
+    applyGameUpdate(dispatch, getState, {
       updatedPlayers: getState().game.players,
       newBoardState: result.newBoardState,
       newFirstMove: result.firstMove,
@@ -525,7 +545,7 @@ export const flipInitialCards = () => (dispatch: any, getState: any) => {
   }
 };
 
-// Refactored placeCardOnBoard thunk using the new pushCardToBoard reducer action.
+// Refactored placeCardOnBoard thunk using updateGame.
 export const placeCardOnBoard = ({ index, cardIndex }: { index: number; cardIndex: number }) => (
   dispatch: any,
   getState: any
@@ -539,7 +559,6 @@ export const placeCardOnBoard = ({ index, cardIndex }: { index: number; cardInde
   }
   let cardToPlace = card;
   if (state.gameStatus.firstMove[currentTurn] && !state.gameStatus.tieBreaker) {
-    // For the first move (normal), the card is initially placed face down.
     cardToPlace = { ...card, faceDown: true };
     dispatch(setInitialFaceDownCards({ [currentTurn]: { ...cardToPlace, cellIndex: index } }));
   } else if (state.gameStatus.tieBreaker) {
@@ -547,11 +566,16 @@ export const placeCardOnBoard = ({ index, cardIndex }: { index: number; cardInde
     dispatch(setInitialFaceDownCards({ [currentTurn]: { ...cardToPlace, cellIndex: index } }));
   }
   const updatedPlayers = updatePlayerHandAndDrawCard(state.players, currentTurn, cardIndex, cardIndex);
-  dispatch(updatePlayers(updatedPlayers));
-  dispatch(pushCardToBoard({ cellIndex: index, card: cardToPlace }));
-  dispatch(setFirstMove({ ...state.gameStatus.firstMove, [currentTurn]: false }));
-  dispatch(setTurn(getNextPlayerTurn(currentTurn)));
-  dispatch(resetUI());
+  // Provide explicit types for the callback parameters.
+  const newBoard = state.board.map((cell: (Card | null)[], idx: number) =>
+    idx === index ? [...cell, cardToPlace] : cell
+  );
+  applyGameUpdate(dispatch, getState, {
+    updatedPlayers,
+    newBoardState: newBoard,
+    newFirstMove: { ...state.gameStatus.firstMove, [currentTurn]: false },
+    nextPlayerTurn: getNextPlayerTurn(currentTurn),
+  });
   if (isGameOver(updatedPlayers)) dispatch(setGameOver(true));
 };
 
@@ -567,7 +591,7 @@ export const discardCard = ({ cardIndex, playerId }: { cardIndex: number; player
   if (!cardToDiscard) return;
   dispatch(addDiscardCard({ playerId, card: { ...cardToDiscard, faceDown: true } }));
   const newPlayers = updatePlayerHandAndDrawCard(players, playerId, cardIndex, cardIndex);
-  applyGameUpdate(dispatch, {
+  applyGameUpdate(dispatch, getState, {
     updatedPlayers: newPlayers,
     newBoardState: board,
     nextPlayerTurn: getNextPlayerTurn(playerId),
@@ -593,11 +617,11 @@ export const triggerCardDrag = ({ cardIndex, playerId }: { cardIndex: number; pl
 
 export const playTurn = (playerId: PlayerEnum) => (dispatch: any, getState: any) => {
   const state = getState().game;
-  if (state.gameStatus.firstMove[playerId]) performFirstMove(dispatch, state, playerId);
-  else performRegularTurn(dispatch, state, playerId);
+  if (state.gameStatus.firstMove[playerId]) performFirstMove(dispatch, state, playerId, getState);
+  else performRegularTurn(dispatch, state, playerId, getState);
 };
 
-const performFirstMove = (dispatch: any, game: GameState, playerId: PlayerEnum) => {
+const performFirstMove = (dispatch: any, game: GameState, playerId: PlayerEnum, getState: any) => {
   const result = performFirstMoveForPlayer(
     game.players,
     playerId,
@@ -605,7 +629,7 @@ const performFirstMove = (dispatch: any, game: GameState, playerId: PlayerEnum) 
     game.gameStatus.tieBreaker,
     (cards: InitialFaceDownCards) => dispatch(setInitialFaceDownCards(cards))
   );
-  applyGameUpdate(dispatch, {
+  applyGameUpdate(dispatch, getState, {
     updatedPlayers: result.updatedPlayers,
     newBoardState: result.newBoardState,
     newFirstMove: result.newFirstMove,
@@ -613,9 +637,9 @@ const performFirstMove = (dispatch: any, game: GameState, playerId: PlayerEnum) 
   });
 };
 
-const performRegularTurn = (dispatch: any, game: GameState, playerId: PlayerEnum) => {
+const performRegularTurn = (dispatch: any, game: GameState, playerId: PlayerEnum, getState: any) => {
   const result = performRegularMoveForPlayer(game.players, playerId, game.board);
-  applyGameUpdate(dispatch, {
+  applyGameUpdate(dispatch, getState, {
     updatedPlayers: result.updatedPlayers,
     newBoardState: result.newBoardState,
     nextPlayerTurn: result.nextPlayerTurn,
@@ -629,5 +653,3 @@ const performRegularTurn = (dispatch: any, game: GameState, playerId: PlayerEnum
     }
   }
 };
-
-export default gameSlice.reducer;
