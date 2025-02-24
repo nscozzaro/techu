@@ -153,13 +153,19 @@ const Cell: React.FC<CellProps> = ({
     });
 
   const handleDrop = (dragData: { cardIndex: number; playerId: PlayerEnum }) => {
-    if (isDiscard && playerId) {
-      dispatch(discardCard({ cardIndex: dragData.cardIndex, playerId }));
-    } else if (isBoard && index !== undefined) {
-      dispatch(placeCardOnBoard({ index, cardIndex: dragData.cardIndex }));
-    } else if (isHand && playerId === PlayerEnum.PLAYER1 && swapCardsInHand && index !== undefined) {
-      swapCardsInHand(PlayerEnum.PLAYER1, dragData.cardIndex, index);
-    }
+    const dropActions: { [key in CellType]?: (data: { cardIndex: number; playerId: PlayerEnum }) => void } = {
+      discard: (data) => {
+        if (playerId) dispatch(discardCard({ cardIndex: data.cardIndex, playerId }));
+      },
+      board: (data) => {
+        if (index !== undefined) dispatch(placeCardOnBoard({ index, cardIndex: data.cardIndex }));
+      },
+      hand: (data) => {
+        if (playerId === PlayerEnum.PLAYER1 && swapCardsInHand && index !== undefined)
+          swapCardsInHand(PlayerEnum.PLAYER1, data.cardIndex, index);
+      },
+    };
+    dropActions[type]?.(dragData);
   };
 
   const draggable = isHand && playerId === PlayerEnum.PLAYER1 && isCurrentPlayer && !isDisabled && !!card;
