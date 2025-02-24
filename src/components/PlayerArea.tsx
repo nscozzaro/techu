@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import Cell from './Cell';
 import { PlayerEnum, Card } from '../types';
-import { setHighlightedCells, setDraggingPlayer, resetUI, swapCardsInHand } from '../features/game';
+import { setHighlightedCells, setDraggingPlayer, resetUI } from '../features/game';
 
 interface PlayerAreaProps {
   playerId: PlayerEnum;
@@ -33,10 +33,6 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ playerId }) => {
   const clearHighlights = () => dispatch(setHighlightedCells([]));
   const handleDragStart = () => dispatch(setDraggingPlayer(playerId));
   const handleDragEnd = () => dispatch(resetUI());
-  const handleSwapCards = (sourceIndex: number, targetIndex: number) => {
-    if (playerId !== PlayerEnum.PLAYER1) return;
-    dispatch(swapCardsInHand({ playerId, sourceIndex, targetIndex }));
-  };
 
   const renderDeck = () => (
     <Cell
@@ -76,11 +72,6 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ playerId }) => {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
         isCurrentPlayer={currentTurn === playerId}
-        swapCardsInHand={
-          playerId === PlayerEnum.PLAYER1
-            ? (_: PlayerEnum, source: number, target: number) => handleSwapCards(source, target)
-            : undefined
-        }
       />
     ));
   };

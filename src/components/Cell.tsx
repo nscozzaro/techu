@@ -25,7 +25,6 @@ interface CellProps {
   isCurrentPlayer?: boolean;
   isDisabled?: boolean;
   isHighlighted?: boolean;
-  swapCardsInHand?: (playerId: PlayerEnum, sourceIndex: number, targetIndex: number) => void;
 }
 
 const renderCardContent = (card: Card) => (
@@ -130,7 +129,6 @@ const Cell: React.FC<CellProps> = ({
   isCurrentPlayer = false,
   isDisabled = false,
   isHighlighted = false,
-  swapCardsInHand,
   clearHighlights,
 }) => {
   const dispatch = useDispatch<AppDispatch>();
@@ -157,7 +155,7 @@ const Cell: React.FC<CellProps> = ({
       playerId,
     });
 
-  // New unified drop handler
+  // Unified drop handler
   const handleDrop = (dragData: { cardIndex: number; playerId: PlayerEnum }) => {
     if (type === 'discard') {
       dispatch(
@@ -176,11 +174,16 @@ const Cell: React.FC<CellProps> = ({
           boardIndex: index,
         })
       );
-    } else if (type === 'hand' && swapCardsInHand && index !== undefined) {
-      // Hand-swapping remains as is
-      if (playerId === PlayerEnum.PLAYER1) {
-        swapCardsInHand(PlayerEnum.PLAYER1, dragData.cardIndex, index);
-      }
+    } else if (type === 'hand' && index !== undefined) {
+      // Now handled entirely by Redux
+      dispatch(
+        moveCard({
+          cardIndex: dragData.cardIndex,
+          playerId: dragData.playerId,
+          destination: 'hand',
+          handIndex: index,
+        })
+      );
     }
   };
 
@@ -193,12 +196,12 @@ const Cell: React.FC<CellProps> = ({
       onDragStart={draggable ? onNativeDragStart : undefined}
       onDragEnd={draggable ? onNativeDragEnd : undefined}
       onDragOver={
-        isDiscard || isBoard || (isHand && swapCardsInHand)
+        isDiscard || isBoard || isHand
           ? onNativeDragOver
           : undefined
       }
       onDrop={
-        isDiscard || isBoard || (isHand && swapCardsInHand)
+        isDiscard || isBoard || isHand
           ? (e) => onNativeDrop(e, handleDrop)
           : undefined
       }

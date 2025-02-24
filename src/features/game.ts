@@ -383,28 +383,6 @@ const gameSlice = createSlice({
     updatePlayers: (state, action: PayloadAction<Players>) => {
       state.players = action.payload;
     },
-    swapCardsInHand: (
-      state,
-      action: PayloadAction<{
-        playerId: PlayerEnum;
-        sourceIndex: CardIndex;
-        targetIndex: CardIndex;
-      }>
-    ) => {
-      const { playerId, sourceIndex, targetIndex } = action.payload;
-      const hand = state.players[playerId].hand;
-      if (
-        sourceIndex >= 0 &&
-        sourceIndex < hand.length &&
-        targetIndex >= 0 &&
-        targetIndex < hand.length
-      ) {
-        [hand[sourceIndex], hand[targetIndex]] = [
-          hand[targetIndex],
-          hand[sourceIndex],
-        ];
-      }
-    },
     addDiscardCard: (
       state,
       action: PayloadAction<{ playerId: PlayerEnum; card: Card }>
@@ -473,11 +451,12 @@ const gameSlice = createSlice({
       action: PayloadAction<{
         cardIndex: CardIndex;
         playerId: PlayerEnum;
-        destination: 'discard' | 'board';
+        destination: 'discard' | 'board' | 'hand';
         boardIndex?: number;
+        handIndex?: number;
       }>
     ) => {
-      const { cardIndex, playerId, destination, boardIndex } = action.payload;
+      const { cardIndex, playerId, destination, boardIndex, handIndex } = action.payload;
       if (state.gameStatus.gameOver) return;
 
       const player = state.players[playerId];
@@ -491,7 +470,6 @@ const gameSlice = createSlice({
       // Discard requires that it's not the first move
       if (destination === 'discard') {
         if (state.gameStatus.firstMove[playerId]) return;
-        // Discard logic:
         state.discard[playerId].push({ ...cardToMove, faceDown: true });
         state.players = updatePlayerHandAndDrawCard(
           state.players,
@@ -529,7 +507,14 @@ const gameSlice = createSlice({
         state.turn.currentTurn = getNextPlayerTurn(playerId);
       }
 
-      // Check if game is over after moving
+      // Swapping within hand (do not end turn)
+      else if (destination === 'hand' && handIndex !== undefined) {
+        const hand = state.players[playerId].hand;
+        [hand[cardIndex], hand[handIndex]] = [hand[handIndex], hand[cardIndex]];
+        // Note: No turn switch here!
+      }
+
+      // Check if game is over after any actual move to board/discard
       if (isGameOver(state.players)) {
         state.gameStatus.gameOver = true;
       }
@@ -545,7 +530,6 @@ const gameSlice = createSlice({
 export const {
   setBoardState,
   updatePlayers,
-  swapCardsInHand,
   addDiscardCard,
   resetDiscardPiles,
   setFirstMove,
@@ -567,8 +551,6 @@ export const {
 export default gameSlice.reducer;
 
 /* ---------- Thunk Actions ---------- */
-
-// Removed placeCardOnBoard and discardCard thunks since they're now handled by moveCard.
 
 // applyGameUpdate remains for AI-based moves
 export const applyGameUpdate = (
