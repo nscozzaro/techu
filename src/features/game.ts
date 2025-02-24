@@ -499,6 +499,10 @@ export const {
 export default gameSlice.reducer;
 
 /* ---------- Thunk Actions ---------- */
+// Helper to compute card to place without nested ifs.
+const computeCardToPlace = (card: Card, isFirst: boolean, tieBreaker: boolean): Card =>
+  isFirst && !tieBreaker ? { ...card, faceDown: true } : { ...card, faceDown: false };
+
 // Refactored applyGameUpdate now uses updateGame to combine state updates.
 export const applyGameUpdate = (
   dispatch: any,
@@ -545,7 +549,7 @@ export const flipInitialCards = () => (dispatch: any, getState: any) => {
   }
 };
 
-// Refactored placeCardOnBoard thunk using updateGame.
+// Refactored placeCardOnBoard thunk with simplified logic.
 export const placeCardOnBoard = ({ index, cardIndex }: { index: number; cardIndex: number }) => (
   dispatch: any,
   getState: any
@@ -557,16 +561,12 @@ export const placeCardOnBoard = ({ index, cardIndex }: { index: number; cardInde
     dispatch(setTurn(getNextPlayerTurn(currentTurn)));
     return;
   }
-  let cardToPlace = card;
-  if (state.gameStatus.firstMove[currentTurn] && !state.gameStatus.tieBreaker) {
-    cardToPlace = { ...card, faceDown: true };
-    dispatch(setInitialFaceDownCards({ [currentTurn]: { ...cardToPlace, cellIndex: index } }));
-  } else if (state.gameStatus.tieBreaker) {
-    cardToPlace = { ...card, faceDown: false };
+  const { firstMove, tieBreaker } = state.gameStatus;
+  const cardToPlace = computeCardToPlace(card, firstMove[currentTurn], tieBreaker);
+  if (firstMove[currentTurn] || tieBreaker) {
     dispatch(setInitialFaceDownCards({ [currentTurn]: { ...cardToPlace, cellIndex: index } }));
   }
   const updatedPlayers = updatePlayerHandAndDrawCard(state.players, currentTurn, cardIndex, cardIndex);
-  // Provide explicit types for the callback parameters.
   const newBoard = state.board.map((cell: (Card | null)[], idx: number) =>
     idx === index ? [...cell, cardToPlace] : cell
   );
