@@ -334,31 +334,21 @@ const gameSlice = createSlice({
       const { cardIndex, playerId, destination, boardIndex, handIndex } = action.payload;
       const player = state.players[playerId];
       const cardToMove = player.hand[cardIndex];
+
       if (!cardToMove) {
-        state.turn.currentTurn = getNextPlayerTurn(playerId);
-        Object.assign(state, resetUIState());
+        handleEmptyCardMove(state, playerId);
         return;
       }
+
       if (destination === 'discard' && !state.gameStatus.firstMove[playerId]) {
-        state.discard[playerId].push({ ...cardToMove, faceDown: true });
-        state.players = updatePlayerHandAndDrawCard(state.players, playerId, cardIndex);
-        state.turn.currentTurn = getNextPlayerTurn(playerId);
+        handleDiscardMove(state, playerId, cardIndex, cardToMove);
       } else if (destination === 'board' && boardIndex !== undefined) {
-        const isFirst = state.gameStatus.firstMove[playerId];
-        const tieBreaker = state.gameStatus.tieBreaker;
-        const cardCopy = { ...cardToMove, faceDown: isFirst && !tieBreaker };
-        if (isFirst || tieBreaker) {
-          state.gameStatus.initialFaceDownCards[playerId] = { ...cardCopy, cellIndex: boardIndex };
-        }
-        state.board[boardIndex].push(cardCopy);
-        state.players = updatePlayerHandAndDrawCard(state.players, playerId, cardIndex);
-        state.gameStatus.firstMove[playerId] = false;
-        state.turn.currentTurn = getNextPlayerTurn(playerId);
+        handleBoardMove(state, playerId, cardIndex, cardToMove, boardIndex);
       } else if (destination === 'hand' && handIndex !== undefined) {
-        [player.hand[cardIndex], player.hand[handIndex]] = [player.hand[handIndex], player.hand[cardIndex]];
+        handleHandMove(player, cardIndex, handIndex);
       }
-      if (isGameOver(state.players)) state.gameStatus.gameOver = true;
-      Object.assign(state, resetUIState());
+
+      finalizeMove(state);
     },
     processTurn: (state, action: PayloadAction<{ playerId: PlayerEnum }>) => {
       const { playerId } = action.payload;
@@ -529,3 +519,56 @@ function resetUIState(): Partial<GameState> {
     highlightDiscardPile: false,
   };
 }
+
+const handleDiscardMove = (
+  state: GameState,
+  playerId: PlayerEnum,
+  cardIndex: CardIndex,
+  cardToMove: Card
+): void => {
+  state.discard[playerId].push({ ...cardToMove, faceDown: true });
+  state.players = updatePlayerHandAndDrawCard(state.players, playerId, cardIndex);
+  state.turn.currentTurn = getNextPlayerTurn(playerId);
+};
+
+const handleBoardMove = (
+  state: GameState,
+  playerId: PlayerEnum,
+  cardIndex: CardIndex,
+  cardToMove: Card,
+  boardIndex: number
+): void => {
+  const isFirst = state.gameStatus.firstMove[playerId];
+  const tieBreaker = state.gameStatus.tieBreaker;
+  const cardCopy = { ...cardToMove, faceDown: isFirst && !tieBreaker };
+  
+  if (isFirst || tieBreaker) {
+    state.gameStatus.initialFaceDownCards[playerId] = { ...cardCopy, cellIndex: boardIndex };
+  }
+  
+  state.board[boardIndex].push(cardCopy);
+  state.players = updatePlayerHandAndDrawCard(state.players, playerId, cardIndex);
+  state.gameStatus.firstMove[playerId] = false;
+  state.turn.currentTurn = getNextPlayerTurn(playerId);
+};
+
+const handleHandMove = (
+  player: Players[PlayerEnum],
+  cardIndex: CardIndex,
+  handIndex: CardIndex
+): void => {
+  [player.hand[cardIndex], player.hand[handIndex]] = [player.hand[handIndex], player.hand[cardIndex]];
+};
+
+const handleEmptyCardMove = (
+  state: GameState,
+  playerId: PlayerEnum
+): void => {
+  state.turn.currentTurn = getNextPlayerTurn(playerId);
+  Object.assign(state, resetUIState());
+};
+
+const finalizeMove = (state: GameState): void => {
+  if (isGameOver(state.players)) state.gameStatus.gameOver = true;
+  Object.assign(state, resetUIState());
+};
