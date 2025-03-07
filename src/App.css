@@ -14,8 +14,9 @@ body {
   color: #fff;
   margin: 0;
   padding: 0;
-  height: 100vh;
-  height: -webkit-fill-available;
+  min-height: 100vh;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -25,9 +26,10 @@ body {
   text-align: center;
   display: grid;
   place-items: center;
-  height: 100vh;
-  height: -webkit-fill-available;
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  min-height: 100vh;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) calc(env(safe-area-inset-bottom) + 20px) env(safe-area-inset-left);
   width: 100%;
   box-sizing: border-box;
 }
@@ -43,6 +45,7 @@ body {
   border-radius: var(--border-radius);
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   height: fit-content;
+  max-height: calc(100dvh - env(safe-area-inset-bottom) - env(safe-area-inset-top) - 40px);
   box-sizing: border-box;
 }
 
@@ -282,13 +285,16 @@ body {
 /* iPhone SE and similar */
 @media (max-height: 568px) {
   :root {
-    --cell-width: min(14.5vw, 12vh);
+    --cell-width: min(14vw, 11.5vh);
     --gap-size: 1px;
   }
 
   .game-container {
     padding: 0;
     margin: 0;
+    transform: scale(0.92);
+    margin-top: -5px;
+    margin-bottom: -5px;
   }
 
   .player-area, .board {
@@ -298,6 +304,7 @@ body {
   .scoreboard {
     padding: 1px;
     font-size: min(14px, 3vw);
+    margin-bottom: -2px;
   }
 
   .suit {
@@ -311,18 +318,6 @@ body {
 
   .deck-count {
     font-size: min(14px, 3vw);
-  }
-}
-
-/* Ensure the game fits above Safari's search bar */
-@media (max-height: 568px) and (max-width: 320px) {
-  :root {
-    --cell-width: min(14vw, 11.5vh);
-  }
-
-  .game-container {
-    transform: scale(0.95);
-    margin-top: -10px;
   }
 }
 
