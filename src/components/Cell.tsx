@@ -1,24 +1,24 @@
 // src/components/Cell.tsx
 import React from 'react';
 import { useDispatch } from 'react-redux';
-import { Card, PlayerEnum } from '../types';
+import { Card, PlayerEnum, CellIndex, CellIndices, CardCount, DestinationEnum } from '../types';
 import cardBackRed from '../assets/card-back-red.png';
 import cardBackBlue from '../assets/card-back-blue.png';
 import { useCellDragDrop } from '../hooks/useCellDragDrop';
 import { AppDispatch } from '../store';
 import { moveCard } from '../features/game';
 
-export type CellType = 'deck' | 'hand' | 'discard' | 'board';
+type CellType = 'deck' | 'hand' | 'discard' | 'board';
 
 interface CellProps {
   type: CellType;
   card?: Card | null;
-  index?: number;
+  index?: CellIndex;
   playerId?: PlayerEnum;
   stack?: (Card | null)[];
   isVisible?: boolean;
-  count?: number;
-  highlightedCells?: number[];
+  count?: CardCount;
+  highlightedCells?: CellIndices;
   playerTurn?: boolean;
   onDragStart?: () => void;
   onDragEnd?: () => void;
@@ -172,7 +172,7 @@ const Cell: React.FC<CellProps> = ({
         moveCard({
           cardIndex: dragData.cardIndex,
           playerId: dragData.playerId,
-          destination: 'discard',
+          destination: DestinationEnum.DISCARD,
         })
       );
     },
@@ -182,7 +182,7 @@ const Cell: React.FC<CellProps> = ({
           moveCard({
             cardIndex: dragData.cardIndex,
             playerId: dragData.playerId,
-            destination: 'board',
+            destination: DestinationEnum.BOARD,
             boardIndex: index,
           })
         );
@@ -194,7 +194,7 @@ const Cell: React.FC<CellProps> = ({
           moveCard({
             cardIndex: dragData.cardIndex,
             playerId: dragData.playerId,
-            destination: 'hand',
+            destination: DestinationEnum.HAND,
             handIndex: index,
           })
         );

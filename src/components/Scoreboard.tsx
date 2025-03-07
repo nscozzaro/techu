@@ -1,9 +1,9 @@
 // src/components/Scoreboard.tsx
 import React from 'react';
-import { PlayerEnum } from '../types';
+import { PlayerEnum, Score } from '../types';
 
 interface ScoreboardProps {
-  scores: { [key in PlayerEnum]: number };
+  scores: { [key in PlayerEnum]: Score };
   gameOver: boolean;
 }
 

@@ -20,18 +20,24 @@ import {
   SuitEnum,
   RankEnum,
   Cards,
+  CellIndices,
+  BoardSize,
+  CellIndex,
+  CardRank,
+  Seed,
+  DestinationEnum,
 } from '../types';
 
 /* ---------- Daily Card Generation Utilities ---------- */
 
 // Generate a seed based on the current date (resets at midnight)
-const getDailySeed = (): number => {
+const getDailySeed = (): Seed => {
   const date = new Date();
   return date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate();
 };
 
 // Seeded random number generator
-const seededRandom = (seed: number) => {
+const seededRandom = (seed: Seed) => {
   let value = seed;
   return () => {
     value = (value * 16807) % 2147483647;
@@ -40,7 +46,7 @@ const seededRandom = (seed: number) => {
 };
 
 // Deterministic shuffle using the daily seed
-const deterministicShuffle = (deck: Cards, seed: number, playerId: PlayerEnum): Cards => {
+const deterministicShuffle = (deck: Cards, seed: Seed, playerId: PlayerEnum): Cards => {
   // Use player ID (0 or 1) to create two different seeds
   const playerSeed = seed * 2 + (playerId === PlayerEnum.PLAYER1 ? 0 : 1);
   const random = seededRandom(playerSeed);
@@ -70,21 +76,21 @@ const createDeck = (color: ColorEnum, owner: PlayerEnum): Cards => {
   );
 };
 
-const getHomeRowIndices = (playerId: PlayerEnum, boardSize: number): number[] => {
+const getHomeRowIndices = (playerId: PlayerEnum, boardSize: BoardSize): CellIndices => {
   const base = playerId === PlayerEnum.PLAYER1 ? boardSize - 1 : 0;
   return Array.from({ length: boardSize }, (_, i) => base * boardSize + i);
 };
 
-const getValidMoveIndices = (indices: number[], board: BoardState, card: Card): number[] =>
+const getValidMoveIndices = (indices: CellIndices, board: BoardState, card: Card): CellIndices =>
   indices.filter(i => {
     const cell = board[i];
     const top = cell[cell.length - 1];
     return !top || getCardRank(card.rank) > getCardRank(top.rank);
   });
 
-const getCardRank = (rank: RankEnum): number => rankOrder[rank];
+const getCardRank = (rank: RankEnum): CardRank => rankOrder[rank];
 
-const getAdjacentIndices = (index: number, boardSize: number): number[] => {
+const getAdjacentIndices = (index: CellIndex, boardSize: BoardSize): CellIndices => {
   const row = Math.floor(index / boardSize);
   const col = index % boardSize;
   const offsets = [
@@ -108,8 +114,8 @@ const findConnectedCells = (
   playerId: PlayerEnum,
   board: BoardState,
   color: ColorEnum,
-  boardSize: number
-): number[] => {
+  boardSize: BoardSize
+): CellIndices => {
   const home = getHomeRowIndices(playerId, boardSize).filter(i => {
     const cell = board[i];
     const top = cell[cell.length - 1];
@@ -119,12 +125,12 @@ const findConnectedCells = (
 };
 
 const exploreConnected = (
-  start: number[],
+  start: CellIndices,
   board: BoardState,
-  boardSize: number,
+  boardSize: BoardSize,
   color: ColorEnum
-): Set<number> => {
-  const visited = new Set<number>(start);
+): Set<CellIndex> => {
+  const visited = new Set<CellIndex>(start);
   const queue = [...start];
   while (queue.length > 0) {
     const current = queue.shift()!;
@@ -262,7 +268,7 @@ export interface GameState {
     tieBreaker: boolean;
     initialFaceDownCards: { [key in PlayerEnum]?: FaceDownCard };
   };
-  highlightedCells: number[];
+  highlightedCells: CellIndices;
   draggingPlayer: PlayerEnum | null;
   highlightDiscardPile: boolean;
 }
@@ -333,7 +339,7 @@ const gameSlice = createSlice({
     },
 
     // UI state management
-    setHighlightedCells: (state, action: PayloadAction<number[]>) => {
+    setHighlightedCells: (state, action: PayloadAction<CellIndices>) => {
       state.highlightedCells = action.payload;
     },
     setDraggingPlayer: (state, action: PayloadAction<PlayerEnum | null>) => {
@@ -372,9 +378,9 @@ const gameSlice = createSlice({
       action: PayloadAction<{
         cardIndex: CardIndex;
         playerId: PlayerEnum;
-        destination: 'discard' | 'board' | 'hand';
-        boardIndex?: number;
-        handIndex?: number;
+        destination: DestinationEnum;
+        boardIndex?: CellIndex;
+        handIndex?: CardIndex;
       }>
     ) => {
       if (state.gameStatus.gameOver) return;
@@ -465,20 +471,12 @@ const gameSlice = createSlice({
       state.turn.currentTurn = getNextPlayerTurn(playerId);
     },
 
-    handleBoardMove: (state, action: PayloadAction<{ playerId: PlayerEnum; cardIndex: CardIndex; cardToMove: Card; boardIndex: number }>) => {
+    handleBoardMove: (state, action: PayloadAction<{ playerId: PlayerEnum; cardIndex: CardIndex; cardToMove: Card; boardIndex: CellIndex }>) => {
       const { playerId, cardIndex, cardToMove, boardIndex } = action.payload;
-      const isFirst = state.gameStatus.firstMove[playerId];
-      const tieBreaker = state.gameStatus.tieBreaker;
-      const cardCopy = { ...cardToMove, faceDown: isFirst && !tieBreaker };
-
-      if (state.gameStatus.firstMove[playerId] || state.gameStatus.tieBreaker) {
-        state.gameStatus.initialFaceDownCards[playerId] = { ...cardCopy, cellIndex: boardIndex };
-      }
-
-      state.board[boardIndex].push(cardCopy);
-      state.players = updatePlayerHandAndDrawCard(state.players, playerId, cardIndex);
-      state.gameStatus.firstMove[playerId] = false;
-      state.turn.currentTurn = getNextPlayerTurn(playerId);
+      const cardCopy = createBoardCard(state, playerId, cardToMove);
+      updateInitialFaceDownCards(state, playerId, cardCopy, boardIndex);
+      addCardToBoard(state, boardIndex, cardCopy);
+      updatePlayerAndGameState(state, playerId, cardIndex);
     },
 
     handleHandMove: (state, action: PayloadAction<{ player: Players[PlayerEnum]; cardIndex: CardIndex; handIndex: CardIndex }>) => {
@@ -623,7 +621,7 @@ const handleBoardMove = (
   playerId: PlayerEnum,
   cardIndex: CardIndex,
   cardToMove: Card,
-  boardIndex: number
+  boardIndex: CellIndex
 ): void => {
   const cardCopy = createBoardCard(state, playerId, cardToMove);
   updateInitialFaceDownCards(state, playerId, cardCopy, boardIndex);
@@ -641,14 +639,14 @@ const updateInitialFaceDownCards = (
   state: GameState,
   playerId: PlayerEnum,
   card: Card,
-  boardIndex: number
+  boardIndex: CellIndex
 ): void => {
   if (state.gameStatus.firstMove[playerId] || state.gameStatus.tieBreaker) {
     state.gameStatus.initialFaceDownCards[playerId] = { ...card, cellIndex: boardIndex };
   }
 };
 
-const addCardToBoard = (state: GameState, boardIndex: number, card: Card): void => {
+const addCardToBoard = (state: GameState, boardIndex: CellIndex, card: Card): void => {
   state.board[boardIndex].push(card);
 };
 
@@ -704,14 +702,14 @@ const getValidFirstMoveIndices = (
   card: Card,
   board: BoardState,
   isTieBreaker: boolean
-): number[] => {
+): CellIndices => {
   return isTieBreaker
     ? getValidMoveIndices(getHomeRowIndices(playerId, BOARD_SIZE), board, card)
     : [STARTING_INDICES[playerId]];
 };
 
-const createBoardMove = (cellIndex: number): Move => ({
-  type: 'board',
+const createBoardMove = (cellIndex: CellIndex): Move => ({
+  type: DestinationEnum.BOARD,
   cellIndex,
   cardIndex: 0,
 });
@@ -719,7 +717,7 @@ const createBoardMove = (cellIndex: number): Move => ({
 const getRegularMovesForCard = (
   playerId: PlayerEnum,
   card: Card,
-  cardIndex: number,
+  cardIndex: CardIndex,
   board: BoardState,
   isTieBreaker: boolean
 ): Move[] => {
@@ -734,21 +732,21 @@ const getValidMoveIndicesForCard = (
   card: Card,
   board: BoardState,
   isTieBreaker: boolean
-): number[] => {
+): CellIndices => {
   if (isTieBreaker) {
     return getValidMoveIndices(getHomeRowIndices(playerId, BOARD_SIZE), board, card);
   }
   return getValidRegularMovesHelper(playerId, card, board);
 };
 
-const createBoardMoveWithIndex = (cellIndex: number, cardIndex: number): Move => ({
-  type: 'board',
+const createBoardMoveWithIndex = (cellIndex: CellIndex, cardIndex: CardIndex): Move => ({
+  type: DestinationEnum.BOARD,
   cellIndex,
   cardIndex,
 });
 
-const getDiscardMovesIfAllowed = (cardIndex: number, isTieBreaker: boolean): Move[] => {
-  return !isTieBreaker ? [{ type: 'discard' as const, cardIndex }] : [];
+const getDiscardMovesIfAllowed = (cardIndex: CardIndex, isTieBreaker: boolean): Move[] => {
+  return !isTieBreaker ? [{ type: DestinationEnum.DISCARD, cardIndex }] : [];
 };
 
 const getRegularMoves = (
@@ -783,7 +781,7 @@ const placeFirstMoveCard = (
   state: GameState,
   playerId: PlayerEnum,
   card: Card,
-  cellIndex: number
+  cellIndex: CellIndex
 ): void => {
   addCardToBoard(state, cellIndex, card);
   state.gameStatus.initialFaceDownCards[playerId] = { ...card, cellIndex };
@@ -812,9 +810,9 @@ const processCardMove = (
   card: Card,
   move: Move
 ): void => {
-  if (move.type === 'board' && move.cellIndex !== undefined) {
+  if (move.type === DestinationEnum.BOARD && move.cellIndex !== undefined) {
     state.board[move.cellIndex].push(card);
-  } else if (move.type === 'discard') {
+  } else if (move.type === DestinationEnum.DISCARD) {
     state.discard[playerId].push({ ...card, faceDown: true });
   }
 };
@@ -826,7 +824,11 @@ const finalizeTurn = (state: GameState, playerId: PlayerEnum): void => {
 };
 
 // Helper functions for reducers
-const getValidRegularMovesHelper = (playerId: PlayerEnum, card: Card, board: BoardState): number[] => {
+const getValidRegularMovesHelper = (
+  playerId: PlayerEnum,
+  card: Card,
+  board: BoardState
+): CellIndices => {
   const homeRow = getHomeRowIndices(playerId, BOARD_SIZE);
   const homeValid = getValidMoveIndices(homeRow, board, card);
   const connected = findConnectedCells(playerId, board, card.color, BOARD_SIZE);
@@ -841,15 +843,15 @@ const handleCardMove = (
   playerId: PlayerEnum,
   cardIndex: CardIndex,
   cardToMove: Card,
-  destination: string,
-  boardIndex?: number,
-  handIndex?: number
+  destination: DestinationEnum,
+  boardIndex?: CellIndex,
+  handIndex?: CardIndex
 ): void => {
-  if (destination === 'discard' && !state.gameStatus.firstMove[playerId]) {
+  if (destination === DestinationEnum.DISCARD && !state.gameStatus.firstMove[playerId]) {
     handleDiscardMove(state, playerId, cardIndex, cardToMove);
-  } else if (destination === 'board' && boardIndex !== undefined) {
+  } else if (destination === DestinationEnum.BOARD && boardIndex !== undefined) {
     handleBoardMove(state, playerId, cardIndex, cardToMove, boardIndex);
-  } else if (destination === 'hand' && handIndex !== undefined) {
+  } else if (destination === DestinationEnum.HAND && handIndex !== undefined) {
     handleHandMove(state.players[playerId], cardIndex, handIndex);
   }
 };
