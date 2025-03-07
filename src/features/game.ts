@@ -314,6 +314,34 @@ const gameSlice = createSlice({
     resetUI: (state) => {
       Object.assign(state, resetUIState());
     },
+    clearHighlights: (state) => {
+      state.highlightedCells = [];
+      state.highlightDiscardPile = false;
+    },
+    getValidTieBreakerMoves: (state, action: PayloadAction<{ playerId: PlayerEnum; card: Card }>) => {
+      const { playerId, card } = action.payload;
+      const homeRow = getHomeRowIndices(playerId, BOARD_SIZE);
+      state.highlightedCells = getValidMoveIndices(homeRow, state.board, card);
+    },
+    getValidFirstMoves: (state, action: PayloadAction<{ playerId: PlayerEnum }>) => {
+      const { playerId } = action.payload;
+      state.highlightedCells = [STARTING_INDICES[playerId]];
+    },
+    getValidRegularMoves: (state, action: PayloadAction<{ playerId: PlayerEnum; card: Card }>) => {
+      const { playerId, card } = action.payload;
+      const homeRow = getHomeRowIndices(playerId, BOARD_SIZE);
+      const homeValid = getValidMoveIndices(homeRow, state.board, card);
+      const connected = findConnectedCells(playerId, state.board, card.color, BOARD_SIZE);
+      const connectedValid = connected.flatMap(index =>
+        getValidMoveIndices(getAdjacentIndices(index, BOARD_SIZE), state.board, card)
+      );
+      state.highlightedCells = Array.from(new Set([...homeValid, ...connectedValid]));
+    },
+    updateDiscardHighlight: (state, action: PayloadAction<{ playerId: PlayerEnum }>) => {
+      const { playerId } = action.payload;
+      state.highlightDiscardPile = 
+        state.turn.currentTurn === playerId && !state.gameStatus.firstMove[playerId];
+    },
     pushCardToBoard: (
       state,
       action: PayloadAction<{ cellIndex: CardIndex; card: Card }>
@@ -354,86 +382,20 @@ const gameSlice = createSlice({
       const { playerId } = action.payload;
       if (state.gameStatus.gameOver || state.turn.currentTurn !== playerId) return;
       
-      let moves: Move[] = [];
-      const player = state.players[playerId];
-      
-      if (state.gameStatus.firstMove[playerId]) {
-        // First move – only consider the card at index 0.
-        const card = player.hand[0];
-        if (card) {
-          let validMoves: number[] = [];
-          if (state.gameStatus.tieBreaker) {
-            const homeRow = getHomeRowIndices(playerId, BOARD_SIZE);
-            validMoves = getValidMoveIndices(homeRow, state.board, card);
-          } else {
-            validMoves = [STARTING_INDICES[playerId]];
-          }
-          const boardMoves: Move[] = validMoves.map((cellIndex): Move => ({
-            type: 'board',
-            cellIndex,
-            cardIndex: 0,
-          }));
-          moves = moves.concat(boardMoves);
-        }
-      } else {
-        // Regular move – check every card in hand.
-        player.hand.forEach((card, idx) => {
-          if (card) {
-            let validMoves: number[] = [];
-            if (state.gameStatus.tieBreaker) {
-              const homeRow = getHomeRowIndices(playerId, BOARD_SIZE);
-              validMoves = getValidMoveIndices(homeRow, state.board, card);
-            } else {
-              const homeRow = getHomeRowIndices(playerId, BOARD_SIZE);
-              const homeValid = getValidMoveIndices(homeRow, state.board, card);
-              const connected = findConnectedCells(playerId, state.board, card.color, BOARD_SIZE);
-              const connectedValid = connected.flatMap(index =>
-                getValidMoveIndices(getAdjacentIndices(index, BOARD_SIZE), state.board, card)
-              );
-              validMoves = Array.from(new Set([...homeValid, ...connectedValid]));
-            }
-            const boardMoves: Move[] = validMoves.map((cellIndex): Move => ({
-              type: 'board',
-              cellIndex,
-              cardIndex: idx,
-            }));
-            const discardMoves: Move[] = !state.gameStatus.tieBreaker
-              ? ([{ type: 'discard', cardIndex: idx }] as Move[])
-              : [];
-            moves = moves.concat(boardMoves, discardMoves);
-          }
-        });
-      }
+      const moves = state.gameStatus.firstMove[playerId]
+        ? getFirstMoveBoardMoves(playerId, state.players[playerId], state.board, state.gameStatus.tieBreaker)
+        : getRegularMoves(playerId, state.players[playerId], state.board, state.gameStatus.tieBreaker);
       
       const move = selectRandomMove(moves);
       if (!move) return;
       
       if (state.gameStatus.firstMove[playerId]) {
-        // Process first move.
-        const card = player.hand[0];
-        if (!card) return;
-        const placedCard = { ...card, faceDown: !state.gameStatus.tieBreaker };
-        if (move.cellIndex !== undefined) {
-          state.board[move.cellIndex].push(placedCard);
-          state.gameStatus.initialFaceDownCards[playerId] = { ...placedCard, cellIndex: move.cellIndex };
-        }
-        state.players = updatePlayerHandAndDrawCard(state.players, playerId, 0);
-        state.gameStatus.firstMove[playerId] = false;
+        processFirstMove(state, playerId, move);
       } else {
-        // Process regular move.
-        const card = player.hand[move.cardIndex];
-        if (!card) return;
-        if (move.type === 'board' && move.cellIndex !== undefined) {
-          state.board[move.cellIndex].push(card);
-        } else if (move.type === 'discard') {
-          state.discard[playerId].push({ ...card, faceDown: true });
-        }
-        state.players = updatePlayerHandAndDrawCard(state.players, playerId, move.cardIndex);
+        processRegularMove(state, playerId, move);
       }
       
-      state.turn.currentTurn = getNextPlayerTurn(playerId);
-      if (isGameOver(state.players)) state.gameStatus.gameOver = true;
-      Object.assign(state, resetUIState());
+      finalizeTurn(state, playerId);
     },
     flipInitialCards: (state) => {
       const faceDown = state.gameStatus.initialFaceDownCards;
@@ -456,30 +418,21 @@ const gameSlice = createSlice({
     ) => {
       const { cardIndex, playerId } = action.payload;
       const card = state.players[playerId].hand[cardIndex];
+      
       if (!card) {
-        state.highlightedCells = [];
-        state.highlightDiscardPile = false;
+        gameSlice.caseReducers.clearHighlights(state);
         return;
       }
-      const validMoves = (() => {
-        if (state.gameStatus.tieBreaker) {
-          const homeRow = getHomeRowIndices(playerId, BOARD_SIZE);
-          return getValidMoveIndices(homeRow, state.board, card);
-        }
-        if (state.gameStatus.firstMove[playerId]) {
-          return [STARTING_INDICES[playerId]];
-        }
-        const homeRow = getHomeRowIndices(playerId, BOARD_SIZE);
-        const homeValid = getValidMoveIndices(homeRow, state.board, card);
-        const connected = findConnectedCells(playerId, state.board, card.color, BOARD_SIZE);
-        const connectedValid = connected.flatMap(index =>
-          getValidMoveIndices(getAdjacentIndices(index, BOARD_SIZE), state.board, card)
-        );
-        return Array.from(new Set([...homeValid, ...connectedValid]));
-      })();
-      state.highlightedCells = validMoves;
-      state.highlightDiscardPile =
-        state.turn.currentTurn === playerId && !state.gameStatus.firstMove[playerId];
+
+      if (state.gameStatus.tieBreaker) {
+        gameSlice.caseReducers.getValidTieBreakerMoves(state, { payload: { playerId, card }, type: 'game/getValidTieBreakerMoves' });
+      } else if (state.gameStatus.firstMove[playerId]) {
+        gameSlice.caseReducers.getValidFirstMoves(state, { payload: { playerId }, type: 'game/getValidFirstMoves' });
+      } else {
+        gameSlice.caseReducers.getValidRegularMoves(state, { payload: { playerId, card }, type: 'game/getValidRegularMoves' });
+      }
+
+      gameSlice.caseReducers.updateDiscardHighlight(state, { payload: { playerId }, type: 'game/updateDiscardHighlight' });
     },
   },
 });
@@ -500,6 +453,11 @@ export const {
   setDraggingPlayer,
   setHighlightDiscardPile,
   resetUI,
+  clearHighlights,
+  getValidTieBreakerMoves,
+  getValidFirstMoves,
+  getValidRegularMoves,
+  updateDiscardHighlight,
   pushCardToBoard,
   moveCard,
   processTurn,
@@ -569,6 +527,108 @@ const handleEmptyCardMove = (
 };
 
 const finalizeMove = (state: GameState): void => {
+  if (isGameOver(state.players)) state.gameStatus.gameOver = true;
+  Object.assign(state, resetUIState());
+};
+
+const getFirstMoveBoardMoves = (
+  playerId: PlayerEnum,
+  player: Players[PlayerEnum],
+  board: BoardState,
+  isTieBreaker: boolean
+): Move[] => {
+  const card = player.hand[0];
+  if (!card) return [];
+  
+  const validMoves = isTieBreaker
+    ? getValidMoveIndices(getHomeRowIndices(playerId, BOARD_SIZE), board, card)
+    : [STARTING_INDICES[playerId]];
+    
+  return validMoves.map((cellIndex): Move => ({
+    type: 'board',
+    cellIndex,
+    cardIndex: 0,
+  }));
+};
+
+const getRegularMovesForCard = (
+  playerId: PlayerEnum,
+  card: Card,
+  cardIndex: number,
+  board: BoardState,
+  isTieBreaker: boolean
+): Move[] => {
+  const homeRow = getHomeRowIndices(playerId, BOARD_SIZE);
+  let validMoves: number[] = [];
+
+  if (isTieBreaker) {
+    // During tiebreaker, only allow moves on home row
+    validMoves = getValidMoveIndices(homeRow, board, card);
+  } else {
+    // During regular play, allow moves on home row and connected cells
+    const homeValid = getValidMoveIndices(homeRow, board, card);
+    const connected = findConnectedCells(playerId, board, card.color, BOARD_SIZE);
+    const connectedValid = connected.flatMap(index =>
+      getValidMoveIndices(getAdjacentIndices(index, BOARD_SIZE), board, card)
+    );
+    validMoves = Array.from(new Set([...homeValid, ...connectedValid]));
+  }
+  
+  const boardMoves = validMoves.map((cellIndex): Move => ({
+    type: 'board',
+    cellIndex,
+    cardIndex,
+  }));
+  
+  // During tiebreaker, no discard moves are allowed
+  const discardMoves: Move[] = !isTieBreaker ? [{ type: 'discard' as const, cardIndex }] : [];
+  return [...boardMoves, ...discardMoves];
+};
+
+const getRegularMoves = (
+  playerId: PlayerEnum,
+  player: Players[PlayerEnum],
+  board: BoardState,
+  isTieBreaker: boolean
+): Move[] => {
+  return player.hand.flatMap((card, idx) =>
+    card ? getRegularMovesForCard(playerId, card, idx, board, isTieBreaker) : []
+  );
+};
+
+const processFirstMove = (
+  state: GameState,
+  playerId: PlayerEnum,
+  move: Move
+): void => {
+  const card = state.players[playerId].hand[0];
+  if (!card || move.cellIndex === undefined) return;
+  
+  const placedCard = { ...card, faceDown: !state.gameStatus.tieBreaker };
+  state.board[move.cellIndex].push(placedCard);
+  state.gameStatus.initialFaceDownCards[playerId] = { ...placedCard, cellIndex: move.cellIndex };
+  state.players = updatePlayerHandAndDrawCard(state.players, playerId, 0);
+  state.gameStatus.firstMove[playerId] = false;
+};
+
+const processRegularMove = (
+  state: GameState,
+  playerId: PlayerEnum,
+  move: Move
+): void => {
+  const card = state.players[playerId].hand[move.cardIndex];
+  if (!card) return;
+  
+  if (move.type === 'board' && move.cellIndex !== undefined) {
+    state.board[move.cellIndex].push(card);
+  } else if (move.type === 'discard') {
+    state.discard[playerId].push({ ...card, faceDown: true });
+  }
+  state.players = updatePlayerHandAndDrawCard(state.players, playerId, move.cardIndex);
+};
+
+const finalizeTurn = (state: GameState, playerId: PlayerEnum): void => {
+  state.turn.currentTurn = getNextPlayerTurn(playerId);
   if (isGameOver(state.players)) state.gameStatus.gameOver = true;
   Object.assign(state, resetUIState());
 };
