@@ -15,6 +15,7 @@ body {
   margin: 0;
   padding: 0;
   height: 100vh;
+  height: -webkit-fill-available;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -25,7 +26,8 @@ body {
   display: grid;
   place-items: center;
   height: 100vh;
-  padding: 0;
+  height: -webkit-fill-available;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   width: 100%;
   box-sizing: border-box;
 }
@@ -280,12 +282,13 @@ body {
 /* iPhone SE and similar */
 @media (max-height: 568px) {
   :root {
-    --cell-width: min(15vw, 12.8vh);
+    --cell-width: min(14.5vw, 12vh);
     --gap-size: 1px;
   }
 
   .game-container {
-    padding: 1px;
+    padding: 0;
+    margin: 0;
   }
 
   .player-area, .board {
@@ -294,6 +297,32 @@ body {
 
   .scoreboard {
     padding: 1px;
+    font-size: min(14px, 3vw);
+  }
+
+  .suit {
+    font-size: min(28px, 6vw);
+  }
+
+  .top-left,
+  .bottom-right {
+    font-size: min(10px, 2.5vw);
+  }
+
+  .deck-count {
+    font-size: min(14px, 3vw);
+  }
+}
+
+/* Ensure the game fits above Safari's search bar */
+@media (max-height: 568px) and (max-width: 320px) {
+  :root {
+    --cell-width: min(14vw, 11.5vh);
+  }
+
+  .game-container {
+    transform: scale(0.95);
+    margin-top: -10px;
   }
 }
 
