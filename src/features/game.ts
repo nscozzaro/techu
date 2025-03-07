@@ -22,15 +22,39 @@ import {
   Cards,
 } from '../types';
 
+/* ---------- Daily Card Generation Utilities ---------- */
+
+// Generate a seed based on the current date (resets at midnight)
+const getDailySeed = (): number => {
+  const date = new Date();
+  return date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate();
+};
+
+// Seeded random number generator
+const seededRandom = (seed: number) => {
+  let value = seed;
+  return () => {
+    value = (value * 16807) % 2147483647;
+    return (value - 1) / 2147483646;
+  };
+};
+
+// Deterministic shuffle using the daily seed
+const deterministicShuffle = (deck: Cards, seed: number): Cards => {
+  const random = seededRandom(seed);
+  const shuffled = [...deck];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+};
+
 /* ---------- Helper Functions ---------- */
 
-// Shuffles and returns a deck (in-place)
+// Replace the existing shuffle function with the deterministic version
 const shuffle = (deck: Cards): Cards => {
-  for (let i = deck.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [deck[i], deck[j]] = [deck[j], deck[i]];
-  }
-  return deck;
+  return deterministicShuffle(deck, getDailySeed());
 };
 
 const createDeck = (color: ColorEnum, owner: PlayerEnum): Cards => {
@@ -141,6 +165,7 @@ const updatePlayerHandAndDrawCard = (
 };
 
 const initializePlayer = (color: ColorEnum, id: PlayerEnum) => {
+  // Create and shuffle the deck deterministically
   const deck = shuffle(createDeck(color, id));
   return { id, hand: deck.slice(0, 3), deck: deck.slice(3) };
 };
