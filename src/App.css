@@ -1,58 +1,110 @@
 /* src/App.css */
 
+:root {
+  --card-aspect-ratio: 1.4; /* Standard playing card ratio of 5:7 */
+  --cell-width: min(80px, 18vw);
+  --cell-height: calc(var(--cell-width) * var(--card-aspect-ratio));
+  --gap-size: min(10px, 2vw);
+  --border-radius: min(12px, 3vw);
+}
+
 body {
   font-family: Arial, sans-serif;
   background-color: #222;
   color: #fff;
   margin: 0;
   padding: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .App {
   text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  display: grid;
+  place-items: center;
+  height: 100vh;
+  padding: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.game-container {
+  display: grid;
+  grid-template-rows: auto auto auto auto;
+  gap: var(--gap-size);
+  width: fit-content;
+  margin: 0;
+  background-color: rgba(255, 255, 255, 0.03);
+  padding: min(8px, 0.8vh) min(8px, 1.5vw);
+  border-radius: var(--border-radius);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  height: fit-content;
+  box-sizing: border-box;
 }
 
 .scoreboard {
   display: flex;
   justify-content: center;
-  gap: 20px;
-  margin-top: 10px;
+  gap: var(--gap-size);
+  padding: min(4px, 0.4vh) min(6px, 1vw);
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: calc(var(--border-radius) * 0.75);
+  font-size: min(16px, 3.5vw);
 }
 
 .winner {
-  margin-top: 10px;
-  font-size: 24px;
+  font-size: min(24px, 5vw);
   font-weight: bold;
+  color: #ffd700;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
 }
 
 .player-area {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  margin: 10px;
+  display: grid;
+  grid-template-columns: repeat(5, var(--cell-width));
+  gap: var(--gap-size);
+  justify-content: center;
+  padding: min(6px, 0.6vh) min(8px, 1.5vw);
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: var(--border-radius);
+  transition: all 0.3s ease;
+}
+
+.player-area-top {
+  border-bottom: 2px solid rgba(0, 0, 255, 0.3);
+  background-color: rgba(0, 0, 255, 0.05);
+}
+
+.player-area-bottom {
+  border-top: 2px solid rgba(255, 0, 0, 0.3);
+  background-color: rgba(255, 0, 0, 0.05);
 }
 
 .board {
   display: grid;
-  grid-template-columns: repeat(5, 80px);
-  gap: 10px;
-  margin: 20px auto;
+  grid-template-columns: repeat(5, var(--cell-width));
+  grid-template-rows: repeat(5, var(--cell-height));
+  gap: var(--gap-size);
+  padding: min(8px, 0.8vh) min(8px, 1.5vw);
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: var(--border-radius);
+  box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.05);
 }
 
 .cell {
-  width: 80px;
-  height: 112px;
+  width: var(--cell-width);
+  height: var(--cell-height);
   background-color: transparent;
-  border-radius: 8px;
+  border-radius: calc(var(--border-radius) * 0.75);
   position: relative;
   box-sizing: border-box;
   border: 1px solid #555;
   display: flex;
   justify-content: center;
   align-items: center;
+  transition: all 0.2s ease;
 }
 
 .cell.empty {
@@ -62,18 +114,18 @@ body {
 .card-content {
   background-color: white;
   border: 1px solid #ccc;
-  border-radius: 8px;
+  border-radius: calc(var(--border-radius) * 0.75);
   position: relative;
   width: 100%;
   height: 100%;
   box-sizing: border-box;
-  padding: 5px;
+  padding: min(5px, 1vw);
 }
 
 .card-back {
   width: 100%;
   height: 100%;
-  border-radius: 8px;
+  border-radius: calc(var(--border-radius) * 0.75);
   position: relative;
   display: flex;
   justify-content: center;
@@ -88,10 +140,10 @@ body {
 
 .deck-count {
   position: absolute;
-  top: 5px;
-  left: 5px;
+  top: min(5px, 1vw);
+  left: min(5px, 1vw);
   color: white;
-  font-size: 18px;
+  font-size: min(18px, 4vw);
 }
 
 .empty-deck {
@@ -101,25 +153,25 @@ body {
 .top-left,
 .bottom-right {
   position: absolute;
-  font-size: 14px;
-  line-height: 14px;
+  font-size: min(14px, 3.5vw);
+  line-height: 1;
 }
 
 .top-left {
-  top: 5px;
-  left: 5px;
+  top: min(5px, 1vw);
+  left: min(5px, 1vw);
   text-align: left;
 }
 
 .bottom-right {
-  bottom: 5px;
-  right: 5px;
+  bottom: min(5px, 1vw);
+  right: min(5px, 1vw);
   text-align: right;
   transform: rotate(180deg);
 }
 
 .suit {
-  font-size: 48px;
+  font-size: min(48px, 10vw);
   text-align: center;
   line-height: 1;
   position: absolute;
@@ -146,18 +198,18 @@ body {
 }
 
 .empty-placeholder {
-  width: 80px;
-  height: 120px;
+  width: 100%;
+  height: 100%;
   background-color: #444;
   border: 2px dashed #777;
-  border-radius: 8px;
+  border-radius: calc(var(--border-radius) * 0.75);
 }
 
 .discard-pile {
-  width: 80px;
-  height: 112px;
+  width: 100%;
+  height: 100%;
   border: 2px dashed gray;
-  border-radius: 8px;
+  border-radius: calc(var(--border-radius) * 0.75);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -176,13 +228,99 @@ body {
   pointer-events: none;
 }
 
-@media (max-width: 768px) {
-  .player-area {
-    flex-direction: column;
-    align-items: center;
+/* Portrait phones */
+@media (max-width: 480px), (max-height: 740px) {
+  :root {
+    --cell-width: min(16vw, 13.5vh);
+    --gap-size: min(3px, 0.3vh);
+  }
+  
+  .game-container {
+    padding: min(3px, 0.3vh);
+  }
+  
+  .player-area, .board {
+    padding: min(2px, 0.2vh);
   }
 
-  .board {
-    grid-template-columns: repeat(3, 80px);
+  .scoreboard {
+    padding: min(2px, 0.2vh);
+  }
+
+  .suit {
+    font-size: min(32px, 7vw);
+  }
+
+  .top-left,
+  .bottom-right {
+    font-size: min(12px, 2.8vw);
+  }
+}
+
+/* Extra small phones */
+@media (max-height: 667px) {
+  :root {
+    --cell-width: min(15vw, 13vh);
+    --gap-size: 2px;
+  }
+
+  .game-container {
+    padding: 2px;
+  }
+
+  .player-area, .board {
+    padding: 2px;
+  }
+
+  .scoreboard {
+    padding: 1px;
+  }
+}
+
+/* iPhone SE and similar */
+@media (max-height: 568px) {
+  :root {
+    --cell-width: min(15vw, 12.8vh);
+    --gap-size: 1px;
+  }
+
+  .game-container {
+    padding: 1px;
+  }
+
+  .player-area, .board {
+    padding: 1px;
+  }
+
+  .scoreboard {
+    padding: 1px;
+  }
+}
+
+/* Landscape phones */
+@media (max-height: 480px) and (orientation: landscape) {
+  :root {
+    --cell-width: 11.5vh;
+    --gap-size: 1px;
+  }
+  
+  .game-container {
+    padding: 1px;
+  }
+  
+  .player-area, .board {
+    padding: 1px;
+  }
+  
+  .scoreboard {
+    padding: 1px;
+  }
+}
+
+/* Ensure touch targets are large enough on mobile */
+@media (hover: none) and (pointer: coarse) {
+  .cell {
+    min-width: 44px;
+    min-height: 44px;
   }
 }

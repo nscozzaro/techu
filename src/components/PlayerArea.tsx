@@ -29,21 +29,20 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ playerId }) => {
   const handleDragStart = () => dispatch(setDraggingPlayer(playerId));
   const handleDragEnd = () => dispatch(resetUI());
 
-  // Consolidate cell rendering based on type.
-  const renderCell = (type: 'deck' | 'hand' | 'discard') => {
-    if (type === 'deck') {
-      return (
+  // Create an array of 5 cells with proper ordering
+  const cells = Array(5).fill(null).map((_, index) => {
+    if (index === 0) {
+      return playerId === PlayerEnum.PLAYER1 ? (
         <Cell
+          key="deck"
           type="deck"
           count={deckCount}
           playerId={playerId}
           isCurrentPlayer={currentTurn === playerId}
         />
-      );
-    }
-    if (type === 'discard') {
-      return (
+      ) : (
         <Cell
+          key="discard"
           type="discard"
           stack={discardPile}
           playerId={playerId}
@@ -53,32 +52,48 @@ const PlayerArea: React.FC<PlayerAreaProps> = ({ playerId }) => {
           isHighlighted={currentTurn === playerId ? highlightDiscardPile : false}
         />
       );
+    } else if (index === 4) {
+      return playerId === PlayerEnum.PLAYER1 ? (
+        <Cell
+          key="discard"
+          type="discard"
+          stack={discardPile}
+          playerId={playerId}
+          isVisible={true}
+          isCurrentPlayer={currentTurn === playerId}
+          isDisabled={firstMove}
+          isHighlighted={currentTurn === playerId ? highlightDiscardPile : false}
+        />
+      ) : (
+        <Cell
+          key="deck"
+          type="deck"
+          count={deckCount}
+          playerId={playerId}
+          isCurrentPlayer={currentTurn === playerId}
+        />
+      );
+    } else {
+      const handIndex = index - 1;
+      return (
+        <Cell
+          key={`hand-${handIndex}`}
+          type="hand"
+          card={handCards[handIndex]}
+          index={handIndex}
+          playerId={playerId}
+          highlightedCells={highlightedCells}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          isCurrentPlayer={currentTurn === playerId}
+        />
+      );
     }
-    // Render hand cells.
-    return handCards.map((card, index) => (
-      <Cell
-        key={index}
-        type="hand"
-        card={card}
-        index={index}
-        playerId={playerId}
-        highlightedCells={highlightedCells}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-        isCurrentPlayer={currentTurn === playerId}
-      />
-    ));
-  };
-
-  // For Player1 the order is deck, hand, discard; for Player2 it's reversed for deck and discard.
-  const order: Array<'deck' | 'hand' | 'discard'> =
-    playerId === PlayerEnum.PLAYER1 ? ['deck', 'hand', 'discard'] : ['discard', 'hand', 'deck'];
+  });
 
   return (
-    <div className="player-area">
-      {order.map((type) => (
-        <React.Fragment key={type}>{renderCell(type)}</React.Fragment>
-      ))}
+    <div className={`player-area ${playerId === PlayerEnum.PLAYER2 ? 'player-area-top' : 'player-area-bottom'}`}>
+      {cells}
     </div>
   );
 };

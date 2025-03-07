@@ -35,10 +35,12 @@ function App() {
 
   return (
     <div className="App">
-      <Scoreboard scores={scores} gameOver={gameOver} />
-      <PlayerArea playerId={PlayerEnum.PLAYER2} />
-      <Board />
-      <PlayerArea playerId={PlayerEnum.PLAYER1} />
+      <div className="game-container">
+        <Scoreboard scores={scores} gameOver={gameOver} />
+        <PlayerArea playerId={PlayerEnum.PLAYER2} />
+        <Board />
+        <PlayerArea playerId={PlayerEnum.PLAYER1} />
+      </div>
     </div>
   );
 }
