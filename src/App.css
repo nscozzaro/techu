@@ -291,21 +291,29 @@ body {
 
   .game-container {
     padding: 0;
-    margin: 2px auto;
+    margin: 0;
     transform: scale(0.95);
+    gap: 1px;
   }
 
   .App {
     padding: 0 env(safe-area-inset-right) 0 env(safe-area-inset-left);
   }
 
-  .player-area, .board {
-    padding: 1px;
+  .player-area {
+    padding: 0;
+    gap: 1px;
+  }
+
+  .board {
+    padding: 0;
+    gap: 1px;
   }
 
   .scoreboard {
-    padding: 1px;
+    padding: 0;
     font-size: min(14px, 3vw);
+    gap: 1px;
   }
 
   .suit {
