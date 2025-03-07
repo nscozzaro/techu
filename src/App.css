@@ -2,7 +2,7 @@
 
 :root {
   --card-aspect-ratio: 1.4; /* Standard playing card ratio of 5:7 */
-  --cell-width: min(80px, 18vw);
+  --cell-width: min(80px, min(18vw, 13vh));
   --cell-height: calc(var(--cell-width) * var(--card-aspect-ratio));
   --gap-size: min(10px, 2vw);
   --border-radius: min(12px, 3vw);
@@ -356,5 +356,35 @@ body {
   .cell {
     min-width: 44px;
     min-height: 44px;
+  }
+}
+
+/* Laptop screens */
+@media (min-width: 1024px) and (min-height: 600px) {
+  :root {
+    --cell-width: min(72px, min(5.9vw, 9vh));
+    --gap-size: min(5px, 0.9vh);
+  }
+  
+  .game-container {
+    padding: min(5px, 0.5vh) min(6px, 1vw);
+    margin: auto;
+    height: fit-content;
+    transform-origin: center;
+    display: grid;
+    grid-template-rows: auto auto auto auto;
+    gap: var(--gap-size);
+  }
+
+  .player-area {
+    padding: min(4px, 0.4vh) min(5px, 0.9vw);
+  }
+
+  .board {
+    padding: min(5px, 0.5vh) min(5px, 0.9vw);
+  }
+
+  .scoreboard {
+    padding: min(2px, 0.2vh) min(4px, 0.7vw);
   }
 }
