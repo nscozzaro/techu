@@ -28,7 +28,7 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
   min-height: -webkit-fill-available;
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) calc(env(safe-area-inset-bottom) + 5px) env(safe-area-inset-left);
+  padding: 0 env(safe-area-inset-right) 0 env(safe-area-inset-left);
   width: 100%;
   box-sizing: border-box;
   overscroll-behavior-y: auto;
@@ -291,10 +291,12 @@ body {
 
   .game-container {
     padding: 0;
-    margin: 0;
+    margin: 2px auto;
     transform: scale(0.95);
-    margin-top: -20px;
-    margin-bottom: -20px;
+  }
+
+  .App {
+    padding: 0 env(safe-area-inset-right) 0 env(safe-area-inset-left);
   }
 
   .player-area, .board {
@@ -304,8 +306,6 @@ body {
   .scoreboard {
     padding: 1px;
     font-size: min(14px, 3vw);
-    margin-bottom: -3px;
-    margin-top: -2px;
   }
 
   .suit {
