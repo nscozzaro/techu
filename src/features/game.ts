@@ -40,8 +40,10 @@ const seededRandom = (seed: number) => {
 };
 
 // Deterministic shuffle using the daily seed
-const deterministicShuffle = (deck: Cards, seed: number): Cards => {
-  const random = seededRandom(seed);
+const deterministicShuffle = (deck: Cards, seed: number, playerId: PlayerEnum): Cards => {
+  // Use player ID (0 or 1) to create two different seeds
+  const playerSeed = seed * 2 + (playerId === PlayerEnum.PLAYER1 ? 0 : 1);
+  const random = seededRandom(playerSeed);
   const shuffled = [...deck];
   for (let i = shuffled.length - 1; i > 0; i--) {
     const j = Math.floor(random() * (i + 1));
@@ -53,8 +55,8 @@ const deterministicShuffle = (deck: Cards, seed: number): Cards => {
 /* ---------- Helper Functions ---------- */
 
 // Replace the existing shuffle function with the deterministic version
-const shuffle = (deck: Cards): Cards => {
-  return deterministicShuffle(deck, getDailySeed());
+const shuffle = (deck: Cards, playerId: PlayerEnum): Cards => {
+  return deterministicShuffle(deck, getDailySeed(), playerId);
 };
 
 const createDeck = (color: ColorEnum, owner: PlayerEnum): Cards => {
@@ -166,7 +168,7 @@ const updatePlayerHandAndDrawCard = (
 
 const initializePlayer = (color: ColorEnum, id: PlayerEnum) => {
   // Create and shuffle the deck deterministically
-  const deck = shuffle(createDeck(color, id));
+  const deck = shuffle(createDeck(color, id), id);
   return { id, hand: deck.slice(0, 3), deck: deck.slice(3) };
 };
 
