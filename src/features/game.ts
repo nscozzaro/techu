@@ -1,3 +1,5 @@
+// game.ts
+
 // src/features/game.ts
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import {
@@ -600,9 +602,10 @@ const gameSlice = createSlice({
       gameSlice.caseReducers.resetUIState(state);
     },
 
+    // Updated processFirstMove to use the selected card index rather than always index 0
     processFirstMove: (state, action: PayloadAction<{ playerId: PlayerEnum; move: Move }>) => {
       const { playerId, move } = action.payload;
-      const card = state.players[playerId].hand[0];
+      const card = state.players[playerId].hand[move.cardIndex];
       if (!card || move.cellIndex === undefined) return;
       
       const placedCard = { ...card, faceDown: !state.gameStatus.tieBreaker };
@@ -611,7 +614,7 @@ const gameSlice = createSlice({
       
       gameSlice.caseReducers.updatePlayerHandAndDrawCard(state, {
         type: 'game/updatePlayerHandAndDrawCard',
-        payload: { playerId, cardIndex: 0 }
+        payload: { playerId, cardIndex: move.cardIndex }
       });
       state.gameStatus.firstMove[playerId] = false;
     },
@@ -709,16 +712,26 @@ function resetUIState(): Partial<GameState> {
   };
 }
 // Move generation helpers
+
+// Updated getFirstMoveBoardMoves to randomly select a card from the player's hand for the first move
 const getFirstMoveBoardMoves = (
   playerId: PlayerEnum,
   player: Players[PlayerEnum],
   board: BoardState,
   isTieBreaker: boolean
 ): Move[] => {
-  const card = player.hand[0];
-  if (!card) return [];
-  return getValidFirstMoveIndices(playerId, card, board, isTieBreaker)
-    .map(createBoardMove);
+  const validHandIndices = player.hand
+    .map((card, idx) => (card ? idx : -1))
+    .filter(idx => idx !== -1);
+  if (validHandIndices.length === 0) return [];
+  const randomIndex = validHandIndices[Math.floor(Math.random() * validHandIndices.length)];
+  const card = player.hand[randomIndex]!;
+  const validIndices = getValidFirstMoveIndices(playerId, card, board, isTieBreaker);
+  return validIndices.map(cellIndex => ({
+    type: DestinationEnum.BOARD,
+    cellIndex,
+    cardIndex: randomIndex,
+  }));
 };
 
 const getValidFirstMoveIndices = (
@@ -731,12 +744,6 @@ const getValidFirstMoveIndices = (
     ? getValidMoveIndices(getHomeRowIndices(playerId, BOARD_SIZE), board, card)
     : [STARTING_INDICES[playerId]];
 };
-
-const createBoardMove = (cellIndex: CellIndex): Move => ({
-  type: DestinationEnum.BOARD,
-  cellIndex,
-  cardIndex: 0,
-});
 
 const getRegularMovesForCard = (
   playerId: PlayerEnum,
