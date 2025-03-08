@@ -230,6 +230,74 @@ describe('Game Integration Tests', () => {
         faceDown: true
       });
     });
+
+    it('should generate different move sequences for Player 2 across multiple games', () => {
+      // Run multiple games and collect move sequences
+      const moveSequences: string[] = [];
+      const numGames = 5;
+      
+      for (let i = 0; i < numGames; i++) {
+        // Reset store for new game
+        store = configureStore({
+          reducer: {
+            game: gameReducer
+          }
+        }) as typeof store;
+
+        // Setup initial moves
+        store.dispatch(moveCard({
+          cardIndex: 0,
+          playerId: PlayerEnum.PLAYER1,
+          destination: DestinationEnum.BOARD,
+          boardIndex: STARTING_INDICES[PlayerEnum.PLAYER1]
+        }));
+
+        store.dispatch(moveCard({
+          cardIndex: 0,
+          playerId: PlayerEnum.PLAYER2,
+          destination: DestinationEnum.BOARD,
+          boardIndex: STARTING_INDICES[PlayerEnum.PLAYER2]
+        }));
+
+        store.dispatch(flipInitialCards());
+
+        // Play 3 moves for Player 2 and record the sequence
+        let moveSequence = '';
+        for (let move = 0; move < 3; move++) {
+          const stateBeforeMove = store.getState().game;
+          if (stateBeforeMove.turn.currentTurn === PlayerEnum.PLAYER2) {
+            store.dispatch(processTurn({ playerId: PlayerEnum.PLAYER2 }));
+            const stateAfterMove = store.getState().game;
+            
+            // Record the move by checking where the last card was played
+            const player2Moves = stateAfterMove.board
+              .map((cell, index) => {
+                const lastCard = cell[cell.length - 1];
+                return lastCard && lastCard.owner === PlayerEnum.PLAYER2 ? index : -1;
+              })
+              .filter(index => index !== -1);
+            
+            moveSequence += player2Moves[player2Moves.length - 1] + ',';
+          }
+          // Make a simple move for Player 1 to continue the game
+          if (stateBeforeMove.turn.currentTurn === PlayerEnum.PLAYER1) {
+            store.dispatch(moveCard({
+              cardIndex: 0,
+              playerId: PlayerEnum.PLAYER1,
+              destination: DestinationEnum.DISCARD
+            }));
+          }
+        }
+        moveSequences.push(moveSequence);
+      }
+
+      // Verify that we have different sequences
+      const uniqueSequences = new Set(moveSequences);
+      expect(uniqueSequences.size).toBeGreaterThan(1);
+      
+      // Log the sequences for debugging
+      console.log('Move sequences:', moveSequences);
+    });
   });
 
   describe('Game Completion', () => {
