@@ -5,7 +5,9 @@ import gameReducer, {
   flipInitialCards,
   processTurn,
   calculateScores,
-  isGameOver
+  isGameOver,
+  getValidMoves,
+  setTieBreaker
 } from './game';
 import {
   PlayerEnum,
@@ -18,7 +20,8 @@ import {
   STARTING_INDICES,
   SuitEnum,
   RankEnum,
-  Cards
+  Cards,
+  CellIndex
 } from '../types';
 
 type RootState = {
@@ -281,6 +284,158 @@ describe('Game Integration Tests', () => {
       
       expect(scores[PlayerEnum.PLAYER1]).toBe(1); // Red card
       expect(scores[PlayerEnum.PLAYER2]).toBe(1); // Black card
+    });
+  });
+
+  describe('Cell Highlighting', () => {
+    it('should highlight only starting position for first move', () => {
+      const state = store.getState().game;
+      const player1 = PlayerEnum.PLAYER1;
+      const card = state.players[player1].hand[0];
+
+      if (!card) {
+        throw new Error('Expected player 1 to have a card in hand[0]');
+      }
+
+      store.dispatch(getValidMoves({ playerId: player1, card }));
+      const stateAfterHighlight = store.getState().game;
+
+      // For first move, only starting position should be highlighted
+      expect(stateAfterHighlight.highlightedCells).toEqual([STARTING_INDICES[player1]]);
+    });
+
+    it('should highlight home row cells for tie breaker', () => {
+      // Setup tie breaker scenario
+      store.dispatch(moveCard({
+        cardIndex: 0,
+        playerId: PlayerEnum.PLAYER1,
+        destination: DestinationEnum.BOARD,
+        boardIndex: STARTING_INDICES[PlayerEnum.PLAYER1]
+      }));
+
+      store.dispatch(moveCard({
+        cardIndex: 0,
+        playerId: PlayerEnum.PLAYER2,
+        destination: DestinationEnum.BOARD,
+        boardIndex: STARTING_INDICES[PlayerEnum.PLAYER2]
+      }));
+
+      // Force tie breaker state
+      store.dispatch(setTieBreaker(true));
+
+      const stateBeforeHighlight = store.getState().game;
+      const currentPlayer = PlayerEnum.PLAYER1;
+      const card = stateBeforeHighlight.players[currentPlayer].hand[0];
+
+      if (!card) {
+        throw new Error('Expected player to have a card in hand[0]');
+      }
+
+      store.dispatch(getValidMoves({ playerId: currentPlayer, card }));
+      const stateAfterHighlight = store.getState().game;
+
+      // In tie breaker, only valid cells in home row should be highlighted
+      const homeRowStart = currentPlayer === PlayerEnum.PLAYER1 ? 
+        BOARD_SIZE * (BOARD_SIZE - 1) : 0;
+      const homeRow = Array.from(
+        { length: BOARD_SIZE }, 
+        (_, i) => homeRowStart + i
+      );
+
+      // Check that all highlighted cells are in the home row
+      expect(stateAfterHighlight.highlightedCells.every(cell => 
+        homeRow.includes(cell)
+      )).toBe(true);
+    });
+
+    it('should highlight valid moves for regular play', () => {
+      // Setup regular play scenario
+      store.dispatch(moveCard({
+        cardIndex: 0,
+        playerId: PlayerEnum.PLAYER1,
+        destination: DestinationEnum.BOARD,
+        boardIndex: STARTING_INDICES[PlayerEnum.PLAYER1]
+      }));
+
+      store.dispatch(moveCard({
+        cardIndex: 0,
+        playerId: PlayerEnum.PLAYER2,
+        destination: DestinationEnum.BOARD,
+        boardIndex: STARTING_INDICES[PlayerEnum.PLAYER2]
+      }));
+
+      store.dispatch(flipInitialCards());
+
+      const stateBeforeHighlight = store.getState().game;
+      const currentPlayer = stateBeforeHighlight.turn.currentTurn;
+      const card = stateBeforeHighlight.players[currentPlayer].hand[0];
+
+      if (!card) {
+        throw new Error('Expected current player to have a card in hand[0]');
+      }
+
+      store.dispatch(getValidMoves({ playerId: currentPlayer, card }));
+      const stateAfterHighlight = store.getState().game;
+
+      // In regular play, highlighted cells should include:
+      // 1. Valid cells in home row
+      // 2. Valid cells adjacent to connected cells of same color
+      expect(stateAfterHighlight.highlightedCells.length).toBeGreaterThan(0);
+      
+      // Verify each highlighted cell is either in home row or adjacent to a connected cell
+      const homeRowStart = currentPlayer === PlayerEnum.PLAYER1 ? 
+        BOARD_SIZE * (BOARD_SIZE - 1) : 0;
+      const homeRow = Array.from(
+        { length: BOARD_SIZE }, 
+        (_, i) => homeRowStart + i
+      );
+
+      stateAfterHighlight.highlightedCells.forEach(cell => {
+        const isInHomeRow = homeRow.includes(cell);
+        // Check if the cell is adjacent to a connected cell by checking if it's within one row/column
+        const row = Math.floor(cell / BOARD_SIZE);
+        const col = cell % BOARD_SIZE;
+        const isAdjacentToConnected = [-1, 0, 1].some(rowOffset => 
+          [-1, 0, 1].some(colOffset => {
+            if (rowOffset === 0 && colOffset === 0) return false;
+            if (Math.abs(rowOffset) === 1 && Math.abs(colOffset) === 1) return false;
+            
+            const adjRow = row + rowOffset;
+            const adjCol = col + colOffset;
+            if (adjRow < 0 || adjRow >= BOARD_SIZE || adjCol < 0 || adjCol >= BOARD_SIZE) return false;
+            
+            const adjCell = adjRow * BOARD_SIZE + adjCol;
+            const adjStack = stateAfterHighlight.board[adjCell];
+            const topCard = adjStack[adjStack.length - 1];
+            return topCard && topCard.color === card.color;
+          })
+        );
+        expect(isInHomeRow || isAdjacentToConnected).toBe(true);
+      });
+    });
+
+    it('should clear highlights after move is made', () => {
+      const state = store.getState().game;
+      const player1 = PlayerEnum.PLAYER1;
+      const card = state.players[player1].hand[0];
+
+      if (!card) {
+        throw new Error('Expected player 1 to have a card in hand[0]');
+      }
+
+      // First get valid moves
+      store.dispatch(getValidMoves({ playerId: player1, card }));
+      
+      // Then make a move
+      store.dispatch(moveCard({
+        cardIndex: 0,
+        playerId: player1,
+        destination: DestinationEnum.BOARD,
+        boardIndex: STARTING_INDICES[player1]
+      }));
+
+      const stateAfterMove = store.getState().game;
+      expect(stateAfterMove.highlightedCells).toHaveLength(0);
     });
   });
 }); 
