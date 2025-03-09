@@ -8,7 +8,8 @@ import gameReducer, {
   isGameOver,
   getValidMoves,
   setTieBreaker,
-  startCardDrag
+  startCardDrag,
+  setTurn
 } from './game';
 import {
   PlayerEnum,
@@ -1081,6 +1082,282 @@ describe('Game Integration Tests', () => {
       const stateAfterValidMove = store.getState().game;
       expect(stateAfterValidMove.highlightedCells.length).toBeGreaterThan(0);
       expect(stateAfterValidMove.turn.currentTurn).toBe(PlayerEnum.PLAYER2);
+    });
+  });
+
+  describe('Tiebreaker Logic with Card Dragging', () => {
+    it('should prevent Player 1 from seeing valid moves during Player 2 tiebreaker turn', () => {
+      // Setup initial board with tied cards
+      const board = TestFactory.board({
+        12: [TestFactory.card({
+          rank: RankEnum.SIX,
+          color: ColorEnum.RED,
+          owner: PlayerEnum.PLAYER1
+        })],
+        13: [TestFactory.card({
+          rank: RankEnum.SIX,
+          color: ColorEnum.BLACK,
+          owner: PlayerEnum.PLAYER2
+        })]
+      });
+
+      // Setup players with cards in hand
+      const players = TestFactory.players({
+        [PlayerEnum.PLAYER1]: {
+          hand: [
+            TestFactory.card({
+              rank: RankEnum.KING,
+              color: ColorEnum.RED,
+              owner: PlayerEnum.PLAYER1
+            }),
+            TestFactory.card({
+              rank: RankEnum.QUEEN,
+              color: ColorEnum.RED,
+              owner: PlayerEnum.PLAYER1
+            }),
+            null
+          ]
+        },
+        [PlayerEnum.PLAYER2]: {
+          hand: [
+            TestFactory.card({
+              rank: RankEnum.KING,
+              color: ColorEnum.BLACK,
+              owner: PlayerEnum.PLAYER2
+            }),
+            TestFactory.card({
+              rank: RankEnum.QUEEN,
+              color: ColorEnum.BLACK,
+              owner: PlayerEnum.PLAYER2
+            }),
+            null
+          ]
+        }
+      });
+
+      // Initialize store with tiebreaker state
+      const store = TestHelpers.setupStore({
+        board,
+        players,
+        firstMoveDone: true
+      });
+
+      // Set tiebreaker state and Player 2's turn
+      store.dispatch(setTieBreaker(true));
+      store.dispatch(setTurn(PlayerEnum.PLAYER2));
+
+      // Player 1 attempts to drag a card during Player 2's turn
+      store.dispatch(startCardDrag({
+        cardIndex: 0,
+        playerId: PlayerEnum.PLAYER1
+      }));
+
+      // Verify no valid moves are shown for Player 1
+      const stateAfterPlayer1Drag = store.getState().game;
+      expect(stateAfterPlayer1Drag.highlightedCells).toEqual([]);
+      expect(stateAfterPlayer1Drag.turn.currentTurn).toBe(PlayerEnum.PLAYER2);
+      expect(stateAfterPlayer1Drag.gameStatus.tieBreaker).toBe(true);
+
+      // Player 2 attempts to drag a card during their turn
+      store.dispatch(startCardDrag({
+        cardIndex: 0,
+        playerId: PlayerEnum.PLAYER2
+      }));
+
+      // Verify valid moves are shown for Player 2
+      const stateAfterPlayer2Drag = store.getState().game;
+      expect(stateAfterPlayer2Drag.highlightedCells.length).toBeGreaterThan(0);
+      expect(stateAfterPlayer2Drag.turn.currentTurn).toBe(PlayerEnum.PLAYER2);
+      expect(stateAfterPlayer2Drag.gameStatus.tieBreaker).toBe(true);
+    });
+
+    it('should maintain tiebreaker state through multiple tied plays', () => {
+      // Setup initial board
+      const board = TestFactory.board({
+        12: [TestFactory.card({
+          rank: RankEnum.SIX,
+          color: ColorEnum.RED,
+          owner: PlayerEnum.PLAYER1
+        })],
+        13: [TestFactory.card({
+          rank: RankEnum.SIX,
+          color: ColorEnum.BLACK,
+          owner: PlayerEnum.PLAYER2
+        })]
+      });
+
+      // Setup players with multiple tied cards
+      const players = TestFactory.players({
+        [PlayerEnum.PLAYER1]: {
+          hand: [
+            TestFactory.card({
+              rank: RankEnum.KING,
+              color: ColorEnum.RED,
+              owner: PlayerEnum.PLAYER1
+            }),
+            TestFactory.card({
+              rank: RankEnum.QUEEN,
+              color: ColorEnum.RED,
+              owner: PlayerEnum.PLAYER1
+            }),
+            null
+          ]
+        },
+        [PlayerEnum.PLAYER2]: {
+          hand: [
+            TestFactory.card({
+              rank: RankEnum.KING,
+              color: ColorEnum.BLACK,
+              owner: PlayerEnum.PLAYER2
+            }),
+            TestFactory.card({
+              rank: RankEnum.QUEEN,
+              color: ColorEnum.BLACK,
+              owner: PlayerEnum.PLAYER2
+            }),
+            null
+          ]
+        }
+      });
+
+      const store = TestHelpers.setupStore({
+        board,
+        players,
+        firstMoveDone: true
+      });
+
+      // Set initial tiebreaker state
+      store.dispatch(setTieBreaker(true));
+      store.dispatch(setTurn(PlayerEnum.PLAYER2));
+
+      // First round of tied plays (Kings)
+      store.dispatch(moveCard({
+        cardIndex: 0,
+        playerId: PlayerEnum.PLAYER1,
+        destination: DestinationEnum.BOARD,
+        boardIndex: 14
+      }));
+
+      store.dispatch(moveCard({
+        cardIndex: 0,
+        playerId: PlayerEnum.PLAYER2,
+        destination: DestinationEnum.BOARD,
+        boardIndex: 15
+      }));
+
+      // Verify state after first round
+      const stateAfterFirstRound = store.getState().game;
+      expect(stateAfterFirstRound.turn.currentTurn).toBe(PlayerEnum.PLAYER2);
+      expect(stateAfterFirstRound.gameStatus.tieBreaker).toBe(true);
+
+      // Second round of tied plays (Queens)
+      store.dispatch(moveCard({
+        cardIndex: 1,
+        playerId: PlayerEnum.PLAYER1,
+        destination: DestinationEnum.BOARD,
+        boardIndex: 16
+      }));
+
+      store.dispatch(moveCard({
+        cardIndex: 1,
+        playerId: PlayerEnum.PLAYER2,
+        destination: DestinationEnum.BOARD,
+        boardIndex: 17
+      }));
+
+      // Verify state after second round
+      const stateAfterSecondRound = store.getState().game;
+      expect(stateAfterSecondRound.turn.currentTurn).toBe(PlayerEnum.PLAYER2);
+      expect(stateAfterSecondRound.gameStatus.tieBreaker).toBe(true);
+
+      // Verify that Player 1 still cannot make moves
+      store.dispatch(startCardDrag({
+        cardIndex: 2,
+        playerId: PlayerEnum.PLAYER1
+      }));
+
+      const finalState = store.getState().game;
+      expect(finalState.highlightedCells).toEqual([]);
+      expect(finalState.turn.currentTurn).toBe(PlayerEnum.PLAYER2);
+      expect(finalState.gameStatus.tieBreaker).toBe(true);
+    });
+
+    it('should properly exit tiebreaker state when cards of different ranks are played', () => {
+      // Setup initial board
+      const board = TestFactory.board({
+        12: [TestFactory.card({
+          rank: RankEnum.SIX,
+          color: ColorEnum.RED,
+          owner: PlayerEnum.PLAYER1
+        })],
+        13: [TestFactory.card({
+          rank: RankEnum.SIX,
+          color: ColorEnum.BLACK,
+          owner: PlayerEnum.PLAYER2
+        })]
+      });
+
+      // Setup players with different ranked cards
+      const players = TestFactory.players({
+        [PlayerEnum.PLAYER1]: {
+          hand: [
+            TestFactory.card({
+              rank: RankEnum.KING,
+              color: ColorEnum.RED,
+              owner: PlayerEnum.PLAYER1
+            }),
+            null,
+            null
+          ]
+        },
+        [PlayerEnum.PLAYER2]: {
+          hand: [
+            TestFactory.card({
+              rank: RankEnum.QUEEN,
+              color: ColorEnum.BLACK,
+              owner: PlayerEnum.PLAYER2
+            }),
+            null,
+            null
+          ]
+        }
+      });
+
+      const store = TestHelpers.setupStore({
+        board,
+        players,
+        firstMoveDone: true
+      });
+
+      // Set initial tiebreaker state
+      store.dispatch(setTieBreaker(true));
+      store.dispatch(setTurn(PlayerEnum.PLAYER2));
+
+      // Player 1 plays King
+      store.dispatch(moveCard({
+        cardIndex: 0,
+        playerId: PlayerEnum.PLAYER1,
+        destination: DestinationEnum.BOARD,
+        boardIndex: 14
+      }));
+
+      // Verify turn passed to Player 2
+      const stateAfterPlayer1 = store.getState().game;
+      expect(stateAfterPlayer1.turn.currentTurn).toBe(PlayerEnum.PLAYER2);
+      expect(stateAfterPlayer1.gameStatus.tieBreaker).toBe(true);
+
+      // Player 2 plays Queen
+      store.dispatch(moveCard({
+        cardIndex: 0,
+        playerId: PlayerEnum.PLAYER2,
+        destination: DestinationEnum.BOARD,
+        boardIndex: 15
+      }));
+
+      // Verify tiebreaker is resolved
+      const finalState = store.getState().game;
+      expect(finalState.gameStatus.tieBreaker).toBe(false);
+      expect(finalState.turn.currentTurn).toBe(PlayerEnum.PLAYER1); // Turn goes to Player 1 since they played higher card
     });
   });
 }); 
