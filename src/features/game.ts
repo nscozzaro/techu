@@ -79,13 +79,14 @@ const createDeck = (color: ColorEnum, owner: PlayerEnum): Cards => {
 };
 
 const getHomeRowIndices = (playerId: PlayerEnum, boardSize: BoardSize): CellIndices => {
-  const base = playerId === PlayerEnum.PLAYER1 ? boardSize - 1 : 0;
-  return Array.from({ length: boardSize }, (_, i) => base * boardSize + i);
+  const rowStart = playerId === PlayerEnum.PLAYER1 ? boardSize - 1 : 0;
+  return Array.from({ length: boardSize }, (_, i) => rowStart * boardSize + i);
 };
 
 const getValidMoveIndices = (indices: CellIndices, board: BoardState, card: Card): CellIndices =>
   indices.filter(i => {
     const cell = board[i];
+    if (!cell || cell.length === 0) return true;
     const top = cell[cell.length - 1];
     return !top || getCardRank(card.rank) > getCardRank(top.rank);
   });
@@ -258,6 +259,7 @@ export interface GameState {
     gameOver: boolean;
     tieBreaker: boolean;
     initialFaceDownCards: { [key in PlayerEnum]?: FaceDownCard };
+    lastPlayedCard?: { [key in PlayerEnum]?: Card };
   };
   highlightedCells: CellIndices;
   draggingPlayer: PlayerEnum | null;
@@ -571,13 +573,42 @@ const gameSlice = createSlice({
     handleBoardMove: (state, action: PayloadAction<{ playerId: PlayerEnum; cardIndex: CardIndex; cardToMove: Card; boardIndex: CellIndex }>) => {
       const { playerId, cardIndex, cardToMove, boardIndex } = action.payload;
       const cardCopy = { ...cardToMove, faceDown: state.gameStatus.firstMove[playerId] && !state.gameStatus.tieBreaker };
-      if (state.gameStatus.firstMove[playerId] || state.gameStatus.tieBreaker) {
-        state.gameStatus.initialFaceDownCards[playerId] = { ...cardCopy, cellIndex: boardIndex };
-      }
+      
       // Initialize the board cell if it doesn't exist
       if (!state.board[boardIndex]) {
         state.board[boardIndex] = [];
       }
+      
+      // Check if we need to maintain tie breaker state
+      if (state.gameStatus.tieBreaker) {
+        // Initialize lastPlayedCard if it doesn't exist
+        if (!state.gameStatus.lastPlayedCard) {
+          state.gameStatus.lastPlayedCard = {};
+        }
+        
+        // Store the current move
+        state.gameStatus.lastPlayedCard[playerId] = cardToMove;
+        
+        // Check if both players have played their cards
+        const player1Card = state.gameStatus.lastPlayedCard[PlayerEnum.PLAYER1];
+        const player2Card = state.gameStatus.lastPlayedCard[PlayerEnum.PLAYER2];
+        
+        if (player1Card && player2Card) {
+          // Both players have played, check if ranks are equal
+          if (getCardRank(player1Card.rank) === getCardRank(player2Card.rank)) {
+            state.gameStatus.tieBreaker = true;
+          } else {
+            state.gameStatus.tieBreaker = false;
+          }
+          // Reset lastPlayedCard for next round
+          state.gameStatus.lastPlayedCard = {};
+        }
+      }
+
+      if (state.gameStatus.firstMove[playerId] || state.gameStatus.tieBreaker) {
+        state.gameStatus.initialFaceDownCards[playerId] = { ...cardCopy, cellIndex: boardIndex };
+      }
+      
       state.board[boardIndex].push(cardCopy);
       gameSlice.caseReducers.updatePlayerHandAndDrawCard(state, {
         type: 'game/updatePlayerHandAndDrawCard',
@@ -772,7 +803,7 @@ const getValidMoveIndicesForCard = (
   if (isTieBreaker) {
     return getValidMoveIndices(getHomeRowIndices(playerId, BOARD_SIZE), board, card);
   }
-  return getValidMovesHelper(playerId, card, board, false, false);
+  return getValidMovesHelper(playerId, card, board, isTieBreaker, false);
 };
 
 const createBoardMoveWithIndex = (cellIndex: CellIndex, cardIndex: CardIndex): Move => ({
@@ -820,17 +851,31 @@ const getValidMovesHelper = (
   isFirstMove: boolean
 ): CellIndices => {
   if (isTieBreaker) {
-    return getValidMoveIndices(getHomeRowIndices(playerId, BOARD_SIZE), board, card);
+    // During tie breaker, only allow moves in the player's home row
+    const homeRow = getHomeRowIndices(playerId, BOARD_SIZE);
+    return homeRow.filter(i => {
+      const cell = board[i];
+      if (!cell || cell.length === 0) return true;
+      const topCard = cell[cell.length - 1];
+      return !topCard || getCardRank(card.rank) > getCardRank(topCard.rank);
+    });
   }
+
   if (isFirstMove) {
     return [STARTING_INDICES[playerId]];
   }
+
+  // For regular moves, get valid moves from both home row and connected cells
   const homeRow = getHomeRowIndices(playerId, BOARD_SIZE);
-  const homeValid = getValidMoveIndices(homeRow, board, card);
-  const connected = findConnectedCells(playerId, board, card.color, BOARD_SIZE);
-  const connectedValid = connected.flatMap(index =>
-    getValidMoveIndices(getAdjacentIndices(index, BOARD_SIZE), board, card)
-  );
-  return Array.from(new Set([...homeValid, ...connectedValid]));
+  const connectedCells = findConnectedCells(playerId, board, card.color, BOARD_SIZE);
+  
+  // Get all adjacent cells to both home row and connected cells
+  const adjacentToHome = homeRow.flatMap(index => getAdjacentIndices(index, BOARD_SIZE));
+  const adjacentToConnected = Array.from(connectedCells).flatMap(index => getAdjacentIndices(index, BOARD_SIZE));
+  
+  // Combine all possible valid cells and remove duplicates
+  const allPossibleCells = Array.from(new Set([...homeRow, ...adjacentToHome, ...adjacentToConnected]));
+  
+  return getValidMoveIndices(allPossibleCells, board, card);
 };
 

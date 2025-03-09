@@ -22,7 +22,9 @@ import {
   RankEnum,
   Cards,
   CellIndex,
-  Player
+  Player,
+  CellIndices,
+  rankOrder
 } from '../types';
 
 type Store = ReturnType<typeof configureStore<{
@@ -169,6 +171,12 @@ const TestHelpers: TestHelpers = {
       expect(state.highlightedCells).not.toContain(cell);
     });
   }
+};
+
+// Helper functions for tests
+const getHomeRowIndices = (playerId: PlayerEnum, boardSize: number): CellIndices => {
+  const rowStart = playerId === PlayerEnum.PLAYER1 ? boardSize - 1 : 0;
+  return Array.from({ length: boardSize }, (_, i) => rowStart * boardSize + i);
 };
 
 describe('Game Integration Tests', () => {
@@ -413,6 +421,146 @@ describe('Game Integration Tests', () => {
       expect(player1Card?.faceDown).toBe(false);
       expect(player2Card?.faceDown).toBe(false);
       expect(state.gameStatus.tieBreaker).toBe(true);
+    });
+
+    it('should maintain tie breaker state when equal cards are played during tie breaker', () => {
+      // Setup store with initial board state
+      const player1StartIndex = STARTING_INDICES[PlayerEnum.PLAYER1];
+      const player2StartIndex = STARTING_INDICES[PlayerEnum.PLAYER2];
+      
+      const initialBoard = TestFactory.board();
+      initialBoard[player1StartIndex] = [];
+      initialBoard[player2StartIndex] = [];
+      
+      // Setup initial state with Kings for first move and Queens for second move
+      store = TestHelpers.setupStore({
+        board: initialBoard,
+        players: TestFactory.players({
+          [PlayerEnum.PLAYER1]: {
+            hand: [
+              TestFactory.card({
+                color: ColorEnum.RED,
+                suit: SuitEnum.HEARTS,
+                rank: RankEnum.KING,
+                owner: PlayerEnum.PLAYER1,
+                faceDown: true
+              }),
+              TestFactory.card({
+                color: ColorEnum.RED,
+                suit: SuitEnum.HEARTS,
+                rank: RankEnum.QUEEN,
+                owner: PlayerEnum.PLAYER1
+              }),
+              null
+            ],
+            deck: []
+          },
+          [PlayerEnum.PLAYER2]: {
+            hand: [
+              TestFactory.card({
+                color: ColorEnum.BLACK,
+                suit: SuitEnum.SPADES,
+                rank: RankEnum.KING,
+                owner: PlayerEnum.PLAYER2,
+                faceDown: true
+              }),
+              TestFactory.card({
+                color: ColorEnum.BLACK,
+                suit: SuitEnum.SPADES,
+                rank: RankEnum.QUEEN,
+                owner: PlayerEnum.PLAYER2
+              }),
+              null
+            ],
+            deck: []
+          }
+        })
+      });
+
+      // Make initial moves with Kings
+      store.dispatch(moveCard({
+        cardIndex: 0,
+        playerId: PlayerEnum.PLAYER1,
+        destination: DestinationEnum.BOARD,
+        boardIndex: player1StartIndex
+      }));
+
+      store.dispatch(moveCard({
+        cardIndex: 0,
+        playerId: PlayerEnum.PLAYER2,
+        destination: DestinationEnum.BOARD,
+        boardIndex: player2StartIndex
+      }));
+
+      // Set tie breaker and flip initial Kings
+      store.dispatch(setTieBreaker(true));
+      store.dispatch(flipInitialCards());
+      
+      const stateAfterFirstMoves = store.getState().game;
+      expect(stateAfterFirstMoves.gameStatus.tieBreaker).toBe(true);
+
+      // Get home row indices for second moves
+      const player1HomeRow = getHomeRowIndices(PlayerEnum.PLAYER1, BOARD_SIZE);
+      const player2HomeRow = getHomeRowIndices(PlayerEnum.PLAYER2, BOARD_SIZE);
+      const player1SecondMoveIndex = player1HomeRow[1]; // Use second position in home row
+      const player2SecondMoveIndex = player2HomeRow[1]; // Use second position in home row
+
+      // Make second moves with Queens during tie breaker
+      store.dispatch(moveCard({
+        cardIndex: 1, // Queens are in second position of hand
+        playerId: PlayerEnum.PLAYER1,
+        destination: DestinationEnum.BOARD,
+        boardIndex: player1SecondMoveIndex
+      }));
+
+      store.dispatch(moveCard({
+        cardIndex: 1,
+        playerId: PlayerEnum.PLAYER2,
+        destination: DestinationEnum.BOARD,
+        boardIndex: player2SecondMoveIndex
+      }));
+
+      const finalState = store.getState().game;
+
+      // Verify tie breaker state is maintained
+      expect(finalState.gameStatus.tieBreaker).toBe(true);
+
+      // Verify cards were placed in home rows
+      const player1SecondCard = finalState.board[player1SecondMoveIndex][0];
+      const player2SecondCard = finalState.board[player2SecondMoveIndex][0];
+      expect(player1SecondCard?.rank).toBe(RankEnum.QUEEN);
+      expect(player2SecondCard?.rank).toBe(RankEnum.QUEEN);
+
+      // Verify cards are face up
+      expect(player1SecondCard?.faceDown).toBe(false);
+      expect(player2SecondCard?.faceDown).toBe(false);
+
+      // Verify valid moves are restricted to home row during tie breaker
+      const testCard = TestFactory.card({ rank: RankEnum.THREE });
+      
+      // During tie breaker, valid moves are cells in the home row where the card can be played
+      // according to ranking rules (can only capture lower ranked cards or empty cells)
+      const homeRowIndices = getHomeRowIndices(PlayerEnum.PLAYER1, BOARD_SIZE);
+      const validCells = homeRowIndices.filter(i => {
+        const cell = finalState.board[i];
+        const topCard = cell[cell.length - 1];
+        // Can play on empty cells or cells where our card's rank is higher
+        return !topCard || rankOrder[testCard.rank] > rankOrder[topCard.rank];
+      });
+      
+      const invalidCells = Array.from({ length: BOARD_SIZE * BOARD_SIZE }, (_, i) => i)
+        .filter(i => !validCells.includes(i));
+      
+      // Use TestHelpers.checkValidMoves to verify valid moves
+      TestHelpers.checkValidMoves(store, {
+        playerId: PlayerEnum.PLAYER1,
+        card: testCard,
+        validCells,
+        invalidCells
+      });
+
+      // Check that no discard moves are allowed
+      expect(finalState.highlightDiscardPile).toBe(false);
     });
   });
 
