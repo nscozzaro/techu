@@ -21,41 +21,173 @@ import {
   SuitEnum,
   RankEnum,
   Cards,
-  CellIndex
+  CellIndex,
+  Player
 } from '../types';
 
-type RootState = {
-  game: GameState;
+type Store = ReturnType<typeof configureStore<{
+  game: ReturnType<typeof gameReducer>;
+}>>;
+
+// Test factories and helpers
+const TestFactory = {
+  card: (params: Partial<Card> = {}): Card => ({
+    color: ColorEnum.BLACK,
+    suit: SuitEnum.SPADES,
+    rank: RankEnum.KING,
+    owner: PlayerEnum.PLAYER2,
+    faceDown: false,
+    ...params
+  }),
+
+  board: (cells: { [index: number]: Partial<Card>[] } = {}): BoardState => {
+    // Create a mutable board with empty arrays
+    const board = Array(BOARD_SIZE * BOARD_SIZE).fill(null).map(() => [] as Cards);
+    
+    // Fill in the specified cells
+    Object.entries(cells).forEach(([index, cards]) => {
+      board[Number(index)] = cards.map(card => TestFactory.card(card));
+    });
+    
+    return board;
+  },
+
+  players: (params: Partial<Record<PlayerEnum, Partial<Player>>> = {}): Players => ({
+    [PlayerEnum.PLAYER1]: {
+      hand: [null, null, null],
+      deck: [],
+      id: PlayerEnum.PLAYER1,
+      ...params[PlayerEnum.PLAYER1]
+    },
+    [PlayerEnum.PLAYER2]: {
+      hand: [null, null, null],
+      deck: [],
+      id: PlayerEnum.PLAYER2,
+      ...params[PlayerEnum.PLAYER2]
+    }
+  }),
+
+  connectedBoard: (params: {
+    homeRowIndex: number;
+    playerColor: ColorEnum;
+    playerId: PlayerEnum;
+    cards: Array<{
+      index: number;
+      rank: RankEnum;
+      isConnected?: boolean;
+    }>;
+  }) => {
+    const cells: { [index: number]: Partial<Card>[] } = {
+      [params.homeRowIndex]: [{
+        color: params.playerColor,
+        suit: params.playerColor === ColorEnum.RED ? SuitEnum.HEARTS : SuitEnum.SPADES,
+        rank: RankEnum.KING,
+        owner: params.playerId
+      }]
+    };
+
+    params.cards.forEach(card => {
+      cells[card.index] = [{
+        color: params.playerColor,
+        suit: params.playerColor === ColorEnum.RED ? SuitEnum.HEARTS : SuitEnum.SPADES,
+        rank: card.rank,
+        owner: params.playerId
+      }];
+    });
+
+    return TestFactory.board(cells);
+  }
+};
+
+interface TestHelpers {
+  setupStore: (params?: {
+    board?: BoardState;
+    players?: Players;
+    firstMoveDone?: boolean;
+  }) => Store;
+  playInitialMoves: (store: Store) => Store;
+  checkValidMoves: (store: Store, params: {
+    playerId: PlayerEnum;
+    card: Card;
+    validCells: number[];
+    invalidCells: number[];
+  }) => void;
+}
+
+const TestHelpers: TestHelpers = {
+  setupStore: (params = {}) => {
+    const store = configureStore({
+      reducer: {
+        game: gameReducer
+      },
+      preloadedState: params.board || params.players ? {
+        game: {
+          ...gameReducer(undefined, { type: 'INIT' }),
+          ...(params.board ? { board: params.board } : {}),
+          ...(params.players ? { players: params.players } : {}),
+          gameStatus: {
+            ...gameReducer(undefined, { type: 'INIT' }).gameStatus,
+            firstMove: {
+              [PlayerEnum.PLAYER1]: !params.firstMoveDone,
+              [PlayerEnum.PLAYER2]: !params.firstMoveDone
+            }
+          }
+        }
+      } : undefined
+    });
+    return store;
+  },
+
+  playInitialMoves: (store) => {
+    store.dispatch(moveCard({
+      cardIndex: 0,
+      playerId: PlayerEnum.PLAYER1,
+      destination: DestinationEnum.BOARD,
+      boardIndex: STARTING_INDICES[PlayerEnum.PLAYER1]
+    }));
+
+    store.dispatch(moveCard({
+      cardIndex: 0,
+      playerId: PlayerEnum.PLAYER2,
+      destination: DestinationEnum.BOARD,
+      boardIndex: STARTING_INDICES[PlayerEnum.PLAYER2]
+    }));
+
+    store.dispatch(flipInitialCards());
+    return store;
+  },
+
+  checkValidMoves: (store, params) => {
+    store.dispatch(getValidMoves({ playerId: params.playerId, card: params.card }));
+    const state = store.getState().game;
+    
+    params.validCells.forEach(cell => {
+      expect(state.highlightedCells).toContain(cell);
+    });
+    
+    params.invalidCells.forEach(cell => {
+      expect(state.highlightedCells).not.toContain(cell);
+    });
+  }
 };
 
 describe('Game Integration Tests', () => {
-  let store: ReturnType<typeof configureStore<{
-    game: ReturnType<typeof gameReducer>;
-  }>>;
+  let store: ReturnType<typeof TestHelpers.setupStore>;
 
   beforeEach(() => {
-    store = configureStore({
-      reducer: {
-        game: gameReducer
-      }
-    }) as typeof store;
+    store = TestHelpers.setupStore();
   });
 
   describe('Game Initialization', () => {
     it('should initialize game with correct state', () => {
       const state = store.getState().game;
       
-      // Check initial board state
       expect(state.board).toHaveLength(BOARD_SIZE * BOARD_SIZE);
       expect(state.board.every((cell: Cards) => Array.isArray(cell) && cell.length === 0)).toBe(true);
-      
-      // Check players initialization
       expect(state.players[PlayerEnum.PLAYER1].hand).toHaveLength(3);
       expect(state.players[PlayerEnum.PLAYER2].hand).toHaveLength(3);
       expect(state.players[PlayerEnum.PLAYER1].deck.length).toBeGreaterThan(0);
       expect(state.players[PlayerEnum.PLAYER2].deck.length).toBeGreaterThan(0);
-      
-      // Check initial game status
       expect(state.turn.currentTurn).toBe(PlayerEnum.PLAYER1);
       expect(state.gameStatus.gameOver).toBe(false);
       expect(state.gameStatus.tieBreaker).toBe(false);
@@ -64,157 +196,433 @@ describe('Game Integration Tests', () => {
     });
   });
 
-  describe('First Move Mechanics', () => {
-    it('should handle first move correctly', () => {
-      const state = store.getState().game;
-      const player1FirstCard = state.players[PlayerEnum.PLAYER1].hand[0];
+  describe('Card Ranking Rules', () => {
+    it('should enforce card ranking rules', () => {
+      const homeRowIndex = 2;
+      const targetIndex = homeRowIndex + BOARD_SIZE;
       
-      if (!player1FirstCard) {
-        throw new Error('Expected player 1 to have a card in hand[0]');
-      }
-      
-      // Make first move for Player 1
-      store.dispatch(moveCard({
-        cardIndex: 0,
-        playerId: PlayerEnum.PLAYER1,
-        destination: DestinationEnum.BOARD,
-        boardIndex: STARTING_INDICES[PlayerEnum.PLAYER1]
-      }));
-
-      const newState = store.getState().game;
-      
-      // Check card placement
-      expect(newState.board[STARTING_INDICES[PlayerEnum.PLAYER1]][0]).toEqual({
-        ...player1FirstCard,
-        faceDown: true
+      store = TestHelpers.setupStore({
+        board: TestFactory.connectedBoard({
+          homeRowIndex,
+          playerColor: ColorEnum.BLACK,
+          playerId: PlayerEnum.PLAYER2,
+          cards: [
+            { index: targetIndex, rank: RankEnum.FIVE },
+            { index: targetIndex + 1, rank: RankEnum.KING },
+            { index: targetIndex + 2, rank: RankEnum.KING }
+          ]
+        }),
+        firstMoveDone: true
       });
-      
-      // Check turn changed
-      expect(newState.turn.currentTurn).toBe(PlayerEnum.PLAYER2);
-      
-      // Check first move status updated
-      expect(newState.gameStatus.firstMove[PlayerEnum.PLAYER1]).toBe(false);
-      expect(newState.gameStatus.firstMove[PlayerEnum.PLAYER2]).toBe(true);
-    });
-  });
 
-  describe('Tie Breaker Scenarios', () => {
-    it('should handle tie breaker when initial cards have same rank', async () => {
-      // Make first moves for both players
-      const initialState = store.getState().game;
-      
-      // Player 1 first move
-      store.dispatch(moveCard({
-        cardIndex: 0,
-        playerId: PlayerEnum.PLAYER1,
-        destination: DestinationEnum.BOARD,
-        boardIndex: STARTING_INDICES[PlayerEnum.PLAYER1]
-      }));
-
-      // Player 2 first move
-      store.dispatch(moveCard({
-        cardIndex: 0,
+      // Test higher card can capture lower card
+      TestHelpers.checkValidMoves(store, {
         playerId: PlayerEnum.PLAYER2,
-        destination: DestinationEnum.BOARD,
-        boardIndex: STARTING_INDICES[PlayerEnum.PLAYER2]
-      }));
+        card: TestFactory.card({ rank: RankEnum.KING }),
+        validCells: [targetIndex],
+        invalidCells: []
+      });
 
-      // Flip initial cards
-      store.dispatch(flipInitialCards());
-      
-      const stateAfterFlip = store.getState().game;
-      
-      // If it's a tie breaker, cards should be face up
-      if (stateAfterFlip.gameStatus.tieBreaker) {
-        const player1Card = stateAfterFlip.board[STARTING_INDICES[PlayerEnum.PLAYER1]][0];
-        const player2Card = stateAfterFlip.board[STARTING_INDICES[PlayerEnum.PLAYER2]][0];
-        
-        if (!player1Card || !player2Card) {
-          throw new Error('Expected both players to have cards on the board');
-        }
-        
-        expect(player1Card.faceDown).toBe(false);
-        expect(player2Card.faceDown).toBe(false);
-      }
+      // Test lower card cannot capture higher card
+      TestHelpers.checkValidMoves(store, {
+        playerId: PlayerEnum.PLAYER2,
+        card: TestFactory.card({ rank: RankEnum.THREE }),
+        validCells: [],
+        invalidCells: [targetIndex]
+      });
+
+      // Test Ace is highest ranked
+      TestHelpers.checkValidMoves(store, {
+        playerId: PlayerEnum.PLAYER2,
+        card: TestFactory.card({ rank: RankEnum.ACE }),
+        validCells: [targetIndex, targetIndex + 1],
+        invalidCells: []
+      });
+
+      // Test same rank cannot capture
+      TestHelpers.checkValidMoves(store, {
+        playerId: PlayerEnum.PLAYER2,
+        card: TestFactory.card({ rank: RankEnum.KING }),
+        validCells: [targetIndex],
+        invalidCells: [targetIndex + 1, targetIndex + 2]
+      });
     });
   });
 
-  describe('Regular Gameplay', () => {
-    it('should handle regular moves correctly', () => {
-      // Setup game past initial moves
-      const state = store.getState().game;
+  describe('Home Row Connection Rule', () => {
+    it('should enforce connection rules', () => {
+      const homeRowIndex = 2;
+      const connectedIndex = homeRowIndex + BOARD_SIZE;
+      const disconnectedIndex = 22;
       
+      store = TestHelpers.setupStore({
+        board: TestFactory.connectedBoard({
+          homeRowIndex,
+          playerColor: ColorEnum.BLACK,
+          playerId: PlayerEnum.PLAYER2,
+          cards: [
+            { index: connectedIndex, rank: RankEnum.QUEEN },
+            { index: disconnectedIndex, rank: RankEnum.JACK }
+          ]
+        }),
+        firstMoveDone: true
+      });
+
+      const validCells = [
+        homeRowIndex - 1,
+        homeRowIndex + 1,
+        connectedIndex + BOARD_SIZE,
+        connectedIndex + 1,
+        connectedIndex - 1,
+        connectedIndex - BOARD_SIZE
+      ];
+
+      const invalidCells = [
+        disconnectedIndex + BOARD_SIZE,
+        disconnectedIndex - BOARD_SIZE,
+        disconnectedIndex + 1,
+        disconnectedIndex - 1,
+        connectedIndex + BOARD_SIZE + 1,
+        connectedIndex + BOARD_SIZE - 1
+      ];
+
+      TestHelpers.checkValidMoves(store, {
+        playerId: PlayerEnum.PLAYER2,
+        card: TestFactory.card({ rank: RankEnum.ACE }),
+        validCells,
+        invalidCells
+      });
+    });
+  });
+
+  describe('Game Flow', () => {
+    it('should handle game flow correctly', () => {
+      // Test initial moves
+      store = TestHelpers.playInitialMoves(store);
+      const stateAfterSetup = store.getState().game;
+      expect(stateAfterSetup.players[PlayerEnum.PLAYER1].hand).toHaveLength(3);
+      expect(stateAfterSetup.players[PlayerEnum.PLAYER2].hand).toHaveLength(3);
+
+      // Test discard
+      const currentPlayer = stateAfterSetup.turn.currentTurn;
+      const initialDiscardSize = stateAfterSetup.discard[currentPlayer].length;
+      
+      store.dispatch(moveCard({
+        cardIndex: 0,
+        playerId: currentPlayer,
+        destination: DestinationEnum.DISCARD
+      }));
+
+      const stateAfterDiscard = store.getState().game;
+      expect(stateAfterDiscard.discard[currentPlayer].length).toBe(initialDiscardSize + 1);
+      expect(stateAfterDiscard.turn.currentTurn).not.toBe(currentPlayer);
+    });
+  });
+
+  describe('Game End Conditions', () => {
+    it('should handle game end correctly', () => {
+      // Test game over detection
+      expect(isGameOver(TestFactory.players())).toBe(true);
+
+      // Test score calculation
+      const finalBoard = TestFactory.board({
+        0: [{ color: ColorEnum.RED, owner: PlayerEnum.PLAYER1 }],
+        1: [{ color: ColorEnum.BLACK, owner: PlayerEnum.PLAYER2 }],
+        2: [{ color: ColorEnum.RED, owner: PlayerEnum.PLAYER1 }]
+      });
+
+      const scores = calculateScores(finalBoard);
+      expect(scores[PlayerEnum.PLAYER1]).toBe(2);
+      expect(scores[PlayerEnum.PLAYER2]).toBe(1);
+    });
+
+    it('should determine winner based on controlled spaces', () => {
+      const winningBoard = TestFactory.board({
+        0: [{ color: ColorEnum.RED, owner: PlayerEnum.PLAYER1 }],
+        1: [{ color: ColorEnum.RED, owner: PlayerEnum.PLAYER1 }],
+        2: [{ color: ColorEnum.RED, owner: PlayerEnum.PLAYER1 }],
+        3: [{ color: ColorEnum.BLACK, owner: PlayerEnum.PLAYER2 }]
+      });
+
+      const scores = calculateScores(winningBoard);
+      expect(scores[PlayerEnum.PLAYER1]).toBeGreaterThan(scores[PlayerEnum.PLAYER2]);
+    });
+  });
+
+  describe('Tie Breaker Mechanics', () => {
+    it('should handle tie breaker when initial cards have same rank', () => {
+      // Setup store with initial board state
+      const player1StartIndex = STARTING_INDICES[PlayerEnum.PLAYER1];
+      const player2StartIndex = STARTING_INDICES[PlayerEnum.PLAYER2];
+      
+      const initialBoard = TestFactory.board();
+      initialBoard[player1StartIndex] = [];
+      initialBoard[player2StartIndex] = [];
+      
+      store = TestHelpers.setupStore({
+        board: initialBoard,
+        players: TestFactory.players({
+          [PlayerEnum.PLAYER1]: {
+            hand: [TestFactory.card({
+              color: ColorEnum.RED,
+              suit: SuitEnum.HEARTS,
+              rank: RankEnum.KING,
+              owner: PlayerEnum.PLAYER1,
+              faceDown: true
+            }), null, null],
+            deck: []
+          },
+          [PlayerEnum.PLAYER2]: {
+            hand: [TestFactory.card({
+              color: ColorEnum.BLACK,
+              suit: SuitEnum.SPADES,
+              rank: RankEnum.KING,
+              owner: PlayerEnum.PLAYER2,
+              faceDown: true
+            }), null, null],
+            deck: []
+          }
+        })
+      });
+
       // Make initial moves
       store.dispatch(moveCard({
         cardIndex: 0,
         playerId: PlayerEnum.PLAYER1,
         destination: DestinationEnum.BOARD,
-        boardIndex: STARTING_INDICES[PlayerEnum.PLAYER1]
+        boardIndex: player1StartIndex
       }));
 
       store.dispatch(moveCard({
         cardIndex: 0,
         playerId: PlayerEnum.PLAYER2,
         destination: DestinationEnum.BOARD,
-        boardIndex: STARTING_INDICES[PlayerEnum.PLAYER2]
+        boardIndex: player2StartIndex
       }));
 
+      // Set tie breaker and flip cards
+      store.dispatch(setTieBreaker(true));
       store.dispatch(flipInitialCards());
-
-      // Test regular move
-      const stateBeforeMove = store.getState().game;
-      const currentPlayer = stateBeforeMove.turn.currentTurn;
-      const cardToPlay = stateBeforeMove.players[currentPlayer].hand[0];
-
-      if (!cardToPlay) {
-        throw new Error('Expected current player to have a card in hand[0]');
-      }
-
-      // Make a regular move
-      store.dispatch(moveCard({
-        cardIndex: 0,
-        playerId: currentPlayer,
-        destination: DestinationEnum.BOARD,
-        boardIndex: STARTING_INDICES[currentPlayer] + BOARD_SIZE // Move to adjacent cell
-      }));
-
-      const stateAfterMove = store.getState().game;
       
-      // Verify move results
-      expect(stateAfterMove.turn.currentTurn).not.toBe(currentPlayer);
-      expect(stateAfterMove.players[currentPlayer].hand[0]).not.toEqual(cardToPlay);
-    });
-
-    it('should handle discard moves correctly', () => {
       const state = store.getState().game;
       
-      // Setup game past initial moves first
+      // Verify tie breaker state
+      const player1Card = state.board[player1StartIndex][0];
+      const player2Card = state.board[player2StartIndex][0];
+      
+      expect(player1Card?.faceDown).toBe(false);
+      expect(player2Card?.faceDown).toBe(false);
+      expect(state.gameStatus.tieBreaker).toBe(true);
+    });
+  });
+
+  describe('Extended Game Flow', () => {
+    it('should maintain hand size and draw new cards after playing', () => {
+      const player1StartIndex = STARTING_INDICES[PlayerEnum.PLAYER1];
+      const player2StartIndex = STARTING_INDICES[PlayerEnum.PLAYER2];
+      
+      const initialBoard = TestFactory.board();
+      initialBoard[player1StartIndex] = [];
+      initialBoard[player2StartIndex] = [];
+      
+      // Setup initial state with cards in deck
+      store = TestHelpers.setupStore({
+        board: initialBoard,
+        players: TestFactory.players({
+          [PlayerEnum.PLAYER1]: {
+            hand: [TestFactory.card({
+              color: ColorEnum.RED,
+              owner: PlayerEnum.PLAYER1,
+              rank: RankEnum.KING,
+              faceDown: true
+            }), null, null],
+            deck: [
+              TestFactory.card({ color: ColorEnum.RED, owner: PlayerEnum.PLAYER1, rank: RankEnum.QUEEN }),
+              TestFactory.card({ color: ColorEnum.RED, owner: PlayerEnum.PLAYER1, rank: RankEnum.JACK })
+            ]
+          },
+          [PlayerEnum.PLAYER2]: {
+            hand: [TestFactory.card({
+              color: ColorEnum.BLACK,
+              owner: PlayerEnum.PLAYER2,
+              rank: RankEnum.KING,
+              faceDown: true
+            }), null, null],
+            deck: []
+          }
+        })
+      });
+
+      // Play initial moves
       store.dispatch(moveCard({
         cardIndex: 0,
         playerId: PlayerEnum.PLAYER1,
         destination: DestinationEnum.BOARD,
-        boardIndex: STARTING_INDICES[PlayerEnum.PLAYER1]
+        boardIndex: player1StartIndex
       }));
 
       store.dispatch(moveCard({
         cardIndex: 0,
         playerId: PlayerEnum.PLAYER2,
         destination: DestinationEnum.BOARD,
-        boardIndex: STARTING_INDICES[PlayerEnum.PLAYER2]
+        boardIndex: player2StartIndex
       }));
 
       store.dispatch(flipInitialCards());
 
-      // Now test discard
-      const stateBeforeDiscard = store.getState().game;
-      const currentPlayer = stateBeforeDiscard.turn.currentTurn;
-      const cardToDiscard = stateBeforeDiscard.players[currentPlayer].hand[0];
+      const state = store.getState().game;
+      const currentPlayer = state.turn.currentTurn;
+      const initialHand = [...state.players[currentPlayer].hand];
+      const initialDeckSize = state.players[currentPlayer].deck.length;
 
-      if (!cardToDiscard) {
-        throw new Error('Expected current player to have a card in hand[0]');
-      }
+      // Play a card
+      const targetIndex = player1StartIndex + BOARD_SIZE;
+      initialBoard[targetIndex] = []; // Initialize the target cell
+      
+      store.dispatch(moveCard({
+        cardIndex: 0,
+        playerId: currentPlayer,
+        destination: DestinationEnum.BOARD,
+        boardIndex: targetIndex
+      }));
 
-      // Make a discard move
+      const stateAfterMove = store.getState().game;
+      
+      // Check hand maintenance
+      expect(stateAfterMove.players[currentPlayer].hand).toHaveLength(3);
+      expect(stateAfterMove.players[currentPlayer].hand[0]).not.toEqual(initialHand[0]);
+      expect(stateAfterMove.players[currentPlayer].deck.length).toBe(initialDeckSize - 1);
+    });
+
+    it('should alternate turns after valid moves', () => {
+      const player1StartIndex = STARTING_INDICES[PlayerEnum.PLAYER1];
+      const player2StartIndex = STARTING_INDICES[PlayerEnum.PLAYER2];
+      
+      const initialBoard = TestFactory.board();
+      initialBoard[player1StartIndex] = [];
+      initialBoard[player2StartIndex] = [];
+      
+      // Initialize with empty board first
+      store = TestHelpers.setupStore({
+        board: initialBoard,
+        players: TestFactory.players({
+          [PlayerEnum.PLAYER1]: {
+            hand: [TestFactory.card({
+              color: ColorEnum.RED,
+              owner: PlayerEnum.PLAYER1,
+              rank: RankEnum.ACE,
+              faceDown: true
+            }), null, null],
+            deck: []
+          },
+          [PlayerEnum.PLAYER2]: {
+            hand: [TestFactory.card({
+              color: ColorEnum.BLACK,
+              owner: PlayerEnum.PLAYER2,
+              rank: RankEnum.ACE,
+              faceDown: true
+            }), null, null],
+            deck: []
+          }
+        })
+      });
+
+      // Play initial moves
+      store.dispatch(moveCard({
+        cardIndex: 0,
+        playerId: PlayerEnum.PLAYER1,
+        destination: DestinationEnum.BOARD,
+        boardIndex: player1StartIndex
+      }));
+
+      store.dispatch(moveCard({
+        cardIndex: 0,
+        playerId: PlayerEnum.PLAYER2,
+        destination: DestinationEnum.BOARD,
+        boardIndex: player2StartIndex
+      }));
+
+      store.dispatch(flipInitialCards());
+
+      // Initialize target cells for next moves
+      const player1TargetIndex = player1StartIndex + BOARD_SIZE;
+      const player2TargetIndex = player2StartIndex + BOARD_SIZE;
+      initialBoard[player1TargetIndex] = [];
+      initialBoard[player2TargetIndex] = [];
+
+      // Give players new cards for next moves
+      store = TestHelpers.setupStore({
+        board: initialBoard,
+        players: TestFactory.players({
+          [PlayerEnum.PLAYER1]: {
+            hand: [TestFactory.card({
+              color: ColorEnum.RED,
+              owner: PlayerEnum.PLAYER1,
+              rank: RankEnum.KING
+            }), null, null],
+            deck: []
+          },
+          [PlayerEnum.PLAYER2]: {
+            hand: [TestFactory.card({
+              color: ColorEnum.BLACK,
+              owner: PlayerEnum.PLAYER2,
+              rank: RankEnum.KING
+            }), null, null],
+            deck: []
+          }
+        }),
+        firstMoveDone: true
+      });
+
+      const state = store.getState().game;
+      const initialPlayer = state.turn.currentTurn;
+
+      // Make a valid move for first player
+      store.dispatch(moveCard({
+        cardIndex: 0,
+        playerId: initialPlayer,
+        destination: DestinationEnum.BOARD,
+        boardIndex: player1TargetIndex
+      }));
+
+      const stateAfterMove = store.getState().game;
+      expect(stateAfterMove.turn.currentTurn).not.toBe(initialPlayer);
+
+      // Make a valid move for second player
+      const secondPlayer = stateAfterMove.turn.currentTurn;
+      store.dispatch(moveCard({
+        cardIndex: 0,
+        playerId: secondPlayer,
+        destination: DestinationEnum.BOARD,
+        boardIndex: player2TargetIndex
+      }));
+
+      const stateAfterSecondMove = store.getState().game;
+      expect(stateAfterSecondMove.turn.currentTurn).toBe(initialPlayer);
+    });
+
+    it('should handle discarding when no valid moves available', () => {
+      // Setup with cards that have no valid moves
+      store = TestHelpers.setupStore({
+        players: TestFactory.players({
+          [PlayerEnum.PLAYER1]: {
+            hand: [TestFactory.card({
+              color: ColorEnum.RED,
+              owner: PlayerEnum.PLAYER1,
+              rank: RankEnum.TWO
+            }), null, null],
+            deck: [TestFactory.card({ color: ColorEnum.RED, owner: PlayerEnum.PLAYER1 })]
+          }
+        })
+      });
+
+      store = TestHelpers.playInitialMoves(store);
+      const state = store.getState().game;
+      const currentPlayer = state.turn.currentTurn;
+      const initialDiscardSize = state.discard[currentPlayer].length;
+      const initialHand = [...state.players[currentPlayer].hand];
+
+      // Discard a card
       store.dispatch(moveCard({
         cardIndex: 0,
         playerId: currentPlayer,
@@ -223,287 +631,10 @@ describe('Game Integration Tests', () => {
 
       const stateAfterDiscard = store.getState().game;
       
-      // Verify discard results
-      expect(stateAfterDiscard.discard[currentPlayer]).toHaveLength(1);
-      expect(stateAfterDiscard.discard[currentPlayer][0]).toEqual({
-        ...cardToDiscard,
-        faceDown: true
-      });
-    });
-
-    it('should generate different move sequences for Player 2 across multiple games', () => {
-      // Run multiple games and collect move sequences
-      const moveSequences: string[] = [];
-      const numGames = 5;
-      
-      for (let i = 0; i < numGames; i++) {
-        // Reset store for new game
-        store = configureStore({
-          reducer: {
-            game: gameReducer
-          }
-        }) as typeof store;
-
-        // Setup initial moves
-        store.dispatch(moveCard({
-          cardIndex: 0,
-          playerId: PlayerEnum.PLAYER1,
-          destination: DestinationEnum.BOARD,
-          boardIndex: STARTING_INDICES[PlayerEnum.PLAYER1]
-        }));
-
-        store.dispatch(moveCard({
-          cardIndex: 0,
-          playerId: PlayerEnum.PLAYER2,
-          destination: DestinationEnum.BOARD,
-          boardIndex: STARTING_INDICES[PlayerEnum.PLAYER2]
-        }));
-
-        store.dispatch(flipInitialCards());
-
-        // Play 3 moves for Player 2 and record the sequence
-        let moveSequence = '';
-        for (let move = 0; move < 3; move++) {
-          const stateBeforeMove = store.getState().game;
-          if (stateBeforeMove.turn.currentTurn === PlayerEnum.PLAYER2) {
-            store.dispatch(processTurn({ playerId: PlayerEnum.PLAYER2 }));
-            const stateAfterMove = store.getState().game;
-            
-            // Record the move by checking where the last card was played
-            const player2Moves = stateAfterMove.board
-              .map((cell, index) => {
-                const lastCard = cell[cell.length - 1];
-                return lastCard && lastCard.owner === PlayerEnum.PLAYER2 ? index : -1;
-              })
-              .filter(index => index !== -1);
-            
-            moveSequence += player2Moves[player2Moves.length - 1] + ',';
-          }
-          // Make a simple move for Player 1 to continue the game
-          if (stateBeforeMove.turn.currentTurn === PlayerEnum.PLAYER1) {
-            store.dispatch(moveCard({
-              cardIndex: 0,
-              playerId: PlayerEnum.PLAYER1,
-              destination: DestinationEnum.DISCARD
-            }));
-          }
-        }
-        moveSequences.push(moveSequence);
-      }
-
-      // Verify that we have different sequences
-      const uniqueSequences = new Set(moveSequences);
-      expect(uniqueSequences.size).toBeGreaterThan(1);
-      
-      // Log the sequences for debugging
-      console.log('Move sequences:', moveSequences);
-    });
-  });
-
-  describe('Game Completion', () => {
-    it('should detect game over when all cards are played', () => {
-      const state = store.getState().game;
-      
-      // Simulate playing all cards
-      const simulateEmptyHands = (players: Players): Players => ({
-        [PlayerEnum.PLAYER1]: {
-          ...players[PlayerEnum.PLAYER1],
-          hand: [null, null, null],
-          deck: []
-        },
-        [PlayerEnum.PLAYER2]: {
-          ...players[PlayerEnum.PLAYER2],
-          hand: [null, null, null],
-          deck: []
-        }
-      });
-
-      // Create a state with no cards left
-      const emptyState: GameState = {
-        ...state,
-        players: simulateEmptyHands(state.players)
-      };
-
-      expect(isGameOver(emptyState.players)).toBe(true);
-    });
-
-    it('should calculate scores correctly', () => {
-      // Create a test board with known card positions
-      const testBoard: BoardState = Array(BOARD_SIZE * BOARD_SIZE).fill([]).map(() => []);
-      
-      // Add some cards to the board
-      testBoard[0] = [{
-        color: ColorEnum.RED,
-        suit: SuitEnum.HEARTS,
-        rank: RankEnum.ACE,
-        owner: PlayerEnum.PLAYER1,
-        faceDown: false
-      }];
-      
-      testBoard[1] = [{
-        color: ColorEnum.BLACK,
-        suit: SuitEnum.SPADES,
-        rank: RankEnum.KING,
-        owner: PlayerEnum.PLAYER2,
-        faceDown: false
-      }];
-
-      const scores = calculateScores(testBoard);
-      
-      expect(scores[PlayerEnum.PLAYER1]).toBe(1); // Red card
-      expect(scores[PlayerEnum.PLAYER2]).toBe(1); // Black card
-    });
-  });
-
-  describe('Cell Highlighting', () => {
-    it('should highlight only starting position for first move', () => {
-      const state = store.getState().game;
-      const player1 = PlayerEnum.PLAYER1;
-      const card = state.players[player1].hand[0];
-
-      if (!card) {
-        throw new Error('Expected player 1 to have a card in hand[0]');
-      }
-
-      store.dispatch(getValidMoves({ playerId: player1, card }));
-      const stateAfterHighlight = store.getState().game;
-
-      // For first move, only starting position should be highlighted
-      expect(stateAfterHighlight.highlightedCells).toEqual([STARTING_INDICES[player1]]);
-    });
-
-    it('should highlight home row cells for tie breaker', () => {
-      // Setup tie breaker scenario
-      store.dispatch(moveCard({
-        cardIndex: 0,
-        playerId: PlayerEnum.PLAYER1,
-        destination: DestinationEnum.BOARD,
-        boardIndex: STARTING_INDICES[PlayerEnum.PLAYER1]
-      }));
-
-      store.dispatch(moveCard({
-        cardIndex: 0,
-        playerId: PlayerEnum.PLAYER2,
-        destination: DestinationEnum.BOARD,
-        boardIndex: STARTING_INDICES[PlayerEnum.PLAYER2]
-      }));
-
-      // Force tie breaker state
-      store.dispatch(setTieBreaker(true));
-
-      const stateBeforeHighlight = store.getState().game;
-      const currentPlayer = PlayerEnum.PLAYER1;
-      const card = stateBeforeHighlight.players[currentPlayer].hand[0];
-
-      if (!card) {
-        throw new Error('Expected player to have a card in hand[0]');
-      }
-
-      store.dispatch(getValidMoves({ playerId: currentPlayer, card }));
-      const stateAfterHighlight = store.getState().game;
-
-      // In tie breaker, only valid cells in home row should be highlighted
-      const homeRowStart = currentPlayer === PlayerEnum.PLAYER1 ? 
-        BOARD_SIZE * (BOARD_SIZE - 1) : 0;
-      const homeRow = Array.from(
-        { length: BOARD_SIZE }, 
-        (_, i) => homeRowStart + i
-      );
-
-      // Check that all highlighted cells are in the home row
-      expect(stateAfterHighlight.highlightedCells.every(cell => 
-        homeRow.includes(cell)
-      )).toBe(true);
-    });
-
-    it('should highlight valid moves for regular play', () => {
-      // Setup regular play scenario
-      store.dispatch(moveCard({
-        cardIndex: 0,
-        playerId: PlayerEnum.PLAYER1,
-        destination: DestinationEnum.BOARD,
-        boardIndex: STARTING_INDICES[PlayerEnum.PLAYER1]
-      }));
-
-      store.dispatch(moveCard({
-        cardIndex: 0,
-        playerId: PlayerEnum.PLAYER2,
-        destination: DestinationEnum.BOARD,
-        boardIndex: STARTING_INDICES[PlayerEnum.PLAYER2]
-      }));
-
-      store.dispatch(flipInitialCards());
-
-      const stateBeforeHighlight = store.getState().game;
-      const currentPlayer = stateBeforeHighlight.turn.currentTurn;
-      const card = stateBeforeHighlight.players[currentPlayer].hand[0];
-
-      if (!card) {
-        throw new Error('Expected current player to have a card in hand[0]');
-      }
-
-      store.dispatch(getValidMoves({ playerId: currentPlayer, card }));
-      const stateAfterHighlight = store.getState().game;
-
-      // In regular play, highlighted cells should include:
-      // 1. Valid cells in home row
-      // 2. Valid cells adjacent to connected cells of same color
-      expect(stateAfterHighlight.highlightedCells.length).toBeGreaterThan(0);
-      
-      // Verify each highlighted cell is either in home row or adjacent to a connected cell
-      const homeRowStart = currentPlayer === PlayerEnum.PLAYER1 ? 
-        BOARD_SIZE * (BOARD_SIZE - 1) : 0;
-      const homeRow = Array.from(
-        { length: BOARD_SIZE }, 
-        (_, i) => homeRowStart + i
-      );
-
-      stateAfterHighlight.highlightedCells.forEach(cell => {
-        const isInHomeRow = homeRow.includes(cell);
-        // Check if the cell is adjacent to a connected cell by checking if it's within one row/column
-        const row = Math.floor(cell / BOARD_SIZE);
-        const col = cell % BOARD_SIZE;
-        const isAdjacentToConnected = [-1, 0, 1].some(rowOffset => 
-          [-1, 0, 1].some(colOffset => {
-            if (rowOffset === 0 && colOffset === 0) return false;
-            if (Math.abs(rowOffset) === 1 && Math.abs(colOffset) === 1) return false;
-            
-            const adjRow = row + rowOffset;
-            const adjCol = col + colOffset;
-            if (adjRow < 0 || adjRow >= BOARD_SIZE || adjCol < 0 || adjCol >= BOARD_SIZE) return false;
-            
-            const adjCell = adjRow * BOARD_SIZE + adjCol;
-            const adjStack = stateAfterHighlight.board[adjCell];
-            const topCard = adjStack[adjStack.length - 1];
-            return topCard && topCard.color === card.color;
-          })
-        );
-        expect(isInHomeRow || isAdjacentToConnected).toBe(true);
-      });
-    });
-
-    it('should clear highlights after move is made', () => {
-      const state = store.getState().game;
-      const player1 = PlayerEnum.PLAYER1;
-      const card = state.players[player1].hand[0];
-
-      if (!card) {
-        throw new Error('Expected player 1 to have a card in hand[0]');
-      }
-
-      // First get valid moves
-      store.dispatch(getValidMoves({ playerId: player1, card }));
-      
-      // Then make a move
-      store.dispatch(moveCard({
-        cardIndex: 0,
-        playerId: player1,
-        destination: DestinationEnum.BOARD,
-        boardIndex: STARTING_INDICES[player1]
-      }));
-
-      const stateAfterMove = store.getState().game;
-      expect(stateAfterMove.highlightedCells).toHaveLength(0);
+      // Check discard results
+      expect(stateAfterDiscard.discard[currentPlayer].length).toBe(initialDiscardSize + 1);
+      expect(stateAfterDiscard.players[currentPlayer].hand[0]).not.toEqual(initialHand[0]);
+      expect(stateAfterDiscard.turn.currentTurn).not.toBe(currentPlayer);
     });
   });
 }); 

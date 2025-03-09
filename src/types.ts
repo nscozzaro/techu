@@ -122,7 +122,7 @@ export interface FaceDownCard extends Card {
 
 export type InitialFaceDownCards = { [key in PlayerEnum]?: FaceDownCard };
 
-export type DiscardPiles = { [key in PlayerEnum]: Card[] };
+export type DiscardPiles = { [key in PlayerEnum]: Cards };
 
 export const initialFirstMove = (): PlayerBooleans => ({
   [PlayerEnum.PLAYER1]: true,

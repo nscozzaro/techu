@@ -157,8 +157,9 @@ const drawCard = (
   const newDeck = deck.slice(0, -1);
   const newHand = [...hand];
   const emptyIndex = newHand.findIndex(c => c === null);
-  if (emptyIndex !== -1) newHand[emptyIndex] = card;
-  else newHand.push(card);
+  if (emptyIndex !== -1) {
+    newHand[emptyIndex] = card;
+  }
   return { hand: newHand, deck: newDeck };
 };
 
@@ -572,6 +573,10 @@ const gameSlice = createSlice({
       const cardCopy = { ...cardToMove, faceDown: state.gameStatus.firstMove[playerId] && !state.gameStatus.tieBreaker };
       if (state.gameStatus.firstMove[playerId] || state.gameStatus.tieBreaker) {
         state.gameStatus.initialFaceDownCards[playerId] = { ...cardCopy, cellIndex: boardIndex };
+      }
+      // Initialize the board cell if it doesn't exist
+      if (!state.board[boardIndex]) {
+        state.board[boardIndex] = [];
       }
       state.board[boardIndex].push(cardCopy);
       gameSlice.caseReducers.updatePlayerHandAndDrawCard(state, {
