@@ -7,7 +7,8 @@ import gameReducer, {
   calculateScores,
   isGameOver,
   getValidMoves,
-  setTieBreaker
+  setTieBreaker,
+  startCardDrag
 } from './game';
 import {
   PlayerEnum,
@@ -783,6 +784,303 @@ describe('Game Integration Tests', () => {
       expect(stateAfterDiscard.discard[currentPlayer].length).toBe(initialDiscardSize + 1);
       expect(stateAfterDiscard.players[currentPlayer].hand[0]).not.toEqual(initialHand[0]);
       expect(stateAfterDiscard.turn.currentTurn).not.toBe(currentPlayer);
+    });
+  });
+
+  describe('Tiebreaker Logic', () => {
+    it('should maintain Player 2 turn after double tie', () => {
+      // Setup initial board with a 6 from each player
+      const board = TestFactory.board({
+        12: [TestFactory.card({
+          rank: RankEnum.SIX,
+          color: ColorEnum.RED,
+          owner: PlayerEnum.PLAYER1
+        })],
+        13: [TestFactory.card({
+          rank: RankEnum.SIX,
+          color: ColorEnum.BLACK,
+          owner: PlayerEnum.PLAYER2
+        })]
+      });
+
+      // Setup players with Aces in their hands
+      const players = TestFactory.players({
+        [PlayerEnum.PLAYER1]: {
+          hand: [
+            TestFactory.card({
+              rank: RankEnum.ACE,
+              color: ColorEnum.RED,
+              owner: PlayerEnum.PLAYER1
+            }),
+            null,
+            null
+          ]
+        },
+        [PlayerEnum.PLAYER2]: {
+          hand: [
+            TestFactory.card({
+              rank: RankEnum.ACE,
+              color: ColorEnum.BLACK,
+              owner: PlayerEnum.PLAYER2
+            }),
+            null,
+            null
+          ]
+        }
+      });
+
+      // Initialize store with tiebreaker state
+      const store = TestHelpers.setupStore({
+        board,
+        players,
+        firstMoveDone: true
+      });
+
+      // Set tiebreaker state
+      store.dispatch(setTieBreaker(true));
+
+      // Player 1 plays Ace
+      store.dispatch(moveCard({
+        cardIndex: 0,
+        playerId: PlayerEnum.PLAYER1,
+        destination: DestinationEnum.BOARD,
+        boardIndex: 14
+      }));
+
+      // Player 2 plays Ace
+      store.dispatch(moveCard({
+        cardIndex: 0,
+        playerId: PlayerEnum.PLAYER2,
+        destination: DestinationEnum.BOARD,
+        boardIndex: 15
+      }));
+
+      // After both players play Aces, it should still be Player 2's turn
+      const finalState = store.getState().game;
+      expect(finalState.turn.currentTurn).toBe(PlayerEnum.PLAYER2);
+      expect(finalState.gameStatus.tieBreaker).toBe(true);
+    });
+  });
+
+  describe('Tiebreaker Logic with Drag and Drop', () => {
+    it('should maintain Player 2 turn after double tie with drag and drop', () => {
+      // Setup initial board with a 6 from each player
+      const board = TestFactory.board({
+        12: [TestFactory.card({
+          rank: RankEnum.SIX,
+          color: ColorEnum.RED,
+          owner: PlayerEnum.PLAYER1
+        })],
+        13: [TestFactory.card({
+          rank: RankEnum.SIX,
+          color: ColorEnum.BLACK,
+          owner: PlayerEnum.PLAYER2
+        })]
+      });
+
+      // Setup players with Aces in their hands
+      const players = TestFactory.players({
+        [PlayerEnum.PLAYER1]: {
+          hand: [
+            TestFactory.card({
+              rank: RankEnum.ACE,
+              color: ColorEnum.RED,
+              owner: PlayerEnum.PLAYER1
+            }),
+            null,
+            null
+          ]
+        },
+        [PlayerEnum.PLAYER2]: {
+          hand: [
+            TestFactory.card({
+              rank: RankEnum.ACE,
+              color: ColorEnum.BLACK,
+              owner: PlayerEnum.PLAYER2
+            }),
+            null,
+            null
+          ]
+        }
+      });
+
+      // Initialize store with tiebreaker state
+      const store = TestHelpers.setupStore({
+        board,
+        players,
+        firstMoveDone: true
+      });
+
+      // Set tiebreaker state
+      store.dispatch(setTieBreaker(true));
+
+      // Simulate Player 1 starting to drag their Ace
+      store.dispatch(startCardDrag({
+        cardIndex: 0,
+        playerId: PlayerEnum.PLAYER1
+      }));
+
+      // Simulate Player 1 dropping their Ace
+      store.dispatch(moveCard({
+        cardIndex: 0,
+        playerId: PlayerEnum.PLAYER1,
+        destination: DestinationEnum.BOARD,
+        boardIndex: 14
+      }));
+
+      // Get state after Player 1's move
+      const stateAfterPlayer1 = store.getState().game;
+      expect(stateAfterPlayer1.turn.currentTurn).toBe(PlayerEnum.PLAYER2);
+      expect(stateAfterPlayer1.gameStatus.tieBreaker).toBe(true);
+
+      // Simulate Player 2 starting to drag their Ace
+      store.dispatch(startCardDrag({
+        cardIndex: 0,
+        playerId: PlayerEnum.PLAYER2
+      }));
+
+      // Simulate Player 2 dropping their Ace
+      store.dispatch(moveCard({
+        cardIndex: 0,
+        playerId: PlayerEnum.PLAYER2,
+        destination: DestinationEnum.BOARD,
+        boardIndex: 15
+      }));
+
+      // After both players play Aces, it should still be Player 2's turn
+      const finalState = store.getState().game;
+      expect(finalState.turn.currentTurn).toBe(PlayerEnum.PLAYER2);
+      expect(finalState.gameStatus.tieBreaker).toBe(true);
+
+      // Verify that Player 1 cannot make another move
+      store.dispatch(startCardDrag({
+        cardIndex: 1,
+        playerId: PlayerEnum.PLAYER1
+      }));
+
+      const stateAfterInvalidMove = store.getState().game;
+      expect(stateAfterInvalidMove.highlightedCells).toEqual([]);
+      expect(stateAfterInvalidMove.turn.currentTurn).toBe(PlayerEnum.PLAYER2);
+    });
+  });
+
+  describe('Tiebreaker Logic with Full Sequence', () => {
+    it('should maintain tiebreaker state and prevent Player 1 from playing after double tie', () => {
+      // Setup initial board with a 6 from each player
+      const board = TestFactory.board({
+        12: [TestFactory.card({
+          rank: RankEnum.SIX,
+          color: ColorEnum.RED,
+          owner: PlayerEnum.PLAYER1
+        })],
+        13: [TestFactory.card({
+          rank: RankEnum.SIX,
+          color: ColorEnum.BLACK,
+          owner: PlayerEnum.PLAYER2
+        })]
+      });
+
+      // Setup players with Aces and Kings in their hands
+      const players = TestFactory.players({
+        [PlayerEnum.PLAYER1]: {
+          hand: [
+            TestFactory.card({
+              rank: RankEnum.ACE,
+              color: ColorEnum.RED,
+              owner: PlayerEnum.PLAYER1
+            }),
+            TestFactory.card({
+              rank: RankEnum.KING,
+              color: ColorEnum.RED,
+              owner: PlayerEnum.PLAYER1
+            }),
+            null
+          ]
+        },
+        [PlayerEnum.PLAYER2]: {
+          hand: [
+            TestFactory.card({
+              rank: RankEnum.ACE,
+              color: ColorEnum.BLACK,
+              owner: PlayerEnum.PLAYER2
+            }),
+            TestFactory.card({
+              rank: RankEnum.KING,
+              color: ColorEnum.BLACK,
+              owner: PlayerEnum.PLAYER2
+            }),
+            null
+          ]
+        }
+      });
+
+      // Initialize store with tiebreaker state
+      const store = TestHelpers.setupStore({
+        board,
+        players,
+        firstMoveDone: true
+      });
+
+      // Set tiebreaker state
+      store.dispatch(setTieBreaker(true));
+
+      // Simulate Player 1 starting to drag their Ace
+      store.dispatch(startCardDrag({
+        cardIndex: 0,
+        playerId: PlayerEnum.PLAYER1
+      }));
+
+      // Simulate Player 1 dropping their Ace
+      store.dispatch(moveCard({
+        cardIndex: 0,
+        playerId: PlayerEnum.PLAYER1,
+        destination: DestinationEnum.BOARD,
+        boardIndex: 14
+      }));
+
+      // Get state after Player 1's move
+      const stateAfterPlayer1 = store.getState().game;
+      expect(stateAfterPlayer1.turn.currentTurn).toBe(PlayerEnum.PLAYER2);
+      expect(stateAfterPlayer1.gameStatus.tieBreaker).toBe(true);
+
+      // Simulate Player 2 starting to drag their Ace
+      store.dispatch(startCardDrag({
+        cardIndex: 0,
+        playerId: PlayerEnum.PLAYER2
+      }));
+
+      // Simulate Player 2 dropping their Ace
+      store.dispatch(moveCard({
+        cardIndex: 0,
+        playerId: PlayerEnum.PLAYER2,
+        destination: DestinationEnum.BOARD,
+        boardIndex: 15
+      }));
+
+      // After both players play Aces, it should still be Player 2's turn
+      const stateAfterAces = store.getState().game;
+      expect(stateAfterAces.turn.currentTurn).toBe(PlayerEnum.PLAYER2);
+      expect(stateAfterAces.gameStatus.tieBreaker).toBe(true);
+
+      // Verify that Player 1 cannot make a move
+      store.dispatch(startCardDrag({
+        cardIndex: 1,
+        playerId: PlayerEnum.PLAYER1
+      }));
+
+      const stateAfterInvalidMove = store.getState().game;
+      expect(stateAfterInvalidMove.highlightedCells).toEqual([]);
+      expect(stateAfterInvalidMove.turn.currentTurn).toBe(PlayerEnum.PLAYER2);
+
+      // Verify that Player 2 can make a move
+      store.dispatch(startCardDrag({
+        cardIndex: 1,
+        playerId: PlayerEnum.PLAYER2
+      }));
+
+      const stateAfterValidMove = store.getState().game;
+      expect(stateAfterValidMove.highlightedCells.length).toBeGreaterThan(0);
+      expect(stateAfterValidMove.turn.currentTurn).toBe(PlayerEnum.PLAYER2);
     });
   });
 }); 

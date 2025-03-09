@@ -528,10 +528,13 @@ const gameSlice = createSlice({
       const { cardIndex, playerId } = action.payload;
       const card = state.players[playerId].hand[cardIndex];
       
-      if (!card) {
-        state.highlightedCells = [];
-        state.draggingPlayer = null;
-        state.highlightDiscardPile = false;
+      // Reset UI state first
+      state.highlightedCells = [];
+      state.draggingPlayer = null;
+      state.highlightDiscardPile = false;
+
+      // Return early if no card or if it's not the player's turn during tiebreaker
+      if (!card || (state.gameStatus.tieBreaker && state.turn.currentTurn !== playerId)) {
         return;
       }
 
@@ -597,12 +600,22 @@ const gameSlice = createSlice({
           // Both players have played, check if ranks are equal
           if (getCardRank(player1Card.rank) === getCardRank(player2Card.rank)) {
             state.gameStatus.tieBreaker = true;
+            // During a tie, Player 2 continues playing
+            state.turn.currentTurn = PlayerEnum.PLAYER2;
           } else {
             state.gameStatus.tieBreaker = false;
+            // If tie is broken, next player plays
+            state.turn.currentTurn = getNextPlayerTurn(playerId);
           }
           // Reset lastPlayedCard for next round
           state.gameStatus.lastPlayedCard = {};
+        } else {
+          // Only one player has played, switch turns
+          state.turn.currentTurn = getNextPlayerTurn(playerId);
         }
+      } else {
+        // Not in tiebreaker, normal turn progression
+        state.turn.currentTurn = getNextPlayerTurn(playerId);
       }
 
       if (state.gameStatus.firstMove[playerId] || state.gameStatus.tieBreaker) {
@@ -615,7 +628,6 @@ const gameSlice = createSlice({
         payload: { playerId, cardIndex }
       });
       state.gameStatus.firstMove[playerId] = false;
-      state.turn.currentTurn = getNextPlayerTurn(playerId);
     },
 
     handleHandMove: (state, action: PayloadAction<{ player: Players[PlayerEnum]; cardIndex: CardIndex; handIndex: CardIndex }>) => {
