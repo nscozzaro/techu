@@ -1,0 +1,25 @@
+{
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "editor.formatOnSave": true,
+  "eslint.validate": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact"
+  ],
+  "jest.jestCommandLine": "npm test --",
+  "jest.autoRun": {
+    "watch": true,
+    "onSave": "test-src-file"
+  },
+  "jest.showCoverageOnLoad": true,
+  "testing.automaticallyShowCoverage": true,
+  "testing.debugOnSave": false,
+  "testing.followRunningTest": true,
+  "testing.testExplorer": {
+    "showOnRun": true,
+    "showOnDebug": true
+  }
+}
