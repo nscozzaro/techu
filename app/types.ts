@@ -1,5 +1,12 @@
-// === SUITS ===
+// === CONSTANTS ===
+export const BOARD_WIDTH = 5 as const;
+export const BOARD_HEIGHT = 7 as const;
+export const PLAYER_ROW_TOP = 0 as const;
+export const PLAYER_ROW_BOTTOM = BOARD_HEIGHT - 1;
+export const PLAYABLE_ROWS_START = 1 as const;
+export const PLAYABLE_ROWS_END = BOARD_HEIGHT - 2;
 
+// === SUITS ===
 export enum SuitEnum {
     Clubs,
     Diamonds,
@@ -14,16 +21,15 @@ export const SUITS = {
     Spades: 'Spades',
 } as const;
 
-export type Suit = typeof SUITS[keyof typeof SUITS]; // 'Clubs' | ...
+export type Suit = typeof SUITS[keyof typeof SUITS];
 
 // === SUIT COLORS ===
-
 export const SUIT_COLOR_RED = 'red' as const;
 export const SUIT_COLOR_BLACK = 'black' as const;
 
-export type SuitColor = typeof SUIT_COLOR_RED | typeof SUIT_COLOR_BLACK;
+export type PlayerColor = typeof SUIT_COLOR_RED | typeof SUIT_COLOR_BLACK;
 
-export const SUIT_COLORS: Record<Suit, SuitColor> = {
+export const SUIT_COLORS: Record<Suit, PlayerColor> = {
     [SUITS.Clubs]: SUIT_COLOR_BLACK,
     [SUITS.Spades]: SUIT_COLOR_BLACK,
     [SUITS.Hearts]: SUIT_COLOR_RED,
@@ -31,7 +37,6 @@ export const SUIT_COLORS: Record<Suit, SuitColor> = {
 };
 
 // === RANKS ===
-
 export const RANKS = {
     Two: 'Two',
     Three: 'Three',
@@ -48,76 +53,65 @@ export const RANKS = {
     Ace: 'Ace',
 } as const;
 
-export type Rank = typeof RANKS[keyof typeof RANKS]; // 'Two' | ...
+export type Rank = typeof RANKS[keyof typeof RANKS];
 
 type Branded<T, B> = T & { __brand: B };
 export type RankValue = Branded<number, 'RankValue'>;
 
-export const RankValues: Record<Rank, RankValue> = {
-    [RANKS.Two]: 2 as RankValue,
-    [RANKS.Three]: 3 as RankValue,
-    [RANKS.Four]: 4 as RankValue,
-    [RANKS.Five]: 5 as RankValue,
-    [RANKS.Six]: 6 as RankValue,
-    [RANKS.Seven]: 7 as RankValue,
-    [RANKS.Eight]: 8 as RankValue,
-    [RANKS.Nine]: 9 as RankValue,
-    [RANKS.Ten]: 10 as RankValue,
-    [RANKS.Jack]: 11 as RankValue,
-    [RANKS.Queen]: 12 as RankValue,
-    [RANKS.King]: 13 as RankValue,
-    [RANKS.Ace]: 14 as RankValue,
-};
-
-// === RANK DISPLAY STRINGS ===
-
-export const RANK_NAMES = {
-    Two: 'two',
-    Three: 'three',
-    Four: 'four',
-    Five: 'five',
-    Six: 'six',
-    Seven: 'seven',
-    Eight: 'eight',
-    Nine: 'nine',
-    Ten: 'ten',
-    Jack: 'jack',
-    Queen: 'queen',
-    King: 'king',
-    Ace: 'ace',
-} as const;
-
-export type RankName = typeof RANK_NAMES[keyof typeof RANK_NAMES];
-
-export const RankToDisplayNameMap: Record<Rank, RankName> = {
-    [RANKS.Two]: RANK_NAMES.Two,
-    [RANKS.Three]: RANK_NAMES.Three,
-    [RANKS.Four]: RANK_NAMES.Four,
-    [RANKS.Five]: RANK_NAMES.Five,
-    [RANKS.Six]: RANK_NAMES.Six,
-    [RANKS.Seven]: RANK_NAMES.Seven,
-    [RANKS.Eight]: RANK_NAMES.Eight,
-    [RANKS.Nine]: RANK_NAMES.Nine,
-    [RANKS.Ten]: RANK_NAMES.Ten,
-    [RANKS.Jack]: RANK_NAMES.Jack,
-    [RANKS.Queen]: RANK_NAMES.Queen,
-    [RANKS.King]: RANK_NAMES.King,
-    [RANKS.Ace]: RANK_NAMES.Ace,
-};
-
-// === CARD TYPE ===
-
+// === CARD ===
 export interface Card {
     suit: Suit;
     rank: Rank;
 }
 
-// === CARD UTILITIES ===
+export type Cards = Card[];
 
-export const getCardColor = (card: Card): SuitColor => SUIT_COLORS[card.suit];
+export const newCard = (suit: Suit | null, rank: Rank | null): Card | null => {
+    if (suit === null || rank === null) return null;
+    return { suit, rank };
+};
 
-export const getCardValue = (card: Card): RankValue => RankValues[card.rank];
+// === BOARD & PLAYER TYPES ===
+export type Row = number & { __brand: 'Row' };
+export type Col = number & { __brand: 'Col' };
 
-export const getCardDisplayName = (card: Card): RankName => RankToDisplayNameMap[card.rank];
+/** A stack of cards played on this cell */
+export interface Cell {
+    cards: Cards;
+}
 
-export const createCard = (suit: Suit, rank: Rank): Card => { return { suit, rank } };
+export type Cells = Cell[];
+
+/** Board: Row 0 and last row are player areas, middle rows are the game grid */
+export class Board {
+    private cells: Cells[];
+
+    private constructor(cells: Cells[]) {
+        this.cells = cells;
+    }
+
+    /** Create an empty BOARD_HEIGHT x BOARD_WIDTH grid */
+    static new(): Board {
+        const cells = Array.from({ length: BOARD_HEIGHT }, () =>
+            Array.from({ length: BOARD_WIDTH }, () => newCell([]) as Cell)
+        );
+        return new Board(cells);
+    }
+
+    /** Get a cell at the specified position */
+    getCell(row: Row, col: Col): Cell | null {
+        if (row < 0 || row >= BOARD_HEIGHT || col < 0 || col >= BOARD_WIDTH) return null;
+        return this.cells[row][col];
+    }
+
+    /** Get the underlying cells array */
+    getCells(): Cells[] {
+        return this.cells;
+    }
+}
+
+/** Create a new cell with the given cards */
+export const newCell = (cards: Cards | null): Cell | null => {
+    if (cards === null) return null;
+    return { cards };
+};
