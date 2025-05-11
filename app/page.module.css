@@ -25,7 +25,7 @@ body {
   inline-size: min(90vw, calc(90vh / 2));
   aspect-ratio: 5 / 10;
   padding: 2px;
-  background: #111;
+  background: #222;
   border-radius: 12px;
   display: grid;
   grid-template: repeat(7, 1fr) / repeat(5, 1fr);
