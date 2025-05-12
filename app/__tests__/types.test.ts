@@ -5,7 +5,6 @@ import {
   RANKS,
   SUIT_COLORS,
   PlayerColor,
-  Rank,
   Board,
   newCell,
   BOARD_WIDTH,
