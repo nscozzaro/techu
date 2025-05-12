@@ -1,16 +1,3 @@
-/* ---------- page layout ---------- */
-:global(body) {
-  margin: 0;
-  background: #222;
-  font-family: system-ui, sans-serif;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 100vh;
-}
-
 /* ---------- score row ------------ */
 .scoreRow {
   color: #fff;
