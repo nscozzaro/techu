@@ -71,47 +71,34 @@ export const newCard = (suit: Suit | null, rank: Rank | null): Card | null => {
     return { suit, rank };
 };
 
-// === BOARD & PLAYER TYPES ===
+// === BOARD TYPES ===
 export type Row = number & { __brand: 'Row' };
 export type Col = number & { __brand: 'Col' };
 
-/** A stack of cards played on this cell */
-export interface Cell {
-    cards: Cards;
-}
-
-export type Cells = Cell[];
-
 /** Board: Row 0 and last row are player areas, middle rows are the game grid */
 export class Board {
-    private cells: Cells[];
+    private cells: { cards: Cards }[][];
 
-    private constructor(cells: Cells[]) {
+    private constructor(cells: { cards: Cards }[][]) {
         this.cells = cells;
     }
 
     /** Create an empty BOARD_HEIGHT x BOARD_WIDTH grid */
     static new(): Board {
         const cells = Array.from({ length: BOARD_HEIGHT }, () =>
-            Array.from({ length: BOARD_WIDTH }, () => newCell([]) as Cell)
+            Array.from({ length: BOARD_WIDTH }, () => ({ cards: [] }))
         );
         return new Board(cells);
     }
 
     /** Get a cell at the specified position */
-    getCell(row: Row, col: Col): Cell | null {
+    getCell(row: Row, col: Col): { cards: Cards } | null {
         if (row < 0 || row >= BOARD_HEIGHT || col < 0 || col >= BOARD_WIDTH) return null;
         return this.cells[row][col];
     }
 
     /** Get the underlying cells array */
-    getCells(): Cells[] {
+    getCells(): { cards: Cards }[][] {
         return this.cells;
     }
 }
-
-/** Create a new cell with the given cards */
-export const newCell = (cards: Cards | null): Cell | null => {
-    if (cards === null) return null;
-    return { cards };
-};
