@@ -1,18 +1,21 @@
-// app/page.tsx
 'use client';
 
 import { useState } from 'react';
-import { SUITS, RANKS, BoardDimension, Card as CardT } from './types';
-import { useSnapDrag } from './useSnapDrag';
+import {
+  BOARD_ROWS, BOARD_COLS, SUITS, RANKS,
+  Card, Cards, cardColor, useSnapDrag,
+} from './lib';
 import styles from './page.module.css';
 
-const Card = ({
-  card,
-  onPointerDown,
-}: { card: CardT; onPointerDown: (e: React.PointerEvent) => void }) => (
+/* ──────────────────────────
+   ▍Presentation components
+   ────────────────────────── */
+const CardView = ({ card, onPointerDown }: {
+  card: Card; onPointerDown: (e: React.PointerEvent<HTMLElement>) => void;
+}) => (
   <div
     className={styles.card}
-    style={{ color: card.suit === SUITS.Hearts || card.suit === SUITS.Diamonds ? 'red' : 'black' }}
+    style={{ color: cardColor(card.suit) }}
     onPointerDown={onPointerDown}
   >
     <div>{card.rank}</div>
@@ -20,30 +23,49 @@ const Card = ({
   </div>
 );
 
-const Cell = ({
-  idx,
-  cards,
-  onPointerDown,
-}: {
-  idx: number;
-  cards: CardT[];
-  onPointerDown: (e: React.PointerEvent) => void;
+const Cell = ({ idx, cards, onPointerDown }: {
+  idx: number; cards: Cards;
+  onPointerDown: (e: React.PointerEvent<HTMLElement>) => void;
 }) => (
   <div data-cell={idx} className={styles.cell}>
-    {cards.at(-1) && <Card card={cards.at(-1)!} onPointerDown={onPointerDown} />}
+    {cards.at(-1) && (
+      <CardView card={cards.at(-1)!} onPointerDown={onPointerDown} />
+    )}
   </div>
 );
 
-const BOARD_ROWS = 7 as BoardDimension;
-const BOARD_COLS = 5 as BoardDimension;
-const total = BOARD_ROWS * BOARD_COLS;
+const Score = () => (
+  <div className={styles.score}>
+    <span>Player&nbsp;1 Score: 0</span>
+    <span>Player&nbsp;2 Score: 0</span>
+  </div>
+);
+
+const Board = ({ cells, onPointerDown }: {
+  cells: Cards[]; onPointerDown: (e: React.PointerEvent<HTMLElement>, idx: number) => void;
+}) => (
+  <div className={styles.board}>
+    {cells.map((stack, i) => (
+      <Cell
+        key={i}
+        idx={i}
+        cards={stack}
+        onPointerDown={e => onPointerDown(e, i)}
+      />
+    ))}
+  </div>
+);
+
+/* ──────────────────────────
+   ▍Main page
+   ────────────────────────── */
+const makeInitialCells = (): Cards[] =>
+  Array.from({ length: BOARD_ROWS * BOARD_COLS }, (_, i) =>
+    i === 0 ? [{ suit: SUITS.Spades, rank: RANKS.Ace }] : [],
+  );
 
 export default function Home() {
-  const [cells, setCells] = useState<CardT[][]>(
-    Array.from({ length: total }, (_, i) =>
-      i === 0 ? [{ suit: SUITS.Spades, rank: RANKS.Ace }] : [],
-    ),
-  );
+  const [cells, setCells] = useState<Cards[]>(makeInitialCells());
 
   const moveCard = (from: number, to: number) =>
     setCells(prev => {
@@ -57,16 +79,8 @@ export default function Home() {
 
   return (
     <>
-      <div className={styles.score}>
-        <span>Player&nbsp;1 Score: 0</span>
-        <span>Player&nbsp;2 Score: 0</span>
-      </div>
-
-      <div className={styles.board}>
-        {cells.map((stack, i) => (
-          <Cell key={i} idx={i} cards={stack} onPointerDown={e => drag.down(e as React.PointerEvent<HTMLElement>, i)} />
-        ))}
-      </div>
+      <Score />
+      <Board cells={cells} onPointerDown={drag.down} />
     </>
   );
 }

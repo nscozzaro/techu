@@ -1,7 +1,7 @@
 // __tests__/page.test.tsx
 import { render, screen, cleanup } from '@testing-library/react';
 import Home from '../page';
-import { Board, BOARD_WIDTH, BOARD_HEIGHT } from '../types';
+import { Board, BOARD_WIDTH, BOARD_HEIGHT } from '../lib';
 import '@testing-library/jest-dom';
 
 // ---- mock CSS module so class names are predictable -----------------
