@@ -110,9 +110,12 @@ export function useSnapDrag(onDrop: DropFn) {
         const el = elRef.current;
         const dst = cellUnder(e) ? +(cellUnder(e)!) as CellIndex : origin.current.cell;
 
-        dst === origin.current.cell
-            ? snapBack(el)
-            : (onDrop(origin.current.cell, dst), clearStyles(el));
+        if (dst === origin.current.cell) {
+            snapBack(el);
+        } else {
+            onDrop(origin.current.cell, dst);
+            clearStyles(el);
+        }
 
         document.removeEventListener('pointermove', setPos as EventListener);
         document.removeEventListener('pointerup', handleUp as EventListener);

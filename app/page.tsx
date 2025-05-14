@@ -3,9 +3,14 @@
 import { useState } from 'react';
 import {
   BOARD_ROWS, BOARD_COLS, SUITS, RANKS,
-  Card, Cards, cardColor, useSnapDrag,
+  Card, Cards, cardColor, useSnapDrag, CellIndex,
 } from './lib';
 import styles from './page.module.css';
+
+/* ──────────────────────────
+   ▍Types
+   ────────────────────────── */
+type BoardCells = Cards[];
 
 /* ──────────────────────────
    ▍Presentation components
@@ -42,15 +47,15 @@ const Score = () => (
 );
 
 const Board = ({ cells, onPointerDown }: {
-  cells: Cards[]; onPointerDown: (e: React.PointerEvent<HTMLElement>, idx: number) => void;
+  cells: BoardCells; onPointerDown: (e: React.PointerEvent<HTMLElement>, idx: CellIndex) => void;
 }) => (
   <div className={styles.board}>
     {cells.map((stack, i) => (
       <Cell
         key={i}
-        idx={i}
+        idx={i as CellIndex}
         cards={stack}
-        onPointerDown={e => onPointerDown(e, i)}
+        onPointerDown={e => onPointerDown(e, i as CellIndex)}
       />
     ))}
   </div>
@@ -59,17 +64,17 @@ const Board = ({ cells, onPointerDown }: {
 /* ──────────────────────────
    ▍Main page
    ────────────────────────── */
-const makeInitialCells = (): Cards[] =>
+const makeInitialCells = (): BoardCells =>
   Array.from({ length: BOARD_ROWS * BOARD_COLS }, (_, i) =>
     i === 0 ? [{ suit: SUITS.Spades, rank: RANKS.Ace }] : [],
-  );
+  ) as BoardCells;
 
 export default function Home() {
-  const [cells, setCells] = useState<Cards[]>(makeInitialCells());
+  const [cells, setCells] = useState<BoardCells>(makeInitialCells());
 
-  const moveCard = (from: number, to: number) =>
+  const moveCard = (from: CellIndex, to: CellIndex) =>
     setCells(prev => {
-      const next = prev.map(s => [...s]);
+      const next = prev.map(s => [...s]) as BoardCells;
       const c = next[from].pop();
       if (c) next[to].push(c);
       return next;
