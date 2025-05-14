@@ -6,8 +6,6 @@ import { SUITS, RANKS, BoardDimension, Card as CardT } from './types';
 import { useSnapDrag } from './useSnapDrag';
 import styles from './page.module.css';
 
-/* ---------- tiny inner components ---------- */
-
 const Card = ({
   card,
   onPointerDown,
@@ -35,8 +33,6 @@ const Cell = ({
     {cards.at(-1) && <Card card={cards.at(-1)!} onPointerDown={onPointerDown} />}
   </div>
 );
-
-/* ---------- board ---------- */
 
 const BOARD_ROWS = 7 as BoardDimension;
 const BOARD_COLS = 5 as BoardDimension;
