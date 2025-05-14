@@ -1,7 +1,7 @@
 import { Card } from '../types';
 
 export interface Cell {
-    cards: Card[];
+    cards: Card[] | null;
 }
 
 export function Cell({ cards }: Cell) {

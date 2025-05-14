@@ -1,10 +1,12 @@
 // === CONSTANTS ===
-export const BOARD_WIDTH = 5 as const;
-export const BOARD_HEIGHT = 7 as const;
+export type BoardDimension = number & { __brand: 'BoardDimension' };
+
+export const BOARD_ROWS = 7 as BoardDimension;
+export const BOARD_COLS = 5 as BoardDimension;
 export const PLAYER_ROW_TOP = 0 as const;
-export const PLAYER_ROW_BOTTOM = BOARD_HEIGHT - 1;
+export const PLAYER_ROW_BOTTOM = BOARD_ROWS - 1;
 export const PLAYABLE_ROWS_START = 1 as const;
-export const PLAYABLE_ROWS_END = BOARD_HEIGHT - 2;
+export const PLAYABLE_ROWS_END = BOARD_ROWS - 2;
 
 // === SUITS ===
 export enum SuitEnum {
@@ -70,35 +72,3 @@ export const newCard = (suit: Suit | null, rank: Rank | null): Card | null => {
     if (suit === null || rank === null) return null;
     return { suit, rank };
 };
-
-// === BOARD TYPES ===
-export type Row = number & { __brand: 'Row' };
-export type Col = number & { __brand: 'Col' };
-
-/** Board: Row 0 and last row are player areas, middle rows are the game grid */
-export class Board {
-    private cells: { cards: Cards }[][];
-
-    private constructor(cells: { cards: Cards }[][]) {
-        this.cells = cells;
-    }
-
-    /** Create an empty BOARD_HEIGHT x BOARD_WIDTH grid */
-    static new(): Board {
-        const cells = Array.from({ length: BOARD_HEIGHT }, () =>
-            Array.from({ length: BOARD_WIDTH }, () => ({ cards: [] }))
-        );
-        return new Board(cells);
-    }
-
-    /** Get a cell at the specified position */
-    getCell(row: Row, col: Col): { cards: Cards } | null {
-        if (row < 0 || row >= BOARD_HEIGHT || col < 0 || col >= BOARD_WIDTH) return null;
-        return this.cells[row][col];
-    }
-
-    /** Get the underlying cells array */
-    getCells(): { cards: Cards }[][] {
-        return this.cells;
-    }
-}
