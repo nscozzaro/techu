@@ -7,8 +7,6 @@ const baseStyles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    width: '100%',
-    height: '100%',
     cursor: 'pointer',
     userSelect: 'none' as const,
     transition: 'transform 0.2s ease-in-out',
@@ -20,9 +18,11 @@ const baseStyles = {
 export const cardStyles = {
     ...baseStyles,
     background: '#fff',
+    overflow: 'hidden',
 } as const;
 
 export const cellStyles = {
     ...baseStyles,
     background: '#222',
+    overflow: 'hidden',
 } as const; 
