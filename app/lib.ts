@@ -7,6 +7,10 @@ export type BoardDimension = number & { __brand: 'BoardDimension' };
 export const BOARD_ROWS = 7 as BoardDimension;
 export const BOARD_COLS = 5 as BoardDimension;
 
+/* ────────────  TYPES  ──────────── */
+export type PixelPosition = number & { __brand: 'PixelPosition' };
+export type CellIndex = number & { __brand: 'CellIndex' };
+
 /* ────────────  CARDS  ──────────── */
 export enum SuitEnum { Clubs, Diamonds, Hearts, Spades }
 
@@ -36,10 +40,14 @@ export const SUIT_COLORS = {
 } as const;
 export type PlayerColor = (typeof SUIT_COLORS)[Suit];
 export const cardColor = (suit: Suit): PlayerColor => SUIT_COLORS[suit];
-
-/* ────────────  useSnapDrag  ──────────── */
-type DropFn = (from: number, to: number) => void;
-type Origin = { x: number; y: number; cell: number; offX: number; offY: number };
+type DropFn = (from: CellIndex, to: CellIndex) => void;
+type Origin = {
+    x: PixelPosition;
+    y: PixelPosition;
+    cell: CellIndex;
+    offX: PixelPosition;
+    offY: PixelPosition;
+};
 type StyleKV = Record<string, string>;
 
 export function useSnapDrag(onDrop: DropFn) {
@@ -47,7 +55,6 @@ export function useSnapDrag(onDrop: DropFn) {
     const origin = useRef<Origin | null>(null);
     const SNAP_MS = 250;
 
-    /* ── helpers ── */
     const setPos = (e: PointerEvent) => {
         if (!elRef.current || !origin.current) return;
         const { offX, offY } = origin.current;
@@ -75,23 +82,16 @@ export function useSnapDrag(onDrop: DropFn) {
         document.elementFromPoint(e.clientX, e.clientY)
             ?.closest('[data-cell]')?.getAttribute('data-cell');
 
-    const cleanup = () => {
-        document.removeEventListener('pointermove', setPos as EventListener);
-        document.removeEventListener('pointerup', handleUp as EventListener);
-        elRef.current = null;
-        origin.current = null;
-    };
-
-    /* ── tiny pure helpers used by `down` ── */
     const calcOrigin = (
         e: React.PointerEvent<HTMLElement>,
-        box: DOMRect, cell: number,
+        box: DOMRect,
+        cell: CellIndex,
     ): Origin => ({
-        x: box.left,
-        y: box.top,
+        x: box.left as PixelPosition,
+        y: box.top as PixelPosition,
         cell,
-        offX: e.clientX - box.left,
-        offY: e.clientY - box.top,
+        offX: (e.clientX - box.left) as PixelPosition,
+        offY: (e.clientY - box.top) as PixelPosition,
     });
 
     const fixedDragStyle = (box: DOMRect): StyleKV => ({
@@ -105,25 +105,26 @@ export function useSnapDrag(onDrop: DropFn) {
         pointerEvents: 'none',
     });
 
-    /* ── main handlers ── */
     const handleUp = (e: PointerEvent) => {
         if (!elRef.current || !origin.current) return;
         const el = elRef.current;
-        const dst = cellUnder(e) ? +cellUnder(e)! : origin.current.cell;
+        const dst = cellUnder(e) ? +(cellUnder(e)!) as CellIndex : origin.current.cell;
 
         dst === origin.current.cell
             ? snapBack(el)
             : (onDrop(origin.current.cell, dst), clearStyles(el));
 
-        cleanup();
+        document.removeEventListener('pointermove', setPos as EventListener);
+        document.removeEventListener('pointerup', handleUp as EventListener);
+        elRef.current = null;
+        origin.current = null;
     };
 
-    /* ▍ down – now a simple orchestrator (11 lines) ▍ */
-    const down = (e: React.PointerEvent<HTMLElement>, cell: number) => {
+    const down = (e: React.PointerEvent<HTMLElement>, cell: CellIndex) => {
         const el = e.currentTarget;
         const box = el.getBoundingClientRect();
 
-        origin.current = calcOrigin(e, box, cell);
+        origin.current = calcOrigin(e, box, cell as CellIndex);
         elRef.current = el;
 
         Object.assign(el.style, fixedDragStyle(box));
@@ -134,3 +135,4 @@ export function useSnapDrag(onDrop: DropFn) {
 
     return { down };
 }
+
