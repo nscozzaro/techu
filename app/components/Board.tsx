@@ -1,9 +1,10 @@
+// components/Board.tsx
 'use client';
 
+import { useState } from 'react';
 import { BoardDimension, Card as CardType, SUITS, RANKS } from '../types';
 import { Cell } from './Cell';
 import styles from '../page.module.css';
-import { useState } from 'react';
 
 interface BoardProps {
     num_rows: BoardDimension;
@@ -11,56 +12,71 @@ interface BoardProps {
 }
 
 export function Board({ num_rows, num_cols }: BoardProps) {
-    const [cells, setCells] = useState<CardType[][]>(() => {
-        const initialCells = Array(num_rows * num_cols).fill([]);
-        initialCells[0] = [{ suit: SUITS.Spades, rank: RANKS.Ace }];
-        return initialCells;
-    });
+    // initialize each cell; only cell 0 gets an Ace to start
+    const [cells, setCells] = useState<CardType[][]>(() =>
+        Array.from({ length: num_rows * num_cols }, (_, i) =>
+            i === 0 ? [{ suit: SUITS.Spades, rank: RANKS.Ace }] : []
+        )
+    );
 
-    const handleDragStart = (e: React.DragEvent, cellIndex: number) => {
-        e.dataTransfer.setData('text/plain', cellIndex.toString());
+    // which cell is currently hidden because its card is mid-drag
+    const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+
+    const handleDragStart = (e: React.DragEvent, source: number) => {
+        e.dataTransfer.setData('text/plain', source.toString());
+        e.dataTransfer.effectAllowed = 'move';
+        setDraggingIndex(source);
+    };
+
+    const handleDragEnd = (e: React.DragEvent) => {
+        e.preventDefault();
+        setDraggingIndex(null);
     };
 
     const handleDragOver = (e: React.DragEvent) => {
         e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
     };
 
-    const handleDrop = (e: React.DragEvent, targetCellIndex: number) => {
+    const handleDrop = (e: React.DragEvent, target: number) => {
         e.preventDefault();
-        const sourceCellIndex = parseInt(e.dataTransfer.getData('text/plain'));
+        const source = parseInt(e.dataTransfer.getData('text/plain'), 10);
 
-        setCells(prevCells => {
-            const newCells = [...prevCells];
-            const sourceCards = [...newCells[sourceCellIndex]];
-            const card = sourceCards.pop();
-            if (card) {
-                newCells[sourceCellIndex] = sourceCards;
-                newCells[targetCellIndex] = [...newCells[targetCellIndex], card];
-            }
-            return newCells;
-        });
+        if (source !== target) {
+            setCells(prev => {
+                const next = prev.map(stack => [...stack]);
+                const card = next[source].pop();
+                if (card) next[target].push(card);
+                return next;
+            });
+        }
+        setDraggingIndex(null);
     };
 
     return (
         <>
             <div className={styles.scoreRow}>
-                <span>Player 1 Score: 0</span>
-                <span>Player 2 Score: 0</span>
+                <span>Player&nbsp;1 Score: 0</span>
+                <span>Player&nbsp;2 Score: 0</span>
             </div>
+
             <div className={styles.board}>
-                {cells.map((cellCards, i) => (
+                {cells.map((stack, i) => (
                     <div
                         key={i}
                         onDragOver={handleDragOver}
-                        onDrop={(e) => handleDrop(e, i)}
+                        onDrop={e => handleDrop(e, i)}
                     >
                         <Cell
-                            cards={cellCards}
-                            onDragStart={(e) => handleDragStart(e, i)}
+                            index={i}
+                            cards={stack}
+                            onDragStart={e => handleDragStart(e, i)}
+                            onDragEnd={handleDragEnd}
+                            hideTopCard={draggingIndex === i}
                         />
                     </div>
                 ))}
             </div>
         </>
     );
-}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
+}

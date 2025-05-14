@@ -5,50 +5,74 @@ import { cardStyles } from './shared-styles';
 
 interface CardProps {
     card: CardType;
+    draggable?: boolean;
+    onDragStart?: (e: React.DragEvent) => void;
+    onDragEnd?: (e: React.DragEvent) => void;
+    hidden?: boolean;
+    viewTransitionName?: string;
 }
 
-export function Card({ card }: CardProps) {
+export function Card({
+    card,
+    draggable = false,
+    onDragStart,
+    onDragEnd,
+    hidden = false,
+    viewTransitionName,
+}: CardProps) {
     const { suit, rank } = card;
     const color = SUIT_COLORS[suit];
 
+    const cloneForDrag = (e: React.DragEvent) => {
+        const src = e.currentTarget as HTMLElement;
+        const rect = src.getBoundingClientRect();
+        const offsetX = e.clientX - rect.left;
+        const offsetY = e.clientY - rect.top;
+
+        const img = src.cloneNode(true) as HTMLElement;
+        img.style.position = 'absolute';
+        img.style.top = '-1000px';
+        img.style.width = `${rect.width}px`;
+        img.style.height = `${rect.height}px`;
+        document.body.appendChild(img);
+
+        e.dataTransfer.setDragImage(img, offsetX, offsetY);
+        requestAnimationFrame(() => document.body.removeChild(img));
+    };
+
     return (
         <div
-            style={cardStyles}
-            onDragStart={(e) => {
-                // Create a clone of the card for the drag image
-                const dragImage = e.currentTarget.cloneNode(true) as HTMLElement;
-                dragImage.style.position = 'absolute';
-                dragImage.style.top = '-1000px';
-                document.body.appendChild(dragImage);
-                e.dataTransfer.setDragImage(dragImage, 0, 0);
-
-                // Remove the clone after drag starts
-                requestAnimationFrame(() => {
-                    document.body.removeChild(dragImage);
-                });
+            draggable={draggable}
+            onDragStart={e => {
+                cloneForDrag(e);
+                onDragStart?.(e);
+            }}
+            onDragEnd={onDragEnd}
+            style={{
+                ...cardStyles,
+                opacity: hidden ? 0 : 1,
+                // assign the shared-element name
+                viewTransitionName: viewTransitionName,
             }}
         >
-            <div style={{
-                color,
-                fontSize: '1.1rem',
-                fontWeight: 'bold',
-                textAlign: 'center',
-                wordBreak: 'break-word',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'normal',
-                width: '100%',
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: 0,
-                margin: 0,
-            }}>
+            <div
+                style={{
+                    color,
+                    fontSize: '1.1rem',
+                    fontWeight: 'bold',
+                    textAlign: 'center',
+                    wordBreak: 'break-word',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    height: '100%',
+                    width: '100%',
+                }}
+            >
                 <div>{rank}</div>
                 <div>{suit}</div>
             </div>
         </div>
     );
-} 
+}
