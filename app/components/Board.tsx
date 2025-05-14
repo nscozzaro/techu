@@ -1,4 +1,4 @@
-import { BoardDimension, Card } from '../types';
+import { BoardDimension } from '../types';
 import { Cell } from './Cell';
 import styles from '../page.module.css';
 

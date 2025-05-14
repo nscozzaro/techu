@@ -1,23 +1,17 @@
-import { Card } from '../types';
+import { Card as CardType } from '../types';
+import { cellStyles } from './shared-styles';
+import { Card } from './Card';
 
 export interface Cell {
-    cards: Card[] | null;
+    cards: CardType[];
 }
 
 export function Cell({ cards }: Cell) {
+    const topCard = cards[cards.length - 1];
+
     return (
-        <div
-            style={{
-                background: '#222',
-                border: '2px solid #444',
-                borderRadius: '10px',
-                boxShadow: '0 2px 8px #0004',
-                aspectRatio: '7 / 10',
-                boxSizing: 'border-box',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-            }}
-        />
+        <div style={cellStyles}>
+            {topCard && <Card card={topCard} />}
+        </div>
     );
 } 
