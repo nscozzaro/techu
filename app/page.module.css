@@ -1,32 +1,46 @@
 /* page.module.css */
+
+/* ─── Score row ─────────────────────────────────────── */
 .score {
   color: #fff;
-  font-size: 1.2rem;
+  font-size: clamp(1rem, 2.5vw, 1.25rem);
   width: min(600px, 90vw);
   display: flex;
   justify-content: space-between;
   margin-bottom: 8px;
+  /* ≈ 0.5 rem */
 }
 
+/* ─── Board ─────────────────────────────────────────── */
+/* Width ≤ 90 vw, BUT also small enough that height (2 × width)
+   fits in the viewport with ~4 rem spare for the score + breathing room */
 .board {
-  inline-size: min(90vw, calc(90vh / 2));
+  inline-size: clamp(0px, calc((100vh - 4rem) / 2), 90vw);
   aspect-ratio: 5 / 10;
+  /* width : height = 1 : 2 */
   display: grid;
   grid-template: repeat(7, 1fr) / repeat(5, 1fr);
   gap: 2px;
 }
 
+/* ─── Cells ─────────────────────────────────────────── */
 .cell {
   background: #222;
   border: 2px solid #444;
   border-radius: 10px;
   box-shadow: 0 2px 8px #0004;
   aspect-ratio: 7 / 10;
+  /* playing‑card shape */
   display: flex;
   align-items: center;
   justify-content: center;
+
+  /* allow real shrinkage */
+  min-width: 0;
+  min-height: 0;
 }
 
+/* ─── Cards ─────────────────────────────────────────── */
 .card {
   width: 85%;
   height: 85%;
@@ -38,10 +52,18 @@
   justify-content: center;
   user-select: none;
   cursor: grab;
+
+  /* truly fluid */
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  font-size: clamp(0.55rem, 2.5vw, 1rem);
+  line-height: 1;
 }
 
+/* ─── Smallest screens ──────────────────────────────── */
 @media (max-width: 360px) {
   .score {
-    font-size: 1rem;
+    font-size: clamp(0.9rem, 2.8vw, 1rem);
   }
 }
