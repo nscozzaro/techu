@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef } from 'react';
+import type { Reducer } from 'react';
 
 /* ──────────────────────────
  ▍Board constants & types
@@ -21,7 +22,7 @@ export interface Origin {
 }
 
 /* ──────────────────────────
- ▍Card domain
+ ▍Cards
  ────────────────────────── */
 export const SUITS = {
     Clubs: 'Clubs',
@@ -51,7 +52,40 @@ export type PlayerColor = (typeof SUIT_COLORS)[Suit];
 export const cardColor = (suit: Suit): PlayerColor => SUIT_COLORS[suit];
 
 /* ──────────────────────────
- ▍DOM‑style helpers (pure)
+ ▍Board reducer
+ ────────────────────────── */
+export interface BoardState {
+    cells: Cards[];
+    dragSrc: CellIndex | null;
+}
+
+export type Action =
+    | { type: 'MOVE'; from: CellIndex; to: CellIndex }
+    | { type: 'START_DRAG'; src: CellIndex }
+    | { type: 'END_DRAG' };
+
+export const reducer: Reducer<BoardState, Action> = (state, action) => {
+    switch (action.type) {
+        case 'MOVE': {
+            if (action.from === action.to) return { ...state, dragSrc: null };
+
+            const next = state.cells.map(s => [...s]) as Cards[];
+            const card = next[action.from].pop();
+            if (card) {
+                card.faceUp = true;
+                next[action.to].push(card);
+            }
+            return { cells: next, dragSrc: null };
+        }
+        case 'START_DRAG':
+            return { ...state, dragSrc: action.src };
+        case 'END_DRAG':
+            return { ...state, dragSrc: null };
+    }
+};
+
+/* ──────────────────────────
+ ▍DOM‑style helpers
  ────────────────────────── */
 type StyleKV = Partial<CSSStyleDeclaration>;
 
@@ -87,7 +121,7 @@ const snapBackStyle = (o: Origin, ms: number): StyleKV => ({
     transition: `left ${ms}ms ease, top ${ms}ms ease`,
 });
 
-/* ───── wrappers (side‑effects + return) ───── */
+/* wrapper helpers */
 export const setPos = (
     el: HTMLElement | null,
     o: Origin | null,
@@ -100,7 +134,7 @@ export const clearStyles = (el: HTMLElement): StyleKV =>
 export const snapBack = (
     el: HTMLElement,
     o: Origin,
-    ms: number = 250,
+    ms = 250,
 ): StyleKV => {
     const applied = applyStyles(el, snapBackStyle(o, ms));
     el.addEventListener('transitionend', () => clearStyles(el), { once: true });
@@ -124,7 +158,7 @@ export const calcOrigin = (
 });
 
 /* ──────────────────────────
- ▍useSnapDrag – public hook
+ ▍useSnapDrag hook
  ────────────────────────── */
 type DropFn = (from: CellIndex, to: CellIndex) => void;
 const SNAP_MS = 250;
@@ -140,7 +174,8 @@ const isActive = (r: DragRefs): boolean => !!r.el.current && !!r.o.current;
 const chooseDestination = (
     evt: PointerEvent,
     currentCell: CellIndex,
-): CellIndex => (Number(cellUnder(evt) ?? currentCell) as CellIndex);
+): CellIndex =>
+    (Number(cellUnder(evt) ?? currentCell) as CellIndex);
 
 const removeGlobalListeners = (
     refs: DragRefs,
