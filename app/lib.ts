@@ -3,7 +3,7 @@
 import { useRef } from 'react';
 
 /* ──────────────────────────
- ▍Board constants & types
+ ▍Board constants & types
  ────────────────────────── */
 export type BoardDimension = number & { __brand: 'BoardDimension' };
 export const BOARD_ROWS = 7 as BoardDimension;
@@ -128,15 +128,15 @@ export const calcOrigin = (
 export { fixedDragStyle };   // for unit tests
 
 /* ──────────────────────────
- ▍useSnapDrag – public hook
+ ▍useSnapDrag – public hook
  ────────────────────────── */
 type DropFn = (from: CellIndex, to: CellIndex) => void;
 const SNAP_MS = 250;
 
 interface DragRefs {
-    el: React.MutableRefObject<HTMLElement | null>;
-    o: React.MutableRefObject<Origin | null>;
-    move: React.MutableRefObject<((e: PointerEvent) => void) | null>;
+    el: { current: HTMLElement | null };
+    o: { current: Origin | null };
+    move: { current: ((e: PointerEvent) => void) | null };
 }
 
 const isActive = (r: DragRefs): boolean => !!r.el.current && !!r.o.current;
@@ -164,7 +164,7 @@ export function useSnapDrag(onDrop: DropFn) {
         move: useRef<((e: PointerEvent) => void) | null>(null),
     };
 
-    /* pointer‑up — now a simple, non‑recursive closure */
+    /* pointer‑up — now a simple, non‑recursive closure */
     const pointerUp = (evt: PointerEvent): void => {
         if (!isActive(refs)) return;
 
@@ -172,9 +172,12 @@ export function useSnapDrag(onDrop: DropFn) {
         const o = refs.o.current!;
         const dest = chooseDestination(evt, o.cell);
 
-        dest === o.cell
-            ? snapBack(el, o, SNAP_MS)
-            : (clearStyles(el), onDrop(o.cell, dest));
+        if (dest === o.cell) {
+            snapBack(el, o, SNAP_MS);
+        } else {
+            clearStyles(el);
+            onDrop(o.cell, dest);
+        }
 
         removeGlobalListeners(refs, pointerUp);
         refs.el.current = refs.o.current = null;
