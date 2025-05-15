@@ -23,8 +23,6 @@ export interface Origin {
 /* ──────────────────────────
  ▍Card domain
  ────────────────────────── */
-export enum SuitEnum { Clubs, Diamonds, Hearts, Spades }
-
 export const SUITS = {
     Clubs: 'Clubs',
     Diamonds: 'Diamonds',
@@ -40,7 +38,7 @@ export const RANKS = {
 } as const;
 export type Rank = (typeof RANKS)[keyof typeof RANKS];
 
-export interface Card { suit: Suit; rank: Rank }
+export interface Card { suit: Suit; rank: Rank; faceUp: boolean }
 export type Cards = Card[];
 
 export const SUIT_COLORS = {
@@ -72,7 +70,7 @@ const dragPos = (o: Origin, e: PointerEvent): StyleKV => ({
     top: `${e.clientY - o.offY}px`,
 });
 
-const fixedDragStyle = (box: DOMRect): StyleKV => ({
+export const fixedDragStyle = (box: DOMRect): StyleKV => ({
     position: 'fixed',
     left: `${box.left}px`,
     top: `${box.top}px`,
@@ -125,8 +123,6 @@ export const calcOrigin = (
     offY: (e.clientY - box.top) as PixelPosition,
 });
 
-export { fixedDragStyle };   // for unit tests
-
 /* ──────────────────────────
  ▍useSnapDrag – public hook
  ────────────────────────── */
@@ -157,33 +153,30 @@ const removeGlobalListeners = (
 };
 
 export function useSnapDrag(onDrop: DropFn) {
-    /* grouped refs make passing around state tidy */
     const refs: DragRefs = {
         el: useRef<HTMLElement | null>(null),
         o: useRef<Origin | null>(null),
         move: useRef<((e: PointerEvent) => void) | null>(null),
     };
 
-    /* pointer‑up — now a simple, non‑recursive closure */
     const pointerUp = (evt: PointerEvent): void => {
         if (!isActive(refs)) return;
 
         const el = refs.el.current!;
         const o = refs.o.current!;
-        const dest = chooseDestination(evt, o.cell);
+        const dst = chooseDestination(evt, o.cell);
 
-        if (dest === o.cell) {
+        if (dst === o.cell) {
             snapBack(el, o, SNAP_MS);
         } else {
             clearStyles(el);
-            onDrop(o.cell, dest);
+            onDrop(o.cell, dst);
         }
 
         removeGlobalListeners(refs, pointerUp);
         refs.el.current = refs.o.current = null;
     };
 
-    /* pointer‑down wires everything together */
     const down = (evt: React.PointerEvent<HTMLElement>, idx: CellIndex): void => {
         const el = evt.currentTarget;
         const box = el.getBoundingClientRect();

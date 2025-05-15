@@ -46,6 +46,11 @@
   line-height: 1;
 }
 
+.back {
+  background: royalblue;
+  color: #fff;
+}
+
 @media (max-width: 360px) {
   .score {
     font-size: clamp(0.9rem, 2.8vw, 1rem);

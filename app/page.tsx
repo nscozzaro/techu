@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import {
+  /* board + card domain */
   BOARD_ROWS, BOARD_COLS, SUITS, RANKS,
   Card, Cards, cardColor, useSnapDrag, CellIndex,
 } from './lib';
@@ -15,21 +16,39 @@ type BoardCells = Cards[];
 /* ──────────────────────────
    ▍Presentation components
    ────────────────────────── */
-const CardView = ({ card, onPointerDown }: {
-  card: Card; onPointerDown: (e: React.PointerEvent<HTMLElement>) => void;
-}) => (
-  <div
-    className={styles.card}
-    style={{ color: cardColor(card.suit) }}
-    onPointerDown={onPointerDown}
-  >
-    <div>{card.rank}</div>
-    <div>{card.suit}</div>
-  </div>
-);
+const CardView = ({
+  card,
+  onPointerDown,
+}: {
+  card: Card;
+  onPointerDown: (e: React.PointerEvent<HTMLElement>) => void;
+}) => {
+  const faceUp = card.faceUp;
+  return (
+    <div
+      className={`${styles.card} ${faceUp ? '' : styles.back}`}
+      style={faceUp ? { color: cardColor(card.suit) } : undefined}
+      onPointerDown={onPointerDown}
+    >
+      {faceUp ? (
+        <>
+          <div>{card.rank}</div>
+          <div>{card.suit}</div>
+        </>
+      ) : (
+        <span>🂠</span>
+      )}
+    </div>
+  );
+};
 
-const Cell = ({ idx, cards, onPointerDown }: {
-  idx: number; cards: Cards;
+const Cell = ({
+  idx,
+  cards,
+  onPointerDown,
+}: {
+  idx: CellIndex;
+  cards: Cards;
   onPointerDown: (e: React.PointerEvent<HTMLElement>) => void;
 }) => (
   <div data-cell={idx} className={styles.cell}>
@@ -46,8 +65,12 @@ const Score = () => (
   </div>
 );
 
-const Board = ({ cells, onPointerDown }: {
-  cells: BoardCells; onPointerDown: (e: React.PointerEvent<HTMLElement>, idx: CellIndex) => void;
+const Board = ({
+  cells,
+  onPointerDown,
+}: {
+  cells: BoardCells;
+  onPointerDown: (e: React.PointerEvent<HTMLElement>, idx: CellIndex) => void;
 }) => (
   <div className={styles.board}>
     {cells.map((stack, i) => (
@@ -62,13 +85,32 @@ const Board = ({ cells, onPointerDown }: {
 );
 
 /* ──────────────────────────
-   ▍Main page
+   ▍Initial board state
    ────────────────────────── */
-const makeInitialCells = (): BoardCells =>
-  Array.from({ length: BOARD_ROWS * BOARD_COLS }, (_, i) =>
-    i === 0 ? [{ suit: SUITS.Spades, rank: RANKS.Ace }] : [],
+const makeInitialCells = (): BoardCells => {
+  const cells: BoardCells = Array.from(
+    { length: BOARD_ROWS * BOARD_COLS },
+    () => [],
   ) as BoardCells;
 
+  const redCell = ((BOARD_ROWS - 1) * BOARD_COLS) as CellIndex; // row 7 col 1  → idx 30
+  const blackCell = (BOARD_COLS - 1) as CellIndex;              // row 1 col 5  → idx 4
+
+  Object.values(RANKS).forEach(rank => {
+    [SUITS.Hearts, SUITS.Diamonds].forEach(suit =>
+      cells[redCell].push({ suit, rank, faceUp: false }),
+    );
+    [SUITS.Clubs, SUITS.Spades].forEach(suit =>
+      cells[blackCell].push({ suit, rank, faceUp: false }),
+    );
+  });
+
+  return cells;
+};
+
+/* ──────────────────────────
+   ▍Main page
+   ────────────────────────── */
 export default function Home() {
   const [cells, setCells] = useState<BoardCells>(makeInitialCells());
 
@@ -76,7 +118,10 @@ export default function Home() {
     setCells(prev => {
       const next = prev.map(s => [...s]) as BoardCells;
       const c = next[from].pop();
-      if (c) next[to].push(c);
+      if (c) {
+        c.faceUp = true;      // flip on drop
+        next[to].push(c);
+      }
       return next;
     });
 

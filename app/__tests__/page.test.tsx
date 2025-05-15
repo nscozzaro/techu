@@ -1,15 +1,15 @@
-// __tests__/page.test.tsx
-import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, act } from '@testing-library/react';
 import Home from '../page';
 import { BOARD_ROWS, BOARD_COLS } from '../lib';
 import '@testing-library/jest-dom';
 
-// ---- mock CSS module so class names are predictable -----------------
+/* --- predictable class names for queries --- */
 jest.mock('../page.module.css', () => ({
     score: 'score',
     board: 'board',
     cell: 'cell',
-    card: 'card'
+    card: 'card',
+    back: 'back',
 }));
 
 afterEach(cleanup);
@@ -18,42 +18,49 @@ describe('Home – static content', () => {
     it.each([
         ['Player 1 Score: 0'],
         ['Player 2 Score: 0'],
-    ])('renders player score: %s', (expectedText) => {
+    ])('renders player score: %s', expected => {
         render(<Home />);
-        expect(screen.getByText(expectedText)).toBeInTheDocument();
+        expect(screen.getByText(expected)).toBeInTheDocument();
     });
 
     it('renders the correct number of board cells', () => {
         render(<Home />);
-        const expectedCellCount = BOARD_ROWS * BOARD_COLS;
-
+        const expectedCells = BOARD_ROWS * BOARD_COLS;
         const cells = screen
             .getAllByRole('generic')
-            .filter((el) => el.className.includes('cell'));
-
-        expect(cells).toHaveLength(expectedCellCount);
+            .filter(el => el.className.includes('cell'));
+        expect(cells).toHaveLength(expectedCells);
     });
 });
 
 describe('Home – drag and drop logic', () => {
     test('moveCard moves a card from one cell to another', () => {
         render(<Home />);
-        // Find all cells
-        const cells = screen.getAllByRole('generic').filter((el) => el.className.includes('cell'));
-        // The first cell should have a card (Ace of Spades)
-        expect(cells[0].querySelector('.card')).toBeInTheDocument();
-        // The second cell should be empty
-        expect(cells[1].querySelector('.card')).toBeNull();
 
-        // Simulate drag and drop: pointerDown on first cell's card, pointerUp on second cell
-        const card = cells[0].querySelector('.card');
-        fireEvent.pointerDown(card!);
-        // Simulate pointerUp on the second cell
-        fireEvent.pointerUp(cells[1]);
+        const cells = screen
+            .getAllByRole('generic')
+            .filter(el => el.className.includes('cell'));
 
-        // After move, first cell should be empty, second should have the card
-        expect(cells[0].querySelector('.card')).toBeNull();
-        expect(cells[1].querySelector('.card')).toBeInTheDocument();
+        const src = cells[4];  // top‑right stack (black cards)
+        const dst = cells[1];  // an empty neighbouring cell
+
+        /* sanity‑check initial state */
+        expect(src.querySelector('.card')).toBeInTheDocument();
+        expect(dst.querySelector('.card')).toBeNull();
+
+        /* simulate drag‑drop */
+        const card = src.querySelector('.card')!;
+        // Mock elementFromPoint to return the destination cell
+        jest.spyOn(document, 'elementFromPoint').mockReturnValue(dst);
+        act(() => {
+            fireEvent.pointerDown(card, { clientX: 100, clientY: 100 });
+            fireEvent.pointerMove(dst, { clientX: 200, clientY: 200 });
+            fireEvent.pointerUp(dst, { clientX: 200, clientY: 200 });
+        });
+
+        /* assertions – card relocated */
+        expect(src.querySelector('.card')).toBeInTheDocument();
+        expect(dst.querySelector('.card')).toBeInTheDocument();
     });
 });
 
@@ -63,21 +70,16 @@ const viewports = [
     { width: 1440, height: 900, label: 'Desktop 1440×900' },
 ] as const;
 
-describe.each(viewports)(
-    'Board layout – %s',
-    ({ width, height, label }) => {
-        beforeEach(() => {
-            Object.defineProperty(window, 'innerWidth', { configurable: true, value: width });
-            Object.defineProperty(window, 'innerHeight', { configurable: true, value: height });
-            window.dispatchEvent(new Event('resize'));
-        });
+describe.each(viewports)('Board layout – %s', ({ width, height, label }) => {
+    beforeEach(() => {
+        Object.defineProperty(window, 'innerWidth', { configurable: true, value: width });
+        Object.defineProperty(window, 'innerHeight', { configurable: true, value: height });
+        window.dispatchEvent(new Event('resize'));
+    });
 
-        test(`renders correctly on ${label}`, () => {
-            const { container } = render(<Home />);
-            const boardFrame = container.querySelector('.board');
-            expect(boardFrame).toBeInTheDocument();
-            const cells = container.querySelectorAll('.cell');
-            expect(cells).toHaveLength(BOARD_ROWS * BOARD_COLS);
-        });
-    }
-);
+    test(`renders correctly on ${label}`, () => {
+        const { container } = render(<Home />);
+        expect(container.querySelector('.board')).toBeInTheDocument();
+        expect(container.querySelectorAll('.cell')).toHaveLength(BOARD_ROWS * BOARD_COLS);
+    });
+});
