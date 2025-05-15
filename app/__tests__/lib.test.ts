@@ -50,6 +50,7 @@ describe('static card data', () => {
         const card: Card = {
             suit: rnd(Object.values(SUITS)),
             rank: rnd(Object.values(RANKS)),
+            faceUp: false,
         };
         expect(cardColor(card.suit)).toBe(SUIT_COLORS[card.suit]);
     });
