@@ -2,14 +2,16 @@
 
 import { useRef } from 'react';
 
-/* ────────────  CONSTANTS  ──────────── */
+/* ──────────────────────────
+   ▍Board constants & types
+   ────────────────────────── */
 export type BoardDimension = number & { __brand: 'BoardDimension' };
 export const BOARD_ROWS = 7 as BoardDimension;
 export const BOARD_COLS = 5 as BoardDimension;
 
-/* ────────────  TYPES  ──────────── */
 export type PixelPosition = number & { __brand: 'PixelPosition' };
 export type CellIndex = number & { __brand: 'CellIndex' };
+
 export type Origin = {
     x: PixelPosition;
     y: PixelPosition;
@@ -18,7 +20,9 @@ export type Origin = {
     offY: PixelPosition;
 };
 
-/* ────────────  CARDS  ──────────── */
+/* ──────────────────────────
+   ▍Card domain
+   ────────────────────────── */
 export enum SuitEnum { Clubs, Diamonds, Hearts, Spades }
 
 export const SUITS = {
@@ -47,17 +51,17 @@ export const SUIT_COLORS = {
 } as const;
 export type PlayerColor = (typeof SUIT_COLORS)[Suit];
 export const cardColor = (suit: Suit): PlayerColor => SUIT_COLORS[suit];
+
+/* ──────────────────────────
+   ▍Drag‑and‑drop helpers
+   ────────────────────────── */
+const SNAP_MS = 250;
 type DropFn = (from: CellIndex, to: CellIndex) => void;
 type StyleKV = Partial<CSSStyleDeclaration>;
 
-// Moved helpers outside the hook for testing
-export const setPos = (el: HTMLElement | null, origin: Origin | null, e: PointerEvent) => {
-    if (!el || !origin) return;
-    const { offX, offY } = origin;
-    Object.assign(el.style, {
-        left: `${e.clientX - offX}px`,
-        top: `${e.clientY - offY}px`,
-    });
+export const setPos = (el: HTMLElement | null, o: Origin | null, e: PointerEvent) => {
+    if (!el || !o) return;
+    Object.assign(el.style, { left: `${e.clientX - o.offX}px`, top: `${e.clientY - o.offY}px` });
 };
 
 export const clearStyles = (el: HTMLElement) =>
@@ -66,11 +70,12 @@ export const clearStyles = (el: HTMLElement) =>
         width: '', height: '', transition: '', pointerEvents: '',
     });
 
-export const snapBack = (el: HTMLElement, origin: Origin, SNAP_MS: number) => {
-    const { x, y } = origin;
-    el.style.transition = `left ${SNAP_MS}ms ease, top ${SNAP_MS}ms ease`;
-    el.style.left = `${x}px`;
-    el.style.top = `${y}px`;
+export const snapBack = (el: HTMLElement, o: Origin) => {
+    Object.assign(el.style, {
+        transition: `left ${SNAP_MS}ms ease, top ${SNAP_MS}ms ease`,
+        left: `${o.x}px`,
+        top: `${o.y}px`,
+    });
     el.addEventListener('transitionend', () => clearStyles(el), { once: true });
 };
 
@@ -101,51 +106,44 @@ export const fixedDragStyle = (box: DOMRect): StyleKV => ({
     pointerEvents: 'none',
 });
 
+/* ──────────────────────────
+   ▍useSnapDrag hook
+   ────────────────────────── */
 export function useSnapDrag(onDrop: DropFn) {
     const elRef = useRef<HTMLElement | null>(null);
     const origin = useRef<Origin | null>(null);
-    const moveListenerRef = useRef<((e: PointerEvent) => void) | null>(null);
-    const SNAP_MS = 250;
+    const mover = useRef<((e: PointerEvent) => void) | null>(null);
 
-    const isDragActive = () => elRef.current !== null && origin.current !== null;
+    const active = () => elRef.current && origin.current;
+    const resetRefs = () => { elRef.current = null; origin.current = null; };
+    const removeListen = () => {
+        if (mover.current) document.removeEventListener('pointermove', mover.current);
+        document.removeEventListener('pointerup', up);
+        mover.current = null;
+    };
+    const dstCell = (e: PointerEvent) =>
+        (Number(cellUnder(e) ?? origin.current!.cell)) as CellIndex;
 
-    const handleUp = (e: PointerEvent) => {
-        if (!isDragActive()) return;
-        const el = elRef.current!;
-        const currentOrigin = origin.current!;
-        const dst = cellUnder(e) ? +(cellUnder(e)!) as CellIndex : currentOrigin.cell;
-
-        if (dst === currentOrigin.cell) {
-            snapBack(el, currentOrigin, SNAP_MS);
+    const up = (e: PointerEvent) => {
+        if (!active()) return;
+        const el = elRef.current!, o = origin.current!, dst = dstCell(e);
+        if (dst === o.cell) {
+            snapBack(el, o);
         } else {
-            onDrop(currentOrigin.cell, dst);
             clearStyles(el);
+            onDrop(o.cell, dst);
         }
-
-        if (moveListenerRef.current) {
-            document.removeEventListener('pointermove', moveListenerRef.current);
-        }
-        document.removeEventListener('pointerup', handleUp);
-        elRef.current = null;
-        origin.current = null;
-        moveListenerRef.current = null;
+        removeListen(); resetRefs();
     };
 
-    const down = (e: React.PointerEvent<HTMLElement>, cell: CellIndex) => {
-        const el = e.currentTarget;
-        const box = el.getBoundingClientRect();
-
-        origin.current = calcOrigin(e, box, cell as CellIndex);
-        elRef.current = el;
-
+    const down = (e: React.PointerEvent<HTMLElement>, idx: CellIndex) => {
+        const el = e.currentTarget, box = el.getBoundingClientRect();
+        origin.current = calcOrigin(e, box, idx); elRef.current = el;
         Object.assign(el.style, fixedDragStyle(box));
-
-        const moveListener = (e: PointerEvent) => setPos(elRef.current, origin.current, e);
-        moveListenerRef.current = moveListener;
-        document.addEventListener('pointermove', moveListener);
-        document.addEventListener('pointerup', handleUp);
+        mover.current = evt => setPos(elRef.current, origin.current, evt);
+        document.addEventListener('pointermove', mover.current);
+        document.addEventListener('pointerup', up);
     };
 
     return { down };
 }
-
