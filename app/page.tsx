@@ -1,70 +1,135 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import {
-  /* board + card domain */
-  BOARD_ROWS, BOARD_COLS, SUITS, RANKS,
-  Card, Cards, cardColor, useSnapDrag, CellIndex,
+  BOARD_ROWS,
+  BOARD_COLS,
+  SUITS,
+  RANKS,
+  Card,
+  Cards,
+  cardColor,
+  useSnapDrag,
+  CellIndex,
 } from './lib';
 import styles from './page.module.css';
+import {
+  PointerEvent as ReactPointerEvent,
+  Reducer,
+  useCallback,
+  useEffect,
+  useReducer,
+} from 'react';
 
-/* ──────────────────────────
-   ▍Types
-   ────────────────────────── */
-type BoardCells = Cards[];
+interface BoardState {
+  cells: Cards[];
+  dragSrc: CellIndex | null;
+}
 
-/* ──────────────────────────
-   ▍Presentation components
-   ────────────────────────── */
+type Action =
+  | { type: 'MOVE'; from: CellIndex; to: CellIndex }
+  | { type: 'START_DRAG'; src: CellIndex }
+  | { type: 'END_DRAG' };
+
+export const reducer: Reducer<BoardState, Action> = (state, action) => {
+  switch (action.type) {
+    case 'MOVE': {
+      if (action.from === action.to) return { ...state, dragSrc: null };
+      const next = state.cells.map((s) => [...s]) as Cards[];
+      const card = next[action.from].pop();
+      if (card) {
+        card.faceUp = true;
+        next[action.to].push(card);
+      }
+      return { cells: next, dragSrc: null };
+    }
+    case 'START_DRAG':
+      return { ...state, dragSrc: action.src };
+    case 'END_DRAG':
+      return { ...state, dragSrc: null };
+  }
+};
+
+const buildInitialCells = (): Cards[] => {
+  const cells: Cards[] = Array.from({ length: BOARD_ROWS * BOARD_COLS }, () => []);
+
+  const redStack = ((BOARD_ROWS - 1) * BOARD_COLS) as CellIndex; // row 7 col 1
+  const blackStack = (BOARD_COLS - 1) as CellIndex;              // row 1 col 5
+
+  Object.values(RANKS).forEach((rank) => {
+    [SUITS.Hearts, SUITS.Diamonds].forEach((suit) =>
+      cells[redStack].push({ suit, rank, faceUp: false }),
+    );
+    [SUITS.Clubs, SUITS.Spades].forEach((suit) =>
+      cells[blackStack].push({ suit, rank, faceUp: false }),
+    );
+  });
+
+  return cells;
+};
+
+const useBoard = () => {
+  const [state, dispatch] = useReducer(reducer, undefined, () => ({
+    cells: buildInitialCells(),
+    dragSrc: null,
+  }));
+
+  const startDrag = (src: CellIndex) => dispatch({ type: 'START_DRAG', src });
+  const endDrag = () => dispatch({ type: 'END_DRAG' });
+  const move = (from: CellIndex, to: CellIndex) =>
+    dispatch({ type: 'MOVE', from, to });
+
+  return { ...state, startDrag, endDrag, move };
+};
+
 const CardView = ({
   card,
   onPointerDown,
 }: {
   card: Card;
-  onPointerDown: (e: React.PointerEvent<HTMLElement>) => void;
-}) => {
-  const faceUp = card.faceUp;
-  return (
-    <div
-      className={`${styles.card} ${faceUp ? '' : styles.back}`}
-      style={faceUp ? { color: cardColor(card.suit) } : undefined}
-      onPointerDown={onPointerDown}
-    >
-      {faceUp ? (
-        <>
-          <div>{card.rank}</div>
-          <div>{card.suit}</div>
-        </>
-      ) : (
-        <span>🂠</span>
-      )}
-    </div>
-  );
-};
+  onPointerDown: (e: ReactPointerEvent<HTMLElement>) => void;
+}) => (
+  <div
+    className={`${styles.card} ${card.faceUp ? '' : styles.back}`}
+    style={card.faceUp ? { color: cardColor(card.suit) } : undefined}
+    onPointerDown={onPointerDown}
+  >
+    {card.faceUp ? (
+      <>
+        <div>{card.rank}</div>
+        <div>{card.suit}</div>
+      </>
+    ) : (
+      <span>🂠</span>
+    )}
+  </div>
+);
 
 const Cell = ({
   idx,
-  cards,
-  onPointerDown,
+  stack,
   isDragging,
-  dragSourceCell,
+  dragSrc,
+  handlePointerDown,
 }: {
   idx: CellIndex;
-  cards: Cards;
-  onPointerDown: (e: React.PointerEvent<HTMLElement>) => void;
+  stack: Cards;
   isDragging: boolean;
-  dragSourceCell: CellIndex | null;
+  dragSrc: CellIndex | null;
+  handlePointerDown: (e: ReactPointerEvent<HTMLElement>, idx: CellIndex) => void;
 }) => {
-  const topCard = cards.at(-1);
-  const nextCard = cards.at(-2);
+  const top = stack.at(-1);
+  const belowTop = stack.at(-2);
 
   return (
     <div data-cell={idx} className={styles.cell}>
-      {topCard && (
-        <CardView card={topCard} onPointerDown={onPointerDown} />
+      {top && (
+        <CardView card={top} onPointerDown={(e) => handlePointerDown(e, idx)} />
       )}
-      {nextCard && isDragging && dragSourceCell === idx && (
-        <CardView card={nextCard} onPointerDown={onPointerDown} />
+      {belowTop && isDragging && dragSrc === idx && (
+        <CardView
+          card={belowTop}
+          onPointerDown={(e) => handlePointerDown(e, idx)}
+        />
       )}
     </div>
   );
@@ -77,103 +142,41 @@ const Score = () => (
   </div>
 );
 
-const Board = ({
-  cells,
-  onPointerDown,
-  isDragging,
-  dragSourceCell,
-}: {
-  cells: BoardCells;
-  onPointerDown: (e: React.PointerEvent<HTMLElement>, idx: CellIndex) => void;
-  isDragging: boolean;
-  dragSourceCell: CellIndex | null;
-}) => (
-  <div className={styles.board}>
-    {cells.map((stack, i) => (
-      <Cell
-        key={i}
-        idx={i as CellIndex}
-        cards={stack}
-        onPointerDown={e => onPointerDown(e, i as CellIndex)}
-        isDragging={isDragging}
-        dragSourceCell={dragSourceCell}
-      />
-    ))}
-  </div>
-);
-
-/* ──────────────────────────
-   ▍Initial board state
-   ────────────────────────── */
-const makeInitialCells = (): BoardCells => {
-  const cells: BoardCells = Array.from(
-    { length: BOARD_ROWS * BOARD_COLS },
-    () => [],
-  ) as BoardCells;
-
-  const redCell = ((BOARD_ROWS - 1) * BOARD_COLS) as CellIndex; // row 7 col 1  → idx 30
-  const blackCell = (BOARD_COLS - 1) as CellIndex;              // row 1 col 5  → idx 4
-
-  Object.values(RANKS).forEach(rank => {
-    [SUITS.Hearts, SUITS.Diamonds].forEach(suit =>
-      cells[redCell].push({ suit, rank, faceUp: false }),
-    );
-    [SUITS.Clubs, SUITS.Spades].forEach(suit =>
-      cells[blackCell].push({ suit, rank, faceUp: false }),
-    );
-  });
-
-  return cells;
-};
-
-/* ──────────────────────────
-   ▍Main page
-   ────────────────────────── */
 export default function Home() {
-  const [cells, setCells] = useState<BoardCells>(makeInitialCells());
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragSourceCell, setDragSourceCell] = useState<CellIndex | null>(null);
-
-  const moveCard = (from: CellIndex, to: CellIndex) =>
-    setCells(prev => {
-      const next = prev.map(s => [...s]) as BoardCells;
-      const c = next[from].pop();
-      if (c) {
-        c.faceUp = true;      // flip on drop
-        next[to].push(c);
-      }
-      return next;
-    });
-
-  const drag = useSnapDrag(moveCard);
-
-  const handlePointerDown = (e: React.PointerEvent<HTMLElement>, idx: CellIndex) => {
-    setIsDragging(true);
-    setDragSourceCell(idx);
-    drag.down(e, idx);
-  };
-
-  const handlePointerUp = () => {
-    setIsDragging(false);
-    setDragSourceCell(null);
-  };
+  const { cells, dragSrc, move, startDrag, endDrag } = useBoard();
+  const drag = useSnapDrag(move);
 
   useEffect(() => {
-    document.addEventListener('pointerup', handlePointerUp);
-    return () => {
-      document.removeEventListener('pointerup', handlePointerUp);
-    };
-  }, []);
+    document.addEventListener('pointerup', endDrag);
+    return () => document.removeEventListener('pointerup', endDrag);
+  }, [endDrag]);
+
+  const handlePointerDown = useCallback(
+    (e: ReactPointerEvent<HTMLElement>, idx: CellIndex) => {
+      startDrag(idx);
+      drag.down(e, idx);
+    },
+    [drag, startDrag],
+  );
+
+  const isDragging = dragSrc !== null;
 
   return (
     <>
       <Score />
-      <Board
-        cells={cells}
-        onPointerDown={handlePointerDown}
-        isDragging={isDragging}
-        dragSourceCell={dragSourceCell}
-      />
+
+      <div className={styles.board}>
+        {cells.map((stack, i) => (
+          <Cell
+            key={i}
+            idx={i as CellIndex}
+            stack={stack}
+            isDragging={isDragging}
+            dragSrc={dragSrc}
+            handlePointerDown={handlePointerDown}
+          />
+        ))}
+      </div>
     </>
   );
 }
