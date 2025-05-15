@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   /* board + card domain */
   BOARD_ROWS, BOARD_COLS, SUITS, RANKS,
@@ -46,17 +46,29 @@ const Cell = ({
   idx,
   cards,
   onPointerDown,
+  isDragging,
+  dragSourceCell,
 }: {
   idx: CellIndex;
   cards: Cards;
   onPointerDown: (e: React.PointerEvent<HTMLElement>) => void;
-}) => (
-  <div data-cell={idx} className={styles.cell}>
-    {cards.at(-1) && (
-      <CardView card={cards.at(-1)!} onPointerDown={onPointerDown} />
-    )}
-  </div>
-);
+  isDragging: boolean;
+  dragSourceCell: CellIndex | null;
+}) => {
+  const topCard = cards.at(-1);
+  const nextCard = cards.at(-2);
+
+  return (
+    <div data-cell={idx} className={styles.cell}>
+      {topCard && (
+        <CardView card={topCard} onPointerDown={onPointerDown} />
+      )}
+      {nextCard && isDragging && dragSourceCell === idx && (
+        <CardView card={nextCard} onPointerDown={onPointerDown} />
+      )}
+    </div>
+  );
+};
 
 const Score = () => (
   <div className={styles.score}>
@@ -68,9 +80,13 @@ const Score = () => (
 const Board = ({
   cells,
   onPointerDown,
+  isDragging,
+  dragSourceCell,
 }: {
   cells: BoardCells;
   onPointerDown: (e: React.PointerEvent<HTMLElement>, idx: CellIndex) => void;
+  isDragging: boolean;
+  dragSourceCell: CellIndex | null;
 }) => (
   <div className={styles.board}>
     {cells.map((stack, i) => (
@@ -79,6 +95,8 @@ const Board = ({
         idx={i as CellIndex}
         cards={stack}
         onPointerDown={e => onPointerDown(e, i as CellIndex)}
+        isDragging={isDragging}
+        dragSourceCell={dragSourceCell}
       />
     ))}
   </div>
@@ -113,6 +131,8 @@ const makeInitialCells = (): BoardCells => {
    ────────────────────────── */
 export default function Home() {
   const [cells, setCells] = useState<BoardCells>(makeInitialCells());
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragSourceCell, setDragSourceCell] = useState<CellIndex | null>(null);
 
   const moveCard = (from: CellIndex, to: CellIndex) =>
     setCells(prev => {
@@ -127,10 +147,33 @@ export default function Home() {
 
   const drag = useSnapDrag(moveCard);
 
+  const handlePointerDown = (e: React.PointerEvent<HTMLElement>, idx: CellIndex) => {
+    setIsDragging(true);
+    setDragSourceCell(idx);
+    drag.down(e, idx);
+  };
+
+  const handlePointerUp = () => {
+    setIsDragging(false);
+    setDragSourceCell(null);
+  };
+
+  useEffect(() => {
+    document.addEventListener('pointerup', handlePointerUp);
+    return () => {
+      document.removeEventListener('pointerup', handlePointerUp);
+    };
+  }, []);
+
   return (
     <>
       <Score />
-      <Board cells={cells} onPointerDown={drag.down} />
+      <Board
+        cells={cells}
+        onPointerDown={handlePointerDown}
+        isDragging={isDragging}
+        dragSourceCell={dragSourceCell}
+      />
     </>
   );
 }

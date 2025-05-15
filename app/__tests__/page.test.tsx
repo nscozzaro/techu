@@ -62,6 +62,68 @@ describe('Home – drag and drop logic', () => {
         expect(src.querySelector('.card')).toBeInTheDocument();
         expect(dst.querySelector('.card')).toBeInTheDocument();
     });
+
+    test('shows second card only in source cell during drag', () => {
+        render(<Home />);
+
+        const cells = screen
+            .getAllByRole('generic')
+            .filter(el => el.className.includes('cell'));
+
+        const src = cells[4];  // top‑right stack (black cards)
+        const otherCell = cells[30]; // red cards stack
+
+        /* sanity‑check initial state */
+        expect(src.querySelectorAll('.card')).toHaveLength(1);
+        expect(otherCell.querySelectorAll('.card')).toHaveLength(1);
+
+        /* start drag */
+        const card = src.querySelector('.card')!;
+        act(() => {
+            fireEvent.pointerDown(card, { clientX: 100, clientY: 100 });
+        });
+
+        /* assertions during drag */
+        expect(src.querySelectorAll('.card')).toHaveLength(2); // top card + next card
+        expect(otherCell.querySelectorAll('.card')).toHaveLength(1); // only top card
+
+        /* end drag */
+        act(() => {
+            fireEvent.pointerUp(document);
+        });
+
+        /* assertions after drag */
+        expect(src.querySelectorAll('.card')).toHaveLength(1);
+        expect(otherCell.querySelectorAll('.card')).toHaveLength(1);
+    });
+
+    test('handles drag cancellation by returning to source cell', () => {
+        render(<Home />);
+
+        const cells = screen
+            .getAllByRole('generic')
+            .filter(el => el.className.includes('cell'));
+
+        const src = cells[4];  // top‑right stack (black cards)
+
+        /* start drag */
+        const card = src.querySelector('.card')!;
+        act(() => {
+            fireEvent.pointerDown(card, { clientX: 100, clientY: 100 });
+        });
+
+        /* verify second card is visible during drag */
+        expect(src.querySelectorAll('.card')).toHaveLength(2);
+
+        /* cancel drag by dropping on same cell */
+        jest.spyOn(document, 'elementFromPoint').mockReturnValue(src);
+        act(() => {
+            fireEvent.pointerUp(src, { clientX: 100, clientY: 100 });
+        });
+
+        /* verify card returned to original state */
+        expect(src.querySelectorAll('.card')).toHaveLength(1);
+    });
 });
 
 const viewports = [
