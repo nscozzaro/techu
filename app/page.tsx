@@ -12,7 +12,7 @@ import {
   CellIndex,
   reducer as boardReducer,
   makeStartingCells,
-  /* DnD + helpers */
+  /* DnD */
   useSnapDrag,
   /* flights */
   Flight,
@@ -37,13 +37,51 @@ function useBoard() {
     cells: makeStartingCells(),
     dragSrc: null,
   }));
+
   return {
     ...state,
     startDrag: (src: CellIndex) => dispatch({ type: 'START_DRAG', src }),
     endDrag: () => dispatch({ type: 'END_DRAG' }),
-    moveCard: (from: CellIndex, to: CellIndex) =>
+    move: (from: CellIndex, to: CellIndex) =>
       dispatch({ type: 'MOVE', from, to }),
   };
+}
+
+/* ──────────────────────────
+   Flight‑animation hook
+   ────────────────────────── */
+function useFlights(
+  cellRefs: React.MutableRefObject<(HTMLDivElement | null)[]>,
+  moveCard: (from: CellIndex, to: CellIndex) => void,
+) {
+  const [flights, dispatch] = useReducer(flightsReducer, [] as Flights);
+
+  const hiddenByCell = (idx: number) =>
+    flights.filter(f => f.src === idx).length;
+
+  const addFlight = (src: CellIndex, dst: CellIndex) => {
+    const fromEl = cellRefs.current[src];
+    const toEl = cellRefs.current[dst];
+    if (!fromEl || !toEl) return;
+
+    dispatch({
+      type: 'ADD',
+      payload: {
+        id: Math.random().toString(36).slice(2),
+        src,
+        dst,
+        start: fromEl.getBoundingClientRect(),
+        end: toEl.getBoundingClientRect(),
+      },
+    });
+  };
+
+  const completeFlight = (flight: Flight) => {
+    moveCard(flight.src, flight.dst);
+    dispatch({ type: 'REMOVE', id: flight.id });
+  };
+
+  return { flights, hiddenByCell, addFlight, completeFlight };
 }
 
 /* ──────────────────────────
@@ -51,60 +89,43 @@ function useBoard() {
    ────────────────────────── */
 export default function Home() {
   /* board + drag */
-  const { cells, dragSrc, startDrag, endDrag, moveCard } = useBoard();
+  const {
+    cells,
+    dragSrc,
+    startDrag,
+    endDrag,
+    move: moveCard,
+  } = useBoard();
   const drag = useSnapDrag(moveCard);
 
-  /* refs to each cell element */
+  /* cell refs */
   const cellRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  /* flight state */
-  const [flights, dispatchFlights] = useReducer(flightsReducer, [] as Flights);
+  /* flights */
+  const { flights, hiddenByCell, addFlight, completeFlight } = useFlights(
+    cellRefs,
+    moveCard,
+  );
 
-  /* helper: how many cards currently "flying" out of a given stack */
-  const hiddenFor = (idx: number) => flights.filter(f => f.src === idx).length;
-
-  /* launch an individual flight */
-  function launch(src: CellIndex, dst: CellIndex) {
-    const from = cellRefs.current[src];
-    const to = cellRefs.current[dst];
-    if (!from || !to) return; // safety check for impossible path
-    dispatchFlights({
-      type: 'ADD',
-      payload: {
-        id: Math.random().toString(36).slice(2),
-        src,
-        dst,
-        start: from.getBoundingClientRect(),
-        end: to.getBoundingClientRect(),
-      },
-    });
-  }
-
-  /* apply card move + remove flight once animation ends */
-  function handleFlightFinish(flight: Flight) {
-    moveCard(flight.src, flight.dst);
-    dispatchFlights({ type: 'REMOVE', id: flight.id });
-  }
-
-  /* initial "deal" */
+  /* initial deal */
   useEffect(() => {
     const queue = (src: CellIndex, dsts: CellIndex[]) =>
-      dsts.forEach((d, i) => setTimeout(() => launch(src, d), i * DEAL_DELAY_MS));
+      dsts.forEach((d, i) => setTimeout(() => addFlight(src, d), i * DEAL_DELAY_MS));
     queue(RED_SRC, RED_DST);
     queue(BLK_SRC, BLK_DST);
-  }, []);
+  }, [addFlight]);
 
-  /* end drag globally */
+  /* global pointer‑up ends drag */
   useEffect(() => {
     document.addEventListener('pointerup', endDrag);
     return () => document.removeEventListener('pointerup', endDrag);
   }, [endDrag]);
 
-  /* pointer‑down handler for cards */
-  function handlePointerDown(e: Ptr<HTMLElement>, idx: CellIndex) {
-    startDrag(idx);
-    drag.down(e, idx);
-  }
+  /* card pointer‑down */
+  const handlePointerDown = (e: Ptr<HTMLElement>, cellIndex: CellIndex) => {
+    startDrag(cellIndex);
+    drag.down(e, cellIndex);
+  };
 
   return (
     <>
@@ -114,13 +135,15 @@ export default function Home() {
       </div>
 
       <div className={styles.board}>
-        {cells.map((stack, i) => (
+        {cells.map((stack, cellIndex) => (
           <Cell
-            key={i}
-            ref={el => { cellRefs.current[i] = el; }}
-            idx={i as CellIndex}
+            key={cellIndex}
+            ref={el => {
+              cellRefs.current[cellIndex] = el;
+            }}
+            idx={cellIndex as CellIndex}
             stack={stack}
-            hidden={hiddenFor(i)}
+            hidden={hiddenByCell(cellIndex)}
             dragSrc={dragSrc}
             isDragging={dragSrc !== null}
             onDown={handlePointerDown}
@@ -128,11 +151,11 @@ export default function Home() {
         ))}
       </div>
 
-      {flights.map(f => (
+      {flights.map(flight => (
         <FlyingCard
-          key={f.id}
-          flight={f}
-          onFinish={() => handleFlightFinish(f)}
+          key={flight.id}
+          flight={flight}
+          onFinish={() => completeFlight(flight)}
         />
       ))}
     </>

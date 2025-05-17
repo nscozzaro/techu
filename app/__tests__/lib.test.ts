@@ -1,11 +1,11 @@
 import { renderHook, act } from '@testing-library/react';
 import {
     /* domain */
-    SUITS, RANKS, SUIT_COLORS, cardColor,
+    SUITS, RANKS, SUIT_COLOR, cardColor,
     BOARD_ROWS, BOARD_COLS,
     /* drag‑and‑drop core */
     useSnapDrag, setPos, clearStyles, snapBack,
-    cellUnder, calcOrigin, fixedDragStyle,
+    fixedDragStyle,
     /* types */
     Card, PixelPosition, Origin, CellIndex,
     BoardDimension, Suit,
@@ -54,10 +54,10 @@ describe('static card data', () => {
             rank: rnd(Object.values(RANKS)),
             faceUp: false,
         };
-        expect(cardColor(card.suit)).toBe(SUIT_COLORS[card.suit]);
+        expect(cardColor(card.suit)).toBe(SUIT_COLOR[card.suit]);
     });
 
-    describe.each(Object.entries(SUIT_COLORS))(
+    describe.each(Object.entries(SUIT_COLOR))(
         'color lookup',
         (suit, clr) => {
             it(`returns "${clr}" for ${suit}`, () =>
@@ -251,42 +251,6 @@ describe('pure helpers', () => {
         expect(el.style.transition).toBe('');
     });
 
-    describe.each([
-        { html: null, expected: null, msg: 'null hit‑test' },
-        { html: document.createElement('div'), expected: null, msg: 'element w/o data‑cell' },
-        (() => {
-            const el = document.createElement('div');
-            el.setAttribute('data-cell', '7');
-            return { html: el, expected: '7', msg: 'direct cell' };
-        })(),
-        (() => {
-            const parent = document.createElement('div');
-            parent.setAttribute('data-cell', '3');
-            const child = document.createElement('div');
-            parent.appendChild(child);
-            return { html: child, expected: '3', msg: 'ancestor cell' };
-        })(),
-    ])('cellUnder – $msg', ({ html, expected }) => {
-        it('returns proper value', () => {
-            jest.spyOn(document, 'elementFromPoint').mockReturnValue(html as Element | null);
-            expect(cellUnder(makePointer())).toBe(expected);
-        });
-    });
-
-    it('calcOrigin returns consistent offsets', () => {
-        const el = document.createElement('div');
-        const box = makeDomBox({ left: 100, top: 200 });
-        el.getBoundingClientRect = () => box;
-        const evt = {
-            currentTarget: el,
-            clientX: 110,
-            clientY: 220,
-        } as unknown as React.PointerEvent<HTMLElement>;
-        const o = calcOrigin(evt, box, 0 as CellIndex);
-        expect(o.offX).toBe(10);
-        expect(o.offY).toBe(20);
-    });
-
     it('fixedDragStyle builds correct style object', () => {
         const s = fixedDragStyle(makeDomBox({ left: 50, top: 60 }));
         expect(s).toMatchObject({
@@ -321,5 +285,38 @@ describe('reducer', () => {
         const action = { type: 'MOVE' as const, from: 1 as CellIndex, to: 1 as CellIndex };
         const nextState = reducer(initialState, action);
         expect(nextState).toEqual({ ...initialState, dragSrc: null });
+    });
+
+    it('handles START_DRAG action', () => {
+        const initialState = {
+            cells: [[], [], []],
+            dragSrc: null
+        };
+        const action = { type: 'START_DRAG' as const, src: 1 as CellIndex };
+        const nextState = reducer(initialState, action);
+        expect(nextState).toEqual({ ...initialState, dragSrc: 1 });
+    });
+
+    it('handles END_DRAG action', () => {
+        const initialState = {
+            cells: [[], [], []],
+            dragSrc: 1 as CellIndex
+        };
+        const action = { type: 'END_DRAG' as const };
+        const nextState = reducer(initialState, action);
+        expect(nextState).toEqual({ ...initialState, dragSrc: null });
+    });
+
+    it('handles MOVE action between different cells', () => {
+        const card = { suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: false };
+        const initialState = {
+            cells: [[card], [], []],
+            dragSrc: 0 as CellIndex
+        };
+        const action = { type: 'MOVE' as const, from: 0 as CellIndex, to: 1 as CellIndex };
+        const nextState = reducer(initialState, action);
+        expect(nextState.cells[0]).toEqual([]);
+        expect(nextState.cells[1]).toEqual([{ ...card, faceUp: true }]);
+        expect(nextState.dragSrc).toBeNull();
     });
 });
