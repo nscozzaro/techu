@@ -56,3 +56,10 @@
     font-size: clamp(0.9rem, 2.8vw, 1rem);
   }
 }
+
+.flying {
+  position: fixed;
+  z-index: 999;
+  transition: left 250ms ease, top 250ms ease;
+  pointer-events: none;
+}
