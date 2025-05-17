@@ -185,7 +185,11 @@ export function useSnapDrag(onDrop: DropFn) {
         const origin = originRef.current!;
         const dst = destinationCell(evt);
 
-        dst === origin.cell ? snapBack(el, origin, SNAP_MS) : onDrop(origin.cell, dst);
+        if (dst === origin.cell) {
+            snapBack(el, origin, SNAP_MS);
+        } else {
+            onDrop(origin.cell, dst);
+        }
 
         if (moveHandlerRef.current)
             document.removeEventListener('pointermove', moveHandlerRef.current);

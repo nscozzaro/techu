@@ -115,7 +115,7 @@ export default function Home() {
     queue(BLK_SRC, BLK_DST);
   }, [addFlight]);
 
-  /* global pointer‑up ends drag */
+  /* Handle global pointer up to end drag */
   useEffect(() => {
     document.addEventListener('pointerup', endDrag);
     return () => document.removeEventListener('pointerup', endDrag);
