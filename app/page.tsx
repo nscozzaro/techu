@@ -6,16 +6,8 @@ import {
   BOARD_ROWS, BOARD_COLS, SUITS, RANKS,
   useSnapDrag, cardColor,
   CellIndex, Card, Cards, reducer as boardReducer,
+  RED_SRC, RED_DST, BLK_SRC, BLK_DST, DEAL_DELAY_MS,
 } from './lib';
-
-/* ────────────────────────────
-   Board‑level constants
-   ──────────────────────────── */
-const RED_SRC = ((BOARD_ROWS - 1) * BOARD_COLS) as CellIndex; // 30
-const RED_DST = [31, 32, 33] as CellIndex[];
-const BLK_SRC = (BOARD_COLS - 1) as CellIndex;                // 4
-const BLK_DST = [3, 2, 1] as CellIndex[];
-const DEAL_DELAY_MS = 1_000;
 
 /* ────────────────────────────
    Build the starting deck piles
@@ -26,8 +18,8 @@ function makeStartingCells(): Cards[] {
     cells[cell].push({ suit: SUITS[suit], rank: RANKS[rank], faceUp: false });
 
   Object.values(RANKS).forEach(r => {
-    (['Hearts', 'Diamonds'] as const).forEach(s => push(RED_SRC, s, r));
-    (['Clubs', 'Spades'] as const).forEach(s => push(BLK_SRC, s, r));
+    ([SUITS.Hearts, SUITS.Diamonds]).forEach(s => push(RED_SRC, s, r));
+    ([SUITS.Clubs, SUITS.Spades]).forEach(s => push(BLK_SRC, s, r));
   });
   return cells;
 }

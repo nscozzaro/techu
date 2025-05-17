@@ -10,6 +10,13 @@ export type BoardDimension = number & { __brand: 'BoardDimension' };
 export const BOARD_ROWS = 7 as BoardDimension;
 export const BOARD_COLS = 5 as BoardDimension;
 
+/* Board-level constants */
+export const RED_SRC = ((BOARD_ROWS - 1) * BOARD_COLS) as CellIndex; // 30
+export const RED_DST = [31, 32, 33] as CellIndex[];
+export const BLK_SRC = (BOARD_COLS - 1) as CellIndex;                // 4
+export const BLK_DST = [3, 2, 1] as CellIndex[];
+export const DEAL_DELAY_MS = 1_000;
+
 export type PixelPosition = number & { __brand: 'PixelPosition' };
 export type CellIndex = number & { __brand: 'CellIndex' };
 
