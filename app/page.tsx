@@ -1,9 +1,8 @@
-// app/page.tsx
-
 'use client';
 
 import React, {
   PointerEvent as Ptr,
+  useCallback,
   useEffect,
   useReducer,
   useRef,
@@ -53,30 +52,37 @@ function useFlights(
 ) {
   const [flights, dispatch] = useReducer(flightsReducer, [] as Flights);
 
-  const hiddenByCell = (idx: number) =>
-    flights.filter(f => f.src === idx).length;
+  const hiddenByCell = useCallback(
+    (idx: number) => flights.filter(f => f.src === idx).length,
+    [flights]
+  );
 
-  const addFlight = (src: CellIndex, dst: CellIndex) => {
-    const fromEl = cellRefs.current[src];
-    const toEl = cellRefs.current[dst];
-    if (!fromEl || !toEl) return;
+  const addFlight = useCallback(
+    (src: CellIndex, dst: CellIndex) => {
+      const fromEl = cellRefs.current[src];
+      const toEl = cellRefs.current[dst];
+      if (!fromEl || !toEl) return;
+      dispatch({
+        type: 'ADD',
+        payload: {
+          id: Math.random().toString(36).slice(2),
+          src,
+          dst,
+          start: fromEl.getBoundingClientRect(),
+          end: toEl.getBoundingClientRect(),
+        },
+      });
+    },
+    [cellRefs]
+  );
 
-    dispatch({
-      type: 'ADD',
-      payload: {
-        id: Math.random().toString(36).slice(2),
-        src,
-        dst,
-        start: fromEl.getBoundingClientRect(),
-        end: toEl.getBoundingClientRect(),
-      },
-    });
-  };
-
-  const completeFlight = (flight: Flight) => {
-    moveCard(flight.src, flight.dst);
-    dispatch({ type: 'REMOVE', id: flight.id });
-  };
+  const completeFlight = useCallback(
+    (flight: Flight) => {
+      moveCard(flight.src, flight.dst);
+      dispatch({ type: 'REMOVE', id: flight.id });
+    },
+    [moveCard]
+  );
 
   return { flights, hiddenByCell, addFlight, completeFlight };
 }
@@ -92,14 +98,12 @@ export default function Home() {
     endDrag,
     move: moveCard,
   } = useBoard();
-
   const drag = useSnapDrag(moveCard);
-
   const cellRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   const { flights, hiddenByCell, addFlight, completeFlight } = useFlights(
     cellRefs,
-    moveCard,
+    moveCard
   );
 
   /* initial deal — run only once on mount */
@@ -111,7 +115,7 @@ export default function Home() {
 
     queue(RED_SRC, RED_DST);
     queue(BLK_SRC, BLK_DST);
-  }, []); // ← add empty dependency array to prevent reruns
+  }, [addFlight]); // addFlight is now stable
 
   /* end any drag on global pointer up */
   useEffect(() => {

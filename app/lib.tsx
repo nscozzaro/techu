@@ -24,7 +24,7 @@ export type PixelPosition = number & { __brand: 'PixelPosition' };
 
 export const RED_SRC = ((BOARD_ROWS - 1) * BOARD_COLS) as CellIndex; // 30
 export const RED_DST = [31, 32, 33] as CellIndex[];
-export const BLK_SRC = (BOARD_COLS - 1) as CellIndex;                // 4
+export const BLK_SRC = (BOARD_COLS - 1) as CellIndex;               // 4
 export const BLK_DST = [3, 2, 1] as CellIndex[];
 export const DEAL_DELAY_MS = 1_000;
 
@@ -76,7 +76,6 @@ export const cardColor = (suit: Suit) => SUIT_COLOR[suit];
    ────────────────────────── */
 export function makeStartingCells(): Cards[] {
     const cells = Array.from({ length: BOARD_ROWS * BOARD_COLS }, () => [] as Cards);
-
     const push = (cell: CellIndex, suit: Suit, rank: Rank) =>
         cells[cell].push({ suit, rank, faceUp: false });
 
@@ -222,9 +221,8 @@ export function useSnapDrag(onDrop: DropFn) {
             onDrop(origin.cell, dst);
         }
 
-        if (moveHandlerRef.current) {
+        if (moveHandlerRef.current)
             document.removeEventListener('pointermove', moveHandlerRef.current);
-        }
         document.removeEventListener('pointerup', pointerUp);
 
         moveHandlerRef.current = null;
@@ -234,7 +232,6 @@ export function useSnapDrag(onDrop: DropFn) {
     const down = (evt: React.PointerEvent<HTMLElement>, idx: CellIndex) => {
         const el = evt.currentTarget;
         const box = el.getBoundingClientRect();
-
         originRef.current = {
             x: box.left as PixelPosition,
             y: box.top as PixelPosition,
@@ -243,7 +240,6 @@ export function useSnapDrag(onDrop: DropFn) {
             offY: (evt.clientY - box.top) as PixelPosition,
         };
         elementRef.current = el;
-
         setStyle(el, fixedDragStyle(box));
 
         moveHandlerRef.current = e => setPos(elementRef.current, originRef.current, e);
@@ -300,26 +296,22 @@ export const CardView = ({
     </div>
 );
 
-type CellProps = {
+export const Cell = forwardRef<HTMLDivElement, {
     idx: CellIndex;
     stack: Cards;
     hidden: number;
     dragSrc: CellIndex | null;
     isDragging: boolean;
     onDown: (e: Ptr<HTMLElement>, idx: CellIndex) => void;
-};
-
-export const Cell = forwardRef<HTMLDivElement, CellProps>((props, ref) => {
+}>((props, ref) => {
     const { idx, stack, hidden, dragSrc, isDragging, onDown } = props;
-
     const topCard = stack[stack.length - 1 - hidden];
     const nextCard = stack[stack.length - 2 - hidden];
-    const isDeck = idx === RED_SRC || idx === BLK_SRC;
 
     return (
         <div ref={ref} data-cell={idx} className={styles.cell} role="generic">
             {topCard && <CardView card={topCard} onDown={e => onDown(e, idx)} />}
-            {nextCard && isDragging && dragSrc === idx && !isDeck && (
+            {nextCard && isDragging && dragSrc === idx && (
                 <CardView card={nextCard} onDown={e => onDown(e, idx)} />
             )}
         </div>
