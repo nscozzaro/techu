@@ -9,6 +9,8 @@ import {
     /* types */
     Card, PixelPosition, Origin, CellIndex,
     BoardDimension, Suit,
+    /* reducer */
+    reducer,
 } from '../lib';
 
 /* ------------------------------------------------------------------ */
@@ -307,5 +309,17 @@ describe('type brand smoke tests', () => {
         const cell: CellIndex = 0 as CellIndex;
         const sum = rows + px + cell; // runtime no‑op, compile‑time brand check
         expect(sum).toBe(49);
+    });
+});
+
+describe('reducer', () => {
+    it('returns unchanged state with null dragSrc when moving to same cell', () => {
+        const initialState = {
+            cells: [[], [], []],
+            dragSrc: 0 as CellIndex
+        };
+        const action = { type: 'MOVE' as const, from: 1 as CellIndex, to: 1 as CellIndex };
+        const nextState = reducer(initialState, action);
+        expect(nextState).toEqual({ ...initialState, dragSrc: null });
     });
 });
