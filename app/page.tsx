@@ -1,3 +1,5 @@
+// app/page.tsx
+
 'use client';
 
 import React, {
@@ -8,20 +10,15 @@ import React, {
 } from 'react';
 import styles from './page.module.css';
 import {
-  /* board + types */
   CellIndex,
   reducer as boardReducer,
   makeStartingCells,
-  /* DnD */
   useSnapDrag,
-  /* flights */
   Flight,
   Flights,
   flightsReducer,
-  /* cells & cards */
   Cell,
   FlyingCard,
-  /* deal constants */
   RED_SRC,
   RED_DST,
   BLK_SRC,
@@ -48,7 +45,7 @@ function useBoard() {
 }
 
 /* ──────────────────────────
-   Flight‑animation hook
+   Flight-animation hook
    ────────────────────────── */
 function useFlights(
   cellRefs: React.MutableRefObject<(HTMLDivElement | null)[]>,
@@ -88,7 +85,6 @@ function useFlights(
    Main component
    ────────────────────────── */
 export default function Home() {
-  /* board + drag */
   const {
     cells,
     dragSrc,
@@ -96,35 +92,37 @@ export default function Home() {
     endDrag,
     move: moveCard,
   } = useBoard();
+
   const drag = useSnapDrag(moveCard);
 
-  /* cell refs */
   const cellRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  /* flights */
   const { flights, hiddenByCell, addFlight, completeFlight } = useFlights(
     cellRefs,
     moveCard,
   );
 
-  /* initial deal */
+  /* initial deal — run only once on mount */
   useEffect(() => {
     const queue = (src: CellIndex, dsts: CellIndex[]) =>
-      dsts.forEach((d, i) => setTimeout(() => addFlight(src, d), i * DEAL_DELAY_MS));
+      dsts.forEach((d, i) =>
+        setTimeout(() => addFlight(src, d), i * DEAL_DELAY_MS)
+      );
+
     queue(RED_SRC, RED_DST);
     queue(BLK_SRC, BLK_DST);
-  }, [addFlight]);
+  }, []); // ← add empty dependency array to prevent reruns
 
-  /* Handle global pointer up to end drag */
+  /* end any drag on global pointer up */
   useEffect(() => {
     document.addEventListener('pointerup', endDrag);
     return () => document.removeEventListener('pointerup', endDrag);
   }, [endDrag]);
 
-  /* card pointer‑down */
-  const handlePointerDown = (e: Ptr<HTMLElement>, cellIndex: CellIndex) => {
-    startDrag(cellIndex);
-    drag.down(e, cellIndex);
+  /* start a drag on pointer down */
+  const handlePointerDown = (e: Ptr<HTMLElement>, idx: CellIndex) => {
+    startDrag(idx);
+    drag.down(e, idx);
   };
 
   return (
@@ -135,15 +133,15 @@ export default function Home() {
       </div>
 
       <div className={styles.board}>
-        {cells.map((stack, cellIndex) => (
+        {cells.map((stack, idx) => (
           <Cell
-            key={cellIndex}
+            key={idx}
             ref={el => {
-              cellRefs.current[cellIndex] = el;
+              cellRefs.current[idx] = el;
             }}
-            idx={cellIndex as CellIndex}
+            idx={idx as CellIndex}
             stack={stack}
-            hidden={hiddenByCell(cellIndex)}
+            hidden={hiddenByCell(idx)}
             dragSrc={dragSrc}
             isDragging={dragSrc !== null}
             onDown={handlePointerDown}

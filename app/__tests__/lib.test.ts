@@ -139,12 +139,9 @@ describe('useSnapDrag', () => {
 
             if (callsDrop) {
                 expect(onDrop).toHaveBeenCalledWith(0, +target!);
+                expect(el.style.position).toBe(''); // styles should be cleared
             } else {
                 expect(onDrop).not.toHaveBeenCalled();
-            }
-
-            // if snap‑back expected, transition left/top should be set
-            if (!callsDrop) {
                 expect(el.style.transition).toMatch(/left .*ms/);
                 expect(el.style.left).toBe('5px');
             }
@@ -232,6 +229,7 @@ describe('pure helpers', () => {
         clearStyles(el);
         expect(el.style.position).toBe('');
         expect(el.style.left).toBe('');
+        expect(el.style.pointerEvents).toBe('');
     });
 
     it('snapBack animates then clears styles (using default ms)', () => {

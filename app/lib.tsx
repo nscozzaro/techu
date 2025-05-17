@@ -1,3 +1,5 @@
+// app/lib.tsx
+
 'use client';
 
 import React, {
@@ -38,13 +40,27 @@ export const SUITS = {
 export type Suit = (typeof SUITS)[keyof typeof SUITS];
 
 export const RANKS = {
-    Two: 'Two', Three: 'Three', Four: 'Four', Five: 'Five',
-    Six: 'Six', Seven: 'Seven', Eight: 'Eight', Nine: 'Nine',
-    Ten: 'Ten', Jack: 'Jack', Queen: 'Queen', King: 'King', Ace: 'Ace',
+    Two: 'Two',
+    Three: 'Three',
+    Four: 'Four',
+    Five: 'Five',
+    Six: 'Six',
+    Seven: 'Seven',
+    Eight: 'Eight',
+    Nine: 'Nine',
+    Ten: 'Ten',
+    Jack: 'Jack',
+    Queen: 'Queen',
+    King: 'King',
+    Ace: 'Ace',
 } as const;
 export type Rank = (typeof RANKS)[keyof typeof RANKS];
 
-export interface Card { suit: Suit; rank: Rank; faceUp: boolean }
+export interface Card {
+    suit: Suit;
+    rank: Rank;
+    faceUp: boolean;
+}
 export type Cards = Card[];
 
 export const SUIT_COLOR: Record<Suit, 'black' | 'red'> = {
@@ -55,7 +71,9 @@ export const SUIT_COLOR: Record<Suit, 'black' | 'red'> = {
 };
 export const cardColor = (suit: Suit) => SUIT_COLOR[suit];
 
-/* starting decks – all face‑down */
+/* ──────────────────────────
+   Starting Cells (all face-down)
+   ────────────────────────── */
 export function makeStartingCells(): Cards[] {
     const cells = Array.from({ length: BOARD_ROWS * BOARD_COLS }, () => [] as Cards);
 
@@ -85,7 +103,6 @@ export type BoardAction =
 
 const moveCardInCells = (cells: Cards[], from: CellIndex, to: CellIndex) => {
     if (from === to) return cells;
-
     const next = cells.map(stack => [...stack]) as Cards[];
     const card = next[from].pop();
     if (card) {
@@ -116,9 +133,17 @@ type StyleKV = Partial<CSSStyleDeclaration>;
 const setStyle = (el: HTMLElement, kv: StyleKV) => Object.assign(el.style, kv);
 
 const ORIGIN_CLEAR: StyleKV = {
-    position: '', left: '', top: '', zIndex: '',
-    width: '', height: '', transition: '', pointerEvents: '',
+    position: '',
+    left: '',
+    top: '',
+    zIndex: '',
+    width: '',
+    height: '',
+    transition: '',
+    pointerEvents: '',
 };
+
+export const clearStyles = (el: HTMLElement) => setStyle(el, ORIGIN_CLEAR);
 
 export interface Origin {
     x: PixelPosition;
@@ -144,24 +169,27 @@ const dragPosition = (o: Origin, e: PointerEvent): StyleKV => ({
     top: `${e.clientY - o.offY}px`,
 });
 
+export const setPos = (
+    el: HTMLElement | null,
+    o: Origin | null,
+    e: PointerEvent,
+) => el && o && setStyle(el, dragPosition(o, e));
+
 const snapBackStyle = (o: Origin, ms: number): StyleKV => ({
     left: `${o.x}px`,
     top: `${o.y}px`,
     transition: `left ${ms}ms ease, top ${ms}ms ease`,
 });
 
-export const setPos = (el: HTMLElement | null, o: Origin | null, e: PointerEvent) =>
-    el && o && setStyle(el, dragPosition(o, e));
-
-export const clearStyles = (el: HTMLElement) => setStyle(el, ORIGIN_CLEAR);
-
 export const snapBack = (el: HTMLElement, o: Origin, ms = 250) => {
     setStyle(el, snapBackStyle(o, ms));
-    el.addEventListener('transitionend', () => clearStyles(el), { once: true });
+    el.addEventListener('transitionend', () => clearStyles(el), {
+        once: true,
+    });
 };
 
 /* ──────────────────────────
-   useSnapDrag
+   useSnapDrag Hook
    ────────────────────────── */
 type DropFn = (from: CellIndex, to: CellIndex) => void;
 const SNAP_MS = 250;
@@ -175,8 +203,10 @@ export function useSnapDrag(onDrop: DropFn) {
 
     const destinationCell = (evt: PointerEvent): CellIndex =>
     (Number(
-        document.elementFromPoint(evt.clientX, evt.clientY)
-            ?.closest('[data-cell]')?.getAttribute('data-cell') ?? originRef.current!.cell,
+        document
+            .elementFromPoint(evt.clientX, evt.clientY)
+            ?.closest('[data-cell]')
+            ?.getAttribute('data-cell') ?? originRef.current!.cell,
     ) as CellIndex);
 
     const pointerUp = (evt: PointerEvent) => {
@@ -188,11 +218,13 @@ export function useSnapDrag(onDrop: DropFn) {
         if (dst === origin.cell) {
             snapBack(el, origin, SNAP_MS);
         } else {
+            clearStyles(el);
             onDrop(origin.cell, dst);
         }
 
-        if (moveHandlerRef.current)
+        if (moveHandlerRef.current) {
             document.removeEventListener('pointermove', moveHandlerRef.current);
+        }
         document.removeEventListener('pointerup', pointerUp);
 
         moveHandlerRef.current = null;
@@ -223,7 +255,7 @@ export function useSnapDrag(onDrop: DropFn) {
 }
 
 /* ──────────────────────────
-   Flights
+   Flights Reducer
    ────────────────────────── */
 export interface Flight {
     id: string;
@@ -279,14 +311,15 @@ type CellProps = {
 
 export const Cell = forwardRef<HTMLDivElement, CellProps>((props, ref) => {
     const { idx, stack, hidden, dragSrc, isDragging, onDown } = props;
-    const top = stack[stack.length - 1 - hidden];
-    const second = stack[stack.length - 2 - hidden];
+
+    const topCard = stack[stack.length - 1 - hidden];
+    const nextCard = stack[stack.length - 2 - hidden];
 
     return (
         <div ref={ref} data-cell={idx} className={styles.cell} role="generic">
-            {top && <CardView card={top} onDown={e => onDown(e, idx)} />}
-            {second && isDragging && dragSrc === idx && (
-                <CardView card={second} onDown={e => onDown(e, idx)} />
+            {topCard && <CardView card={topCard} onDown={e => onDown(e, idx)} />}
+            {nextCard && isDragging && dragSrc === idx && (
+                <CardView card={nextCard} onDown={e => onDown(e, idx)} />
             )}
         </div>
     );
