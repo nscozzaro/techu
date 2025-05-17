@@ -314,11 +314,12 @@ export const Cell = forwardRef<HTMLDivElement, CellProps>((props, ref) => {
 
     const topCard = stack[stack.length - 1 - hidden];
     const nextCard = stack[stack.length - 2 - hidden];
+    const isDeck = idx === RED_SRC || idx === BLK_SRC;
 
     return (
         <div ref={ref} data-cell={idx} className={styles.cell} role="generic">
             {topCard && <CardView card={topCard} onDown={e => onDown(e, idx)} />}
-            {nextCard && isDragging && dragSrc === idx && (
+            {nextCard && isDragging && dragSrc === idx && !isDeck && (
                 <CardView card={nextCard} onDown={e => onDown(e, idx)} />
             )}
         </div>
