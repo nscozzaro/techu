@@ -54,7 +54,10 @@ beforeAll(() => {
     }
     (global as unknown as { DOMRect: typeof DOMRect }).DOMRect = MockRect;
 });
-afterEach(cleanup);
+afterEach(() => {
+    cleanup();
+    jest.clearAllMocks();
+});
 
 /* helpers ----------------------------------------------------------- */
 const cellEls = () =>
@@ -166,7 +169,35 @@ describe('<Home/> behaviour', () => {
 });
 
 /* ------------------------------------------------------------------ */
-/*  3. useBoard basic sanity                                          */
+/*  NEW 3. dealtRef guard coverage                                    */
+/* ------------------------------------------------------------------ */
+describe('GameBoard deal guard', () => {
+    it('queues deals only once even under React.StrictMode', () => {
+        // Fresh timer / spy setup
+        jest.clearAllMocks();
+        const spy = jest.spyOn(global, 'setTimeout');
+
+        // Mount inside StrictMode to trigger the double‑invocation of effects
+        render(
+            <React.StrictMode>
+                <Home />
+            </React.StrictMode>,
+        );
+
+        // Start the game (mounts <GameBoard/>)
+        fireEvent.click(screen.getByText('Begin'));
+
+        // First effect run schedules exactly 6 setTimeouts (3 red + 3 black)
+        expect(spy).toHaveBeenCalledTimes(6);
+
+        // If the second (StrictMode) run triggered more deals,
+        // the call count would be higher. It isn’t – covering the guard.
+        spy.mockRestore();
+    });
+});
+
+/* ------------------------------------------------------------------ */
+/*  4. useBoard basic sanity                                          */
 /* ------------------------------------------------------------------ */
 describe('useBoard', () => {
     it('initialises and moves correctly', () => {

@@ -1,3 +1,4 @@
+// page.tsx
 'use client';
 
 import React, {
@@ -51,7 +52,7 @@ function IntroScreen({ onPlay }: { onPlay: () => void }) {
 
       <p className={styles.introSub}>
         Red&nbsp;vs&nbsp;black. 14 moves each.
-        <br></br>
+        <br />
         Most spaces wins.
       </p>
 
@@ -68,27 +69,35 @@ function IntroScreen({ onPlay }: { onPlay: () => void }) {
 
 /* ──────────────────────────
  ▍Main game board & root
-   (unchanged from previous step)
-   ────────────────────────── */
+ ────────────────────────── */
 function GameBoard() {
   const { cells, dragSrc, startDrag, endDrag, move } = useBoard();
   const drag = useSnapDrag(move);
-  const cellRefs = useRef<(HTMLDivElement | null)[]>([]);
 
+  const cellRefs = useRef<(HTMLDivElement | null)[]>([]);
   const { flights, hiddenByCell, addFlight, completeFlight } = useFlights(
     cellRefs,
     move,
   );
 
+  /* ╔════════════════════════════════════════════════════╗
+     ║  Deal *exactly once* – even under Strict‑Mode      ║
+     ╚════════════════════════════════════════════════════╝ */
+  const dealtRef = useRef(false);
   useEffect(() => {
+    if (dealtRef.current) return;
+    dealtRef.current = true;
+
     const queue = (src: CellIndex, dsts: CellIndex[]) =>
       dsts.forEach((d, i) =>
         setTimeout(() => addFlight(src, d), i * DEAL_DELAY_MS),
       );
+
     queue(RED_SRC, RED_DST);
     queue(BLK_SRC, BLK_DST);
   }, [addFlight]);
 
+  /* keep drag‑source in sync with global pointer‑up */
   useEffect(() => {
     document.addEventListener('pointerup', endDrag);
     return () => document.removeEventListener('pointerup', endDrag);
@@ -110,7 +119,9 @@ function GameBoard() {
         {cells.map((stack, idx) => (
           <Cell
             key={idx}
-            ref={el => { cellRefs.current[idx] = el }}
+            ref={el => {
+              cellRefs.current[idx] = el;
+            }}
             idx={idx as CellIndex}
             stack={stack}
             hidden={hiddenByCell(idx)}
@@ -134,5 +145,9 @@ function GameBoard() {
 
 export default function Home() {
   const [started, setStarted] = useState(false);
-  return started ? <GameBoard /> : <IntroScreen onPlay={() => setStarted(true)} />;
+  return started ? (
+    <GameBoard />
+  ) : (
+    <IntroScreen onPlay={() => setStarted(true)} />
+  );
 }

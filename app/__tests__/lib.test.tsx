@@ -65,6 +65,21 @@ describe('FlyingCard', () => {
         await waitFor(() => expect(el.style.left).toBe('120px'));
         fireEvent.transitionEnd(el); expect(fin).toHaveBeenCalled();
     });
+
+    it('only calls onFinish once even with multiple transition events', async () => {
+        const f = { id: 'x', src: 0 as CellIndex, dst: 1 as CellIndex, start: box(), end: box({ left: 120, top: 40 }) };
+        const fin = jest.fn();
+        render(<FlyingCard flight={f} onFinish={fin} />);
+        const el = screen.getByText('🂠').parentElement!;
+        await waitFor(() => expect(el.style.left).toBe('120px'));
+
+        // Trigger multiple transition events
+        fireEvent.transitionEnd(el);
+        fireEvent.transitionEnd(el);
+        fireEvent.transitionEnd(el);
+
+        expect(fin).toHaveBeenCalledTimes(1);
+    });
 });
 
 /*──────────────── useSnapDrag pointer branches ─────────*/

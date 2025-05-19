@@ -24,7 +24,7 @@ export type PixelPosition = number & { __brand: 'PixelPosition' };
 
 export const RED_SRC = ((BOARD_ROWS - 1) * BOARD_COLS) as CellIndex; // 30
 export const RED_DST = [31, 32, 33] as CellIndex[];
-export const BLK_SRC = (BOARD_COLS - 1) as CellIndex;     // 4
+export const BLK_SRC = (BOARD_COLS - 1) as CellIndex;               // 4
 export const BLK_DST = [3, 2, 1] as CellIndex[];
 export const DEAL_DELAY_MS = 1_000;
 
@@ -311,6 +311,9 @@ export const Cell = forwardRef<HTMLDivElement, {
 });
 Cell.displayName = 'Cell';
 
+/*───────────────────────────
+   ✔ Fixed: idempotent flight
+  ──────────────────────────*/
 export function FlyingCard({
     flight,
     onFinish,
@@ -318,26 +321,43 @@ export function FlyingCard({
     flight: Flight;
     onFinish: () => void;
 }) {
+    /* 1. place card at start coords */
     const [style, setStyle] = useState<React.CSSProperties>(() => ({
         position: 'fixed',
         left: flight.start.left,
         top: flight.start.top,
         width: flight.start.width,
         height: flight.start.height,
+        /* animate only **left** and **top** – keeps one transitionend event
+           & lets us use the same test assertions. */
+        transition: 'left 250ms ease, top 250ms ease',
     }));
 
+    /* 2. schedule the move on the next frame */
     useEffect(() => {
         const id = requestAnimationFrame(() =>
-            setStyle(s => ({ ...s, left: flight.end.left, top: flight.end.top })),
+            setStyle(s => ({
+                ...s,
+                left: flight.end.left,
+                top: flight.end.top,
+            })),
         );
         return () => cancelAnimationFrame(id);
     }, [flight.end]);
+
+    /* 3. fire onFinish **once** (even though two properties transition) */
+    const done = useRef(false);
+    const handleEnd = () => {
+        if (done.current) return;
+        done.current = true;
+        onFinish();
+    };
 
     return (
         <div
             className={`${styles.card} ${styles.back} ${styles.flying}`}
             style={style}
-            onTransitionEnd={onFinish}
+            onTransitionEnd={handleEnd}
             data-flight-id={flight.id}
         >
             <span>🂠</span>
