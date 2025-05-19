@@ -30,6 +30,7 @@ import {
     BoardDimension, Flight,
     CardView, Cell, FlyingCard,
     RED_SRC, BLK_SRC,
+    BOARD_ROWS, BOARD_COLS,
 } from '../lib';
 
 /* helpers */
@@ -191,6 +192,36 @@ describe('Cell pointerDown', () => {
 describe('misc', () => {
     it('starting piles sizes', () => {
         const c = makeStartingCells(); expect(c[RED_SRC]).toHaveLength(26); expect(c[BLK_SRC]).toHaveLength(26);
+    });
+    it('makeStartingCells creates correct initial board state', () => {
+        const cells = makeStartingCells();
+
+        // Check total number of cells
+        expect(cells).toHaveLength(BOARD_ROWS * BOARD_COLS);
+
+        // Check red source pile (Hearts and Diamonds)
+        const redPile = cells[RED_SRC];
+        expect(redPile).toHaveLength(26); // 13 ranks * 2 suits
+        const redSuits = redPile.map(card => card.suit);
+        expect(redSuits.filter(suit => suit === SUITS.Hearts)).toHaveLength(13);
+        expect(redSuits.filter(suit => suit === SUITS.Diamonds)).toHaveLength(13);
+
+        // Check black source pile (Clubs and Spades)
+        const blackPile = cells[BLK_SRC];
+        expect(blackPile).toHaveLength(26); // 13 ranks * 2 suits
+        const blackSuits = blackPile.map(card => card.suit);
+        expect(blackSuits.filter(suit => suit === SUITS.Clubs)).toHaveLength(13);
+        expect(blackSuits.filter(suit => suit === SUITS.Spades)).toHaveLength(13);
+
+        // Check all cards are face down
+        expect(redPile.every(card => !card.faceUp)).toBe(true);
+        expect(blackPile.every(card => !card.faceUp)).toBe(true);
+
+        // Check all ranks are present
+        const allRanks = [...redPile, ...blackPile].map(card => card.rank);
+        Object.values(RANKS).forEach(rank => {
+            expect(allRanks.filter(r => r === rank)).toHaveLength(4); // Each rank appears 4 times
+        });
     });
     it('type‑brands arithmetic', () => {
         const a: BoardDimension = 7 as BoardDimension, b: PixelPosition = 3 as PixelPosition;

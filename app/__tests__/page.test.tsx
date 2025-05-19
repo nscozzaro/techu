@@ -1,5 +1,5 @@
 /**
- * page.test.tsx – full coverage for UI and logic hooks.
+ * page.test.tsx – full coverage for UI and logic hooks.
  */
 import React from 'react';
 import {
@@ -66,11 +66,11 @@ const runAllDealTimers = () => {
 };
 
 /* ------------------------------------------------------------------ */
-/*  1. useFlights branch coverage                                     */
+/*  1. useFlights branch coverage                                     */
 /* ------------------------------------------------------------------ */
 describe('useFlights', () => {
     it('early‑returns when refs missing', () => {
-        const refs: React.MutableRefObject<(HTMLDivElement | null)[]> = {
+        const refs: React.RefObject<(HTMLDivElement | null)[]> = {
             current: [null, null],
         };
         const move = jest.fn();
@@ -89,7 +89,7 @@ describe('useFlights', () => {
         a.getBoundingClientRect = () => new DOMRect(0, 0, 10, 10);
         b.getBoundingClientRect = () => new DOMRect(100, 0, 10, 10);
 
-        const refs: React.MutableRefObject<(HTMLDivElement | null)[]> = {
+        const refs: React.RefObject<(HTMLDivElement | null)[]> = {
             current: [a, b],
         };
 
@@ -103,12 +103,13 @@ describe('useFlights', () => {
 });
 
 /* ------------------------------------------------------------------ */
-/*  2. <Home/> integration tests                                      */
+/*  2. <Home/> integration tests                                      */
 /* ------------------------------------------------------------------ */
 describe('<Home/> behaviour', () => {
     /** helper: mount and fully settle initial deal */
     const renderAndDeal = () => {
         render(<Home />);
+        fireEvent.click(screen.getByText('Begin'));
         runAllDealTimers();
         document.querySelectorAll('.flying')
             .forEach(el => fireEvent.transitionEnd(el));
@@ -146,6 +147,7 @@ describe('<Home/> behaviour', () => {
 
     it('fires completeFlight when a FlyingCard finishes', () => {
         render(<Home />);
+        fireEvent.click(screen.getByText('Begin'));
 
         /* queue first 0‑ms flight */
         act(() => jest.advanceTimersByTime(0));
@@ -164,7 +166,7 @@ describe('<Home/> behaviour', () => {
 });
 
 /* ------------------------------------------------------------------ */
-/*  3. useBoard basic sanity                                          */
+/*  3. useBoard basic sanity                                          */
 /* ------------------------------------------------------------------ */
 describe('useBoard', () => {
     it('initialises and moves correctly', () => {

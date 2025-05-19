@@ -1,6 +1,11 @@
 'use client';
 
-import React, { PointerEvent as Ptr, useEffect, useRef } from 'react';
+import React, {
+  useState,
+  PointerEvent as Ptr,
+  useEffect,
+  useRef,
+} from 'react';
 import styles from './page.module.css';
 import {
   useBoard,
@@ -16,8 +21,56 @@ import {
   DEAL_DELAY_MS,
 } from './lib';
 
+/* ──────────────────────────
+ ▍Intro / splash component
+ ────────────────────────── */
+function IntroScreen({ onPlay }: { onPlay: () => void }) {
+  const squares = Array.from({ length: 9 });
+  const cellClass = (i: number) => {
+    const row = Math.floor(i / 3);
+    if (row === 0) return styles.logoBlack;
+    if (row === 2) return styles.logoRed;
+    return '';
+  };
 
-export default function Home() {
+  return (
+    <div className={styles.intro}>
+      <div className={styles.logoGrid}>
+        {squares.map((_, i) => (
+          <div
+            key={i}
+            className={`${styles.logoCell} ${cellClass(i)}`}
+          />
+        ))}
+      </div>
+
+      <h1 className={styles.introTitle}>
+        <span className={styles.katakana}>テ</span>
+        <span className={styles.latin}>ECHU</span>
+      </h1>
+
+      <p className={styles.introSub}>
+        Red&nbsp;vs&nbsp;black. 14 moves each.
+        <br></br>
+        Most spaces wins.
+      </p>
+
+      <button className={styles.playBtn} onClick={onPlay}>
+        Begin
+      </button>
+
+      <p className={styles.meta}>
+        May&nbsp;18&nbsp;2025<br />v&nbsp;1.0
+      </p>
+    </div>
+  );
+}
+
+/* ──────────────────────────
+ ▍Main game board & root
+   (unchanged from previous step)
+   ────────────────────────── */
+function GameBoard() {
   const { cells, dragSrc, startDrag, endDrag, move } = useBoard();
   const drag = useSnapDrag(move);
   const cellRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -27,7 +80,6 @@ export default function Home() {
     move,
   );
 
-  /* initial "deal" once on mount */
   useEffect(() => {
     const queue = (src: CellIndex, dsts: CellIndex[]) =>
       dsts.forEach((d, i) =>
@@ -50,8 +102,8 @@ export default function Home() {
   return (
     <>
       <div className={styles.score}>
-        <span>Player&nbsp;1 Score: 0</span>
-        <span>Player&nbsp;2 Score: 0</span>
+        <span>Player&nbsp;1&nbsp;Score:&nbsp;0</span>
+        <span>Player&nbsp;2&nbsp;Score:&nbsp;0</span>
       </div>
 
       <div className={styles.board}>
@@ -78,4 +130,9 @@ export default function Home() {
       ))}
     </>
   );
+}
+
+export default function Home() {
+  const [started, setStarted] = useState(false);
+  return started ? <GameBoard /> : <IntroScreen onPlay={() => setStarted(true)} />;
 }
