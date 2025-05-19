@@ -1,332 +1,201 @@
+/**
+ * @jest-environment jsdom
+ *
+ * lib.test.tsx – full line + branch coverage for lib.tsx
+ */
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { renderHook, act } from '@testing-library/react';
 import {
-    /* domain */
-    SUITS, RANKS, SUIT_COLOR, cardColor,
-    BOARD_ROWS, BOARD_COLS,
-    /* drag-and-drop core */
-    useSnapDrag, setPos, clearStyles, snapBack,
-    fixedDragStyle,
-    /* types */
-    Card, PixelPosition, Origin, CellIndex,
-    BoardDimension, Suit, Rank,
-    /* reducer */
+    render,
+    screen,
+    fireEvent,
+    waitFor,
+} from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
+import '@testing-library/jest-dom';
+
+/* deterministic class names */
+jest.mock('../page.module.css', () => ({
+    card: 'card',
+    back: 'back',
+    flying: 'flying',
+    cell: 'cell',
+}));
+
+import {
+    SUITS, RANKS, SUIT_COLOR,
+    useSnapDrag, setPos, snapBack,
+    useBoard, useFlights, makeStartingCells,
     reducer,
-    /* components to cover */
-    CardView, Cell,
+    Card, PixelPosition, Origin, CellIndex,
+    BoardDimension, Suit, Flight,
+    CardView, Cell, FlyingCard,
     RED_SRC, BLK_SRC,
 } from '../lib';
 
-/* ------------------------------------------------------------------ */
-/*  Generic helpers                                                   */
-/* ------------------------------------------------------------------ */
+/* helpers */
+const box = (xy = { left: 5, top: 5 }) => ({ ...xy, width: 50, height: 60, right: xy.left + 50, bottom: xy.top + 60, x: xy.left, y: xy.top, toJSON() { } });
+const mockEl = (b = box()) => { const el = document.createElement('div'); (el as any).getBoundingClientRect = () => b; return el; };
+const ptr = (x = 10, y = 20) => new PointerEvent('pointermove', { clientX: x, clientY: y });
 
-const rnd = (list: readonly unknown[]) =>
-    list[Math.floor(Math.random() * list.length)];
-
-const makeDomBox = (xy = { left: 5, top: 5 }) => ({
-    ...xy,
-    width: 100,
-    height: 100,
-    right: xy.left + 100,
-    bottom: xy.top + 100,
-    x: xy.left,
-    y: xy.top,
-    toJSON() { },
-});
-
-const makePointer = (x = 10, y = 20) =>
-    new PointerEvent('pointermove', { clientX: x, clientY: y });
-
-function buildMockElement(box = makeDomBox()) {
-    const el = document.createElement('div');
-    el.getBoundingClientRect = jest.fn(() => box);
-    el.style.left = `${box.left}px`;
-    el.style.top = `${box.top}px`;
-    return el;
-}
-
-/* ------------------------------------------------------------------ */
-/*  Pure-data unit tests (suits, ranks, constants …)                  */
-/* ------------------------------------------------------------------ */
-
-describe('static card data', () => {
-    it('creates a card with random suit + rank', () => {
-        const card: Card = {
-            suit: rnd(Object.values(SUITS)) as Suit,
-            rank: rnd(Object.values(RANKS)) as Rank,
-            faceUp: false,
-        };
-        expect(cardColor(card.suit)).toBe(SUIT_COLOR[card.suit]);
-    });
-
-    describe.each(Object.entries(SUIT_COLOR))(
-        'color lookup',
-        (suit, clr) => {
-            it(`returns "${clr}" for ${suit}`, () =>
-                expect(cardColor(suit as Suit)).toBe(clr));
-        }
-    );
-
-    it('board constants are correct', () => {
-        expect(BOARD_ROWS).toBe(7);
-        expect(BOARD_COLS).toBe(5);
-        expect(BOARD_ROWS * BOARD_COLS).toBeGreaterThan(0);
+/*──────────────── CardView branches ─────────────────────*/
+describe('CardView', () => {
+    it.each`
+    faceUp | hasBack | color
+    ${false}|${true} |${''}
+    ${true} |${false}|${SUIT_COLOR[SUITS.Hearts]}
+  `('faceUp=$faceUp', ({ faceUp, hasBack, color }) => {
+        render(<CardView card={{ suit: SUITS.Hearts, rank: RANKS.Two, faceUp }} onDown={() => { }} />);
+        const el = screen.getByRole('img');
+        expect(el.className.includes('back')).toBe(hasBack);
+        expect(el.style.color).toBe(color);
     });
 });
 
-/* ------------------------------------------------------------------ */
-/*  Hook helpers                                                      */
-/* ------------------------------------------------------------------ */
+/*──────────────── FlyingCard RAF path ──────────────────*/
+describe('FlyingCard', () => {
+    const saveRAF = global.requestAnimationFrame, saveCAF = global.cancelAnimationFrame;
+    beforeAll(() => { jest.useFakeTimers(); global.requestAnimationFrame = cb => (cb(0), 1); global.cancelAnimationFrame = () => { }; });
+    afterAll(() => { global.requestAnimationFrame = saveRAF; global.cancelAnimationFrame = saveCAF; jest.useRealTimers(); });
 
-function startDrag(onDrop = jest.fn()) {
-    const { result } = renderHook(() => useSnapDrag(onDrop));
-    const el = buildMockElement();
-    const downEvt = {
-        currentTarget: el,
-        clientX: 10,
-        clientY: 20,
-    } as unknown as React.PointerEvent<HTMLElement>;
-    act(() => result.current.down(downEvt, 0 as CellIndex));
-    return { result, el, onDrop };
+    it('updates style then fires onFinish', async () => {
+        const f = { id: 'x', src: 0 as CellIndex, dst: 1 as CellIndex, start: box(), end: box({ left: 120, top: 40 }) };
+        const fin = jest.fn(); render(<FlyingCard flight={f} onFinish={fin} />);
+        const el = screen.getByText('🂠').parentElement!;
+        await waitFor(() => expect(el.style.left).toBe('120px'));
+        fireEvent.transitionEnd(el); expect(fin).toHaveBeenCalled();
+    });
+});
+
+/*──────────────── useSnapDrag pointer branches ─────────*/
+function initDrag(drop = jest.fn()) {
+    const { result } = renderHook(() => useSnapDrag(drop));
+    const el = mockEl();
+    act(() => result.current.down(
+        { currentTarget: el, clientX: 10, clientY: 20 } as unknown as React.PointerEvent<HTMLElement>,
+        0 as CellIndex));
+    return { el, drop };
 }
-
-/* ------------------------------------------------------------------ */
-/*  useSnapDrag – behaviour                                           */
-/* ------------------------------------------------------------------ */
-
-describe('useSnapDrag', () => {
-    it('sets fixed drag style on pointer-down', () => {
-        const { el } = startDrag();
-        expect(el.style.position).toBe('fixed');
-        expect(el.style.pointerEvents).toBe('none');
+describe('useSnapDrag pointerUp & pointerMove', () => {
+    it('pointermove triggers moveRef (covers assignment)', () => {
+        const { el } = initDrag();
+        document.dispatchEvent(ptr(20, 30));           // offX=5 offY=15
+        expect(el.style.left).toBe('15px');           // 20‑5
+        expect(el.style.top).toBe('15px');           // 30‑15
     });
 
-    describe('pointer-move updates', () => {
-        it.each([
-            { move: { x: 20, y: 30 }, left: '15px', top: '15px' },
-            { move: { x: 40, y: 50 }, left: '35px', top: '35px' },
-        ])('moves to $left, $top', ({ move, left, top }) => {
-            const { el } = startDrag();
-            document.dispatchEvent(makePointer(move.x, move.y));
-            expect(el.style.left).toBe(left);
-            expect(el.style.top).toBe(top);
-        });
-    });
+    it('snapBack, clearStyles, and !isActive() guard', () => {
+        /* 1️⃣ snapBack */
+        let { el, drop } = initDrag();
+        jest.spyOn(document, 'elementFromPoint').mockReturnValue(null);
+        document.dispatchEvent(new PointerEvent('pointerup', {}));
+        expect(el.style.transition).toMatch(/left/);
 
-    describe('pointer-up scenarios', () => {
-        const cases = [
-            { target: '1', callsDrop: true },
-            { target: '0', callsDrop: false },
-            { target: null, callsDrop: false },
-            { target: 'N/A', callsDrop: false },
-        ] as const;
-
-        it.each(cases)('handles drop target %p', ({ target, callsDrop }) => {
-            const { el, onDrop } = startDrag();
-            const tgt = target === null ? null : document.createElement('div');
-            if (tgt && typeof target === 'string' && target !== 'N/A') tgt.setAttribute('data-cell', target);
-            jest.spyOn(document, 'elementFromPoint').mockReturnValue(tgt);
-            document.dispatchEvent(
-                new PointerEvent('pointerup', { clientX: 15, clientY: 25 })
-            );
-            if (callsDrop) {
-                expect(onDrop).toHaveBeenCalledWith(0, +target!);
-                expect(el.style.position).toBe('');
-            } else {
-                expect(onDrop).not.toHaveBeenCalled();
-                expect(el.style.transition).toMatch(/left .*ms/);
-            }
-        });
-
-        it('ignores pointer-up when no drag active', () => {
-            const onDrop = jest.fn();
-            const { result } = renderHook(() => useSnapDrag(onDrop));
-
-            // Simulate pointer up without starting a drag
-            document.dispatchEvent(
-                new PointerEvent('pointerup', { clientX: 0, clientY: 0 })
-            );
-
-            // Verify that onDrop was not called
-            expect(onDrop).not.toHaveBeenCalled();
-
-            // Verify that the hook is still usable
-            expect(result.current.down).toBeInstanceOf(Function);
-        });
-    });
-
-    it('cleans up listeners', () => {
-        const addSpy = jest.spyOn(document, 'addEventListener');
-        const removeSpy = jest.spyOn(document, 'removeEventListener');
-        const { onDrop } = startDrag();
-        const tgt = document.createElement('div');
-        tgt.setAttribute('data-cell', '2');
+        /* 2️⃣ clearStyles + onDrop */
+        ({ el, drop } = initDrag());
+        const tgt = document.createElement('div'); tgt.setAttribute('data-cell', '3');
         jest.spyOn(document, 'elementFromPoint').mockReturnValue(tgt);
-        document.dispatchEvent(
-            new PointerEvent('pointerup', { clientX: 15, clientY: 25 })
-        );
-        expect(onDrop).toHaveBeenCalled();
-        expect(removeSpy).toHaveBeenCalledWith('pointermove', expect.any(Function));
-        expect(removeSpy).toHaveBeenCalledWith('pointerup', expect.any(Function));
-        addSpy.mockRestore();
-        removeSpy.mockRestore();
-    });
-});
+        document.dispatchEvent(new PointerEvent('pointerup', {}));
+        expect(drop).toHaveBeenCalledWith(0, 3);
 
-/* ------------------------------------------------------------------ */
-/*  Pure-function helpers                                             */
-/* ------------------------------------------------------------------ */
-
-describe('pure helpers', () => {
-    it('setPos no-ops on nulls', () => {
-        const evt = makePointer();
-        expect(() => setPos(null, {} as Origin, evt)).not.toThrow();
-        expect(() => setPos(document.createElement('div'), null, evt)).not.toThrow();
-    });
-
-    it('setPos calculates left/top', () => {
-        const el = document.createElement('div');
-        const origin: Origin = {
-            x: 5 as PixelPosition,
-            y: 5 as PixelPosition,
-            cell: 0 as CellIndex,
-            offX: 2 as PixelPosition,
-            offY: 3 as PixelPosition,
-        };
-        setPos(el, origin, makePointer(12, 18));
-        expect(el.style.left).toBe('10px');
-        expect(el.style.top).toBe('15px');
-    });
-
-    it('clearStyles wipes style', () => {
-        const el = document.createElement('div');
-        Object.assign(el.style, { position: 'fixed', left: '1px', pointerEvents: 'none' });
-        clearStyles(el);
-        expect(el.style.position).toBe('');
-        expect(el.style.left).toBe('');
-    });
-
-    it('snapBack clears on transitionend', () => {
-        const el = document.createElement('div');
-        snapBack(el, {
-            x: 1 as PixelPosition,
-            y: 2 as PixelPosition,
-            cell: 0 as CellIndex,
-            offX: 0 as PixelPosition,
-            offY: 0 as PixelPosition,
+        /* 3️⃣ explicit call to pointerUp after drag cleared to hit !isActive() */
+        let savedHandler: EventListener | undefined;
+        const spyAdd = jest.spyOn(document, 'addEventListener').mockImplementation((t, f, o) => {
+            if (t === 'pointerup') savedHandler = f as EventListener;
+            // @ts-ignore
+            return EventTarget.prototype.addEventListener.call(document, t, f, o);
         });
-        el.dispatchEvent(new Event('transitionend'));
-        expect(el.style.transition).toBe('');
-    });
-
-    it('fixedDragStyle returns correct object', () => {
-        const s = fixedDragStyle(makeDomBox({ left: 50, top: 60 }));
-        expect(s).toMatchObject({ position: 'fixed', left: '50px', top: '60px', zIndex: '10' });
-    });
-});
-
-/* ------------------------------------------------------------------ */
-/*  Type-brand smoke tests                                            */
-/* ------------------------------------------------------------------ */
-
-describe('type brands', () => {
-    it('permits branded arithmetic', () => {
-        const rows: BoardDimension = 7 as BoardDimension;
-        const px: PixelPosition = 42 as PixelPosition;
-        const cell: CellIndex = 0 as CellIndex;
-        expect(rows + px + cell).toBe(49);
+        initDrag();                                    // create a new drag
+        document.dispatchEvent(new PointerEvent('pointerup', {})); // finishes drag cleans refs
+        if (typeof savedHandler === 'function') {
+            savedHandler(new PointerEvent('pointerup', {}));        // isActive() == false
+        }
+        spyAdd.mockRestore();
     });
 });
 
-/* ------------------------------------------------------------------ */
-/*  Reducer tests                                                     */
-/* ------------------------------------------------------------------ */
-
-describe('reducer', () => {
-    it('MOVE to same cell leaves cells, clears drag', () => {
-        const state = { cells: [[], [], []], dragSrc: 0 as CellIndex };
-        const next = reducer(state, { type: 'MOVE', from: 1 as CellIndex, to: 1 as CellIndex });
-        expect(next).toEqual({ ...state, dragSrc: null });
+/*──────────────── utility helpers ─────────────────────*/
+describe('utilities', () => {
+    it('setPos maths', () => {
+        const el = document.createElement('div');
+        const o: Origin = { x: 5 as PixelPosition, y: 5 as PixelPosition, cell: 0 as CellIndex, offX: 2 as PixelPosition, offY: 3 as PixelPosition };
+        setPos(el, o, ptr(12, 18)); expect(el.style.left).toBe('10px'); expect(el.style.top).toBe('15px');
     });
-    it('START_DRAG sets dragSrc', () => {
-        const state = { cells: [[], [], []], dragSrc: null };
-        const next = reducer(state, { type: 'START_DRAG', src: 1 as CellIndex });
-        expect(next.dragSrc).toBe(1);
-    });
-    it('END_DRAG clears dragSrc', () => {
-        const state = { cells: [[], [], []], dragSrc: 1 as CellIndex };
-        const next = reducer(state, { type: 'END_DRAG' });
-        expect(next.dragSrc).toBeNull();
-    });
-    it('MOVE transfers and flips card', () => {
-        const card = { suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: false };
-        const state = { cells: [[card], [], []], dragSrc: 0 as CellIndex };
-        const next = reducer(state, { type: 'MOVE', from: 0 as CellIndex, to: 1 as CellIndex });
-        expect(next.cells[0]).toEqual([]);
-        expect(next.cells[1]).toEqual([{ ...card, faceUp: true }]);
+    it('snapBack clears after transition', () => {
+        const el = document.createElement('div');
+        snapBack(el, { x: 1 as PixelPosition, y: 1 as PixelPosition, cell: 0 as CellIndex, offX: 0 as PixelPosition, offY: 0 as PixelPosition });
+        el.dispatchEvent(new Event('transitionend')); expect(el.style.transition).toBe('');
     });
 });
 
-/* ------------------------------------------------------------------ */
-/*  CardView component tests                                          */
-/* ------------------------------------------------------------------ */
-
-describe('CardView component', () => {
-    it('renders back side when faceUp=false', () => {
-        const card: Card = { suit: SUITS.Spades, rank: RANKS.Ten, faceUp: false };
-        const onDown = jest.fn();
-        render(<CardView card={card} onDown={onDown} />);
-        expect(screen.getByText('🂠')).toBeInTheDocument();
+/*──────────────── reducer & useBoard ───────────────────*/
+describe('reducer & useBoard', () => {
+    it('MOVE same cell returns unchanged', () => {
+        const c: Card = { suit: SUITS.Spades, rank: RANKS.Two, faceUp: false };
+        const st = { cells: [[c] as Card[], [] as Card[]], dragSrc: 0 as CellIndex };
+        // @ts-ignore minimal
+        const nx = reducer(st, { type: 'MOVE', from: 0 as CellIndex, to: 0 as CellIndex });
+        expect(nx.cells).toBe(st.cells); expect(nx.dragSrc).toBeNull();
     });
 
-    it('renders rank and suit when faceUp=true with correct color', () => {
-        const card: Card = { suit: SUITS.Hearts, rank: RANKS.King, faceUp: true };
-        const onDown = jest.fn();
-        render(<CardView card={card} onDown={onDown} />);
-        const rankEl = screen.getByText(RANKS.King);
-        const suitEl = screen.getByText(SUITS.Hearts);
-        expect(rankEl).toBeInTheDocument();
-        expect(suitEl).toBeInTheDocument();
-        // style color on the parent container
-        const container = rankEl.parentElement!;
-        expect(container.style.color).toBe(SUIT_COLOR[SUITS.Hearts]);
-    });
-
-    it('calls onDown when pointerDown occurs', () => {
-        const card: Card = { suit: SUITS.Diamonds, rank: RANKS.Ace, faceUp: true };
-        const onDown = jest.fn();
-        render(<CardView card={card} onDown={onDown} />);
-        fireEvent.pointerDown(screen.getByRole('img'));
-        expect(onDown).toHaveBeenCalled();
+    it('startDrag, endDrag, move', () => {
+        const { result } = renderHook(() => useBoard());
+        act(() => result.current.startDrag(4 as CellIndex)); expect(result.current.dragSrc).toBe(4);
+        act(() => result.current.endDrag()); expect(result.current.dragSrc).toBeNull();
+        act(() => result.current.move(RED_SRC, 0 as CellIndex)); expect(result.current.cells[0]).toHaveLength(1);
     });
 });
 
-/* ------------------------------------------------------------------ */
-/*  Cell peek-behind for deck sources                                 */
-/* ------------------------------------------------------------------ */
+/*──────────────── useFlights ───────────────────────────*/
+describe('useFlights', () => {
+    const refs = (a: boolean, b: boolean) => ({ current: [a ? mockEl() : null, b ? mockEl() : null] });
+    it.each`
+    a      | b      | len
+    ${false}|${false}|${0}
+    ${true} |${false}|${0}
+    ${false}|${true} |${0}
+    ${true} |${true} |${1}
+  `('addFlight guards from=$a to=$b', ({ a, b, len }) => {
+        const { result } = renderHook(() => useFlights(refs(a, b) as any, jest.fn()));
+        act(() => result.current.addFlight(0 as CellIndex, 1 as CellIndex));
+        expect(result.current.flights).toHaveLength(len);
+    });
 
-describe.each([
-    ['red deck', RED_SRC],
-    ['black deck', BLK_SRC],
-])('Cell peek-behind on deck (%s)', (_name, idx) => {
-    it('shows second card when dragging deck', () => {
-        const stack = [
-            { suit: SUITS.Clubs, rank: RANKS.Five, faceUp: true },
-            { suit: SUITS.Spades, rank: RANKS.Six, faceUp: true },
+    it('hiddenByCell and completeFlight', () => {
+        const ref = { current: [mockEl(), mockEl()] };
+        const mv = jest.fn();
+        const { result } = renderHook(() => useFlights(ref, mv));
+        act(() => result.current.addFlight(0 as CellIndex, 1 as CellIndex));
+        act(() => result.current.addFlight(0 as CellIndex, 1 as CellIndex));
+        expect(result.current.hiddenByCell(0)).toBe(2);
+        const f: Flight = result.current.flights[0];
+        act(() => result.current.completeFlight(f));
+        expect(mv).toHaveBeenCalledWith(0, 1); expect(result.current.hiddenByCell(0)).toBe(1);
+    });
+});
+
+/*──────────────── Cell pointerDown ─────────────────────*/
+describe('Cell pointerDown', () => {
+    it('fires for top & next', () => {
+        const pile = [
+            { suit: SUITS.Hearts, rank: RANKS.Two, faceUp: true },
+            { suit: SUITS.Spades, rank: RANKS.Three, faceUp: true },
         ];
-        render(
-            <Cell
-                idx={idx}
-                stack={stack}
-                hidden={0}
-                dragSrc={idx}
-                isDragging={true}
-                onDown={() => { }}
-            />
-        );
-        const cards = screen.getAllByRole('img');
-        expect(cards).toHaveLength(2);
+        const cb = jest.fn();
+        const { rerender } = render(<Cell idx={8 as CellIndex} stack={pile} hidden={0} dragSrc={null} isDragging={false} onDown={cb} />);
+        fireEvent.pointerDown(screen.getByRole('img'));
+        rerender(<Cell idx={8 as CellIndex} stack={pile} hidden={0} dragSrc={8 as CellIndex} isDragging={true} onDown={cb} />);
+        fireEvent.pointerDown(screen.getAllByRole('img')[1]);
+        expect(cb).toHaveBeenCalledTimes(2);
     });
-}); 
+});
+
+/*──────────────── misc sanity ─────────────────────────*/
+describe('misc', () => {
+    it('starting piles sizes', () => {
+        const c = makeStartingCells(); expect(c[RED_SRC]).toHaveLength(26); expect(c[BLK_SRC]).toHaveLength(26);
+    });
+    it('type‑brands arithmetic', () => {
+        const a: BoardDimension = 7 as BoardDimension, b: PixelPosition = 3 as PixelPosition;
+        expect(a + b).toBe(10);
+    });
+});

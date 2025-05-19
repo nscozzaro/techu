@@ -1,5 +1,3 @@
-// app/lib.tsx
-
 'use client';
 
 import React, {
@@ -7,13 +5,15 @@ import React, {
     useRef,
     useEffect,
     useState,
+    useCallback,
+    useReducer,
     PointerEvent as Ptr,
 } from 'react';
 import type { Reducer } from 'react';
 import styles from './page.module.css';
 
 /* ──────────────────────────
-   Constants & Branded Types
+   Constants & branded types
    ────────────────────────── */
 export type BoardDimension = number & { __brand: 'BoardDimension' };
 export const BOARD_ROWS = 7 as BoardDimension;
@@ -24,12 +24,12 @@ export type PixelPosition = number & { __brand: 'PixelPosition' };
 
 export const RED_SRC = ((BOARD_ROWS - 1) * BOARD_COLS) as CellIndex; // 30
 export const RED_DST = [31, 32, 33] as CellIndex[];
-export const BLK_SRC = (BOARD_COLS - 1) as CellIndex;               // 4
+export const BLK_SRC = (BOARD_COLS - 1) as CellIndex;     // 4
 export const BLK_DST = [3, 2, 1] as CellIndex[];
 export const DEAL_DELAY_MS = 1_000;
 
 /* ──────────────────────────
-   Card Domain
+   Card domain
    ────────────────────────── */
 export const SUITS = {
     Clubs: 'Clubs',
@@ -56,11 +56,7 @@ export const RANKS = {
 } as const;
 export type Rank = (typeof RANKS)[keyof typeof RANKS];
 
-export interface Card {
-    suit: Suit;
-    rank: Rank;
-    faceUp: boolean;
-}
+export interface Card { suit: Suit; rank: Rank; faceUp: boolean }
 export type Cards = Card[];
 
 export const SUIT_COLOR: Record<Suit, 'black' | 'red'> = {
@@ -72,29 +68,31 @@ export const SUIT_COLOR: Record<Suit, 'black' | 'red'> = {
 export const cardColor = (suit: Suit) => SUIT_COLOR[suit];
 
 /* ──────────────────────────
-   Starting Cells (all face-down)
+   Build starting piles
    ────────────────────────── */
 export function makeStartingCells(): Cards[] {
-    const cells = Array.from({ length: BOARD_ROWS * BOARD_COLS }, () => [] as Cards);
+    const cells = Array.from(
+        { length: BOARD_ROWS * BOARD_COLS },
+        () => [] as Cards,
+    );
     const push = (cell: CellIndex, suit: Suit, rank: Rank) =>
         cells[cell].push({ suit, rank, faceUp: false });
 
     Object.values(RANKS).forEach(rank => {
-        [SUITS.Hearts, SUITS.Diamonds].forEach(suit => push(RED_SRC, suit, rank));
-        [SUITS.Clubs, SUITS.Spades].forEach(suit => push(BLK_SRC, suit, rank));
+        [SUITS.Hearts, SUITS.Diamonds].forEach(s => push(RED_SRC, s, rank));
+        [SUITS.Clubs, SUITS.Spades].forEach(s => push(BLK_SRC, s, rank));
     });
 
     return cells;
 }
 
 /* ──────────────────────────
-   Board Reducer
+   Board reducer
    ────────────────────────── */
 export interface BoardState {
     cells: Cards[];
     dragSrc: CellIndex | null;
 }
-
 export type BoardAction =
     | { type: 'MOVE'; from: CellIndex; to: CellIndex }
     | { type: 'START_DRAG'; src: CellIndex }
@@ -102,7 +100,7 @@ export type BoardAction =
 
 const moveCardInCells = (cells: Cards[], from: CellIndex, to: CellIndex) => {
     if (from === to) return cells;
-    const next = cells.map(stack => [...stack]) as Cards[];
+    const next = cells.map(s => [...s]) as Cards[];
     const card = next[from].pop();
     if (card) {
         card.faceUp = true;
@@ -126,7 +124,7 @@ export const reducer: Reducer<BoardState, BoardAction> = (state, action) => {
 };
 
 /* ──────────────────────────
-   DOM Style Helpers
+   DOM helpers
    ────────────────────────── */
 type StyleKV = Partial<CSSStyleDeclaration>;
 const setStyle = (el: HTMLElement, kv: StyleKV) => Object.assign(el.style, kv);
@@ -141,15 +139,11 @@ const ORIGIN_CLEAR: StyleKV = {
     transition: '',
     pointerEvents: '',
 };
-
 export const clearStyles = (el: HTMLElement) => setStyle(el, ORIGIN_CLEAR);
 
 export interface Origin {
-    x: PixelPosition;
-    y: PixelPosition;
-    cell: CellIndex;
-    offX: PixelPosition;
-    offY: PixelPosition;
+    x: PixelPosition; y: PixelPosition; cell: CellIndex;
+    offX: PixelPosition; offY: PixelPosition;
 }
 
 export const fixedDragStyle = (box: DOMRect): StyleKV => ({
@@ -163,87 +157,81 @@ export const fixedDragStyle = (box: DOMRect): StyleKV => ({
     pointerEvents: 'none',
 });
 
-const dragPosition = (o: Origin, e: PointerEvent): StyleKV => ({
+const dragPos = (o: Origin, e: PointerEvent): StyleKV => ({
     left: `${e.clientX - o.offX}px`,
     top: `${e.clientY - o.offY}px`,
 });
-
 export const setPos = (
     el: HTMLElement | null,
     o: Origin | null,
     e: PointerEvent,
-) => el && o && setStyle(el, dragPosition(o, e));
+) => el && o && setStyle(el, dragPos(o, e));
 
 const snapBackStyle = (o: Origin, ms: number): StyleKV => ({
     left: `${o.x}px`,
     top: `${o.y}px`,
     transition: `left ${ms}ms ease, top ${ms}ms ease`,
 });
-
 export const snapBack = (el: HTMLElement, o: Origin, ms = 250) => {
     setStyle(el, snapBackStyle(o, ms));
-    el.addEventListener('transitionend', () => clearStyles(el), {
-        once: true,
-    });
+    el.addEventListener('transitionend', () => clearStyles(el), { once: true });
 };
 
 /* ──────────────────────────
-   useSnapDrag Hook
+   Hook: useSnapDrag
    ────────────────────────── */
 type DropFn = (from: CellIndex, to: CellIndex) => void;
 const SNAP_MS = 250;
 
 export function useSnapDrag(onDrop: DropFn) {
-    const elementRef = useRef<HTMLElement | null>(null);
-    const originRef = useRef<Origin | null>(null);
-    const moveHandlerRef = useRef<((e: PointerEvent) => void) | null>(null);
+    const elRef = useRef<HTMLElement | null>(null);
+    const origRef = useRef<Origin | null>(null);
+    const moveRef = useRef<((e: PointerEvent) => void) | null>(null);
 
-    const isActive = () => elementRef.current && originRef.current;
+    const isActive = () => elRef.current && origRef.current;
 
-    const destinationCell = (evt: PointerEvent): CellIndex =>
+    const destCell = (e: PointerEvent): CellIndex =>
     (Number(
         document
-            .elementFromPoint(evt.clientX, evt.clientY)
+            .elementFromPoint(e.clientX, e.clientY)
             ?.closest('[data-cell]')
-            ?.getAttribute('data-cell') ?? originRef.current!.cell,
+            ?.getAttribute('data-cell') ?? origRef.current!.cell,
     ) as CellIndex);
 
-    const pointerUp = (evt: PointerEvent) => {
+    const pointerUp = (e: PointerEvent) => {
         if (!isActive()) return;
-        const el = elementRef.current!;
-        const origin = originRef.current!;
-        const dst = destinationCell(evt);
+        const el = elRef.current!;
+        const o = origRef.current!;
+        const dst = destCell(e);
 
-        if (dst === origin.cell) {
-            snapBack(el, origin, SNAP_MS);
-        } else {
+        if (dst === o.cell) snapBack(el, o, SNAP_MS);
+        else {
             clearStyles(el);
-            onDrop(origin.cell, dst);
+            onDrop(o.cell, dst);
         }
 
-        if (moveHandlerRef.current)
-            document.removeEventListener('pointermove', moveHandlerRef.current);
+        if (moveRef.current)
+            document.removeEventListener('pointermove', moveRef.current);
         document.removeEventListener('pointerup', pointerUp);
-
-        moveHandlerRef.current = null;
-        elementRef.current = originRef.current = null;
+        moveRef.current = null;
+        elRef.current = origRef.current = null;
     };
 
     const down = (evt: React.PointerEvent<HTMLElement>, idx: CellIndex) => {
         const el = evt.currentTarget;
         const box = el.getBoundingClientRect();
-        originRef.current = {
+        origRef.current = {
             x: box.left as PixelPosition,
             y: box.top as PixelPosition,
             cell: idx,
             offX: (evt.clientX - box.left) as PixelPosition,
             offY: (evt.clientY - box.top) as PixelPosition,
         };
-        elementRef.current = el;
+        elRef.current = el;
         setStyle(el, fixedDragStyle(box));
 
-        moveHandlerRef.current = e => setPos(elementRef.current, originRef.current, e);
-        document.addEventListener('pointermove', moveHandlerRef.current);
+        moveRef.current = e => setPos(elRef.current, origRef.current, e);
+        document.addEventListener('pointermove', moveRef.current);
         document.addEventListener('pointerup', pointerUp);
     };
 
@@ -251,7 +239,7 @@ export function useSnapDrag(onDrop: DropFn) {
 }
 
 /* ──────────────────────────
-   Flights Reducer
+   Flights reducer
    ────────────────────────── */
 export interface Flight {
     id: string;
@@ -266,11 +254,13 @@ type FlightAction =
     | { type: 'ADD'; payload: Flight }
     | { type: 'REMOVE'; id: string };
 
-export const flightsReducer = (list: Flights, action: FlightAction): Flights =>
-    action.type === 'ADD' ? [...list, action.payload] : list.filter(f => f.id !== action.id);
+export const flightsReducer = (l: Flights, a: FlightAction): Flights =>
+    a.type === 'ADD'
+        ? [...l, a.payload]
+        : l.filter(f => f.id !== a.id);
 
 /* ──────────────────────────
-   Presentational Components
+   Presentational components
    ────────────────────────── */
 export const CardView = ({
     card,
@@ -303,16 +293,18 @@ export const Cell = forwardRef<HTMLDivElement, {
     dragSrc: CellIndex | null;
     isDragging: boolean;
     onDown: (e: Ptr<HTMLElement>, idx: CellIndex) => void;
-}>((props, ref) => {
-    const { idx, stack, hidden, dragSrc, isDragging, onDown } = props;
-    const topCard = stack[stack.length - 1 - hidden];
-    const nextCard = stack[stack.length - 2 - hidden];
+}>((p, ref) => {
+    const { idx, stack, hidden, dragSrc, isDragging, onDown } = p;
+    const top = stack[stack.length - 1 - hidden];
+    const next = stack[stack.length - 2 - hidden];
 
     return (
         <div ref={ref} data-cell={idx} className={styles.cell} role="generic">
-            {topCard && <CardView card={topCard} onDown={e => onDown(e, idx)} />}
-            {nextCard && isDragging && dragSrc === idx && (
-                <CardView card={nextCard} onDown={e => onDown(e, idx)} />
+            {top && (
+                <CardView card={top} onDown={e => onDown(e, idx)} />
+            )}
+            {next && isDragging && dragSrc === idx && (
+                <CardView card={next} onDown={e => onDown(e, idx)} />
             )}
         </div>
     );
@@ -336,7 +328,7 @@ export function FlyingCard({
 
     useEffect(() => {
         const id = requestAnimationFrame(() =>
-            setStyle(prev => ({ ...prev, left: flight.end.left, top: flight.end.top })),
+            setStyle(s => ({ ...s, left: flight.end.left, top: flight.end.top })),
         );
         return () => cancelAnimationFrame(id);
     }, [flight.end]);
@@ -351,4 +343,64 @@ export function FlyingCard({
             <span>🂠</span>
         </div>
     );
+}
+
+/* ──────────────────────────
+   ▍ Logic hooks exported here
+   ────────────────────────── */
+export function useBoard() {
+    const [state, dispatch] = useReducer(reducer, undefined, () => ({
+        cells: makeStartingCells(),
+        dragSrc: null,
+    }));
+    return {
+        ...state,
+        startDrag: (src: CellIndex) =>
+            dispatch({ type: 'START_DRAG', src }),
+        endDrag: () => dispatch({ type: 'END_DRAG' }),
+        move: (from: CellIndex, to: CellIndex) =>
+            dispatch({ type: 'MOVE', from, to }),
+    };
+}
+
+export function useFlights(
+    refs: React.RefObject<(HTMLDivElement | null)[]>,
+    moveCard: (from: CellIndex, to: CellIndex) => void,
+) {
+    const [flights, dispatch] = useReducer(flightsReducer, [] as Flights);
+
+    const hiddenByCell = useCallback(
+        (idx: number) => flights.filter(f => f.src === idx).length,
+        [flights],
+    );
+
+    const addFlight = useCallback(
+        (src: CellIndex, dst: CellIndex) => {
+            const fromEl = refs.current[src];
+            const toEl = refs.current[dst];
+            if (!fromEl || !toEl) return;
+
+            dispatch({
+                type: 'ADD',
+                payload: {
+                    id: Math.random().toString(36).slice(2),
+                    src,
+                    dst,
+                    start: fromEl.getBoundingClientRect(),
+                    end: toEl.getBoundingClientRect(),
+                },
+            });
+        },
+        [refs],
+    );
+
+    const completeFlight = useCallback(
+        (f: Flight) => {
+            moveCard(f.src, f.dst);
+            dispatch({ type: 'REMOVE', id: f.id });
+        },
+        [moveCard],
+    );
+
+    return { flights, hiddenByCell, addFlight, completeFlight };
 }

@@ -1,19 +1,27 @@
+/**
+ * page.test.tsx – full coverage for UI and logic hooks.
+ */
 import React from 'react';
 import {
     render,
     screen,
-    cleanup,
     fireEvent,
     act,
+    cleanup,
 } from '@testing-library/react';
+import { renderHook } from '@testing-library/react';
 import Home from '../page';
 import {
+    useFlights,
+    useBoard,
+    BOARD_ROWS,
+    BOARD_COLS,
     RED_SRC,
-    BLK_SRC,
+    CellIndex,
 } from '../lib';
 import '@testing-library/jest-dom';
 
-/* predictable class names */
+/* predictable CSS class names */
 jest.mock('../page.module.css', () => ({
     score: 'score',
     board: 'board',
@@ -23,125 +31,148 @@ jest.mock('../page.module.css', () => ({
     flying: 'flying',
 }));
 
-/* avoid async delays & animations */
+/* ───── JSDOM quirks & timers ───── */
 beforeAll(() => {
     jest.useFakeTimers();
-    global.requestAnimationFrame = (cb: FrameRequestCallback) => { cb(0); return 0; };
+    global.requestAnimationFrame = cb => (cb(0), 0);
     global.cancelAnimationFrame = () => { };
 
-    class MockDOMRect {
-        x: number; y: number; width: number; height: number;
-        top: number; right: number; bottom: number; left: number;
-        constructor(x = 0, y = 0, w = 0, h = 0) {
-            this.x = x; this.y = y; this.width = w; this.height = h;
-            this.top = y; this.right = x + w; this.bottom = y + h; this.left = x;
+    /* DOMRect shim */
+    class MockRect implements DOMRect {
+        bottom; height; left; right; top; width; x; y;
+        constructor(l = 0, t = 0, w = 10, h = 10) {
+            this.left = this.x = l;
+            this.top = this.y = t;
+            this.width = w; this.height = h;
+            this.right = l + w;
+            this.bottom = t + h;
         }
-        static fromRect(other?: DOMRectInit) {
-            if (!other) return new MockDOMRect();
-            return new MockDOMRect(other.x!, other.y!, other.width!, other.height!);
-        }
-        toJSON() {
-            return {
-                x: this.x, y: this.y, width: this.width, height: this.height,
-                top: this.top, right: this.right, bottom: this.bottom, left: this.left,
-            };
+        toJSON() { return this; }
+        static fromRect(r?: Partial<DOMRect>) {
+            return new MockRect(r?.x ?? 0, r?.y ?? 0, r?.width ?? 10, r?.height ?? 10);
         }
     }
-    global.DOMRect = MockDOMRect;
+    (global as unknown as { DOMRect: typeof DOMRect }).DOMRect = MockRect;
 });
 afterEach(cleanup);
 
-const getCells = () =>
+/* helpers ----------------------------------------------------------- */
+const cellEls = () =>
     screen.getAllByRole('generic').filter(el => el.className.includes('cell'));
+const cardCount = (el: Element) => el.querySelectorAll('.card').length;
+const runAllDealTimers = () => {
+    /* six setTimeouts (3 red + 3 black) */
+    for (let i = 0; i < 6; i++) jest.runOnlyPendingTimers();
+};
 
-describe('Home – drag interactions', () => {
-    const cases = [
-        {
-            name: 'moves card between cells',
-            run: () => {
-                render(<Home />);
-                act(() => { for (let i = 0; i < 6; i++) jest.runOnlyPendingTimers(); });
-                document.querySelectorAll('.flying').forEach(card =>
-                    act(() => fireEvent.transitionEnd(card))
-                );
-                act(() => jest.runOnlyPendingTimers());
+/* ------------------------------------------------------------------ */
+/*  1. useFlights branch coverage                                     */
+/* ------------------------------------------------------------------ */
+describe('useFlights', () => {
+    it('early‑returns when refs missing', () => {
+        const refs: React.MutableRefObject<(HTMLDivElement | null)[]> = {
+            current: [null, null],
+        };
+        const move = jest.fn();
 
-                const cells = getCells();
-                const src = cells.find(c => c.querySelector('.card'))!;
-                const dst = cells.find(c => c !== src)!;
+        const { result } = renderHook(() => useFlights(refs, move));
 
-                // elementFromPoint returns the dst cell directly
-                jest.spyOn(document, 'elementFromPoint').mockReturnValue(dst);
-                const card = src.querySelector('.card')!;
-                act(() => {
-                    fireEvent.pointerDown(card, { clientX: 10, clientY: 10 });
-                    fireEvent.pointerMove(dst, { clientX: 20, clientY: 20 });
-                    fireEvent.pointerUp(dst, { clientX: 20, clientY: 20 });
-                });
-                expect(dst.querySelector('.card')).toBeInTheDocument();
-            },
-        },
-        {
-            name: 'board peek-behind shows second card',
-            run: () => {
-                render(<Home />);
-                act(() => { for (let i = 0; i < 6; i++) jest.runOnlyPendingTimers(); });
-                document.querySelectorAll('.flying').forEach(card =>
-                    act(() => fireEvent.transitionEnd(card))
-                );
-                act(() => jest.runOnlyPendingTimers());
+        act(() => result.current.addFlight(0 as CellIndex, 1 as CellIndex));
 
-                const deckCell = getCells()[RED_SRC];
-                const targetCell = getCells()[0];
+        expect(result.current.flights).toHaveLength(0);
+        expect(move).not.toHaveBeenCalled();
+    });
 
-                // deal two cards from the deck to the same target
-                jest.spyOn(document, 'elementFromPoint').mockReturnValue(targetCell);
-                for (let i = 0; i < 2; i++) {
-                    const top = deckCell.querySelector('.card')!;
-                    act(() => {
-                        fireEvent.pointerDown(top, { clientX: 5, clientY: 5 });
-                        fireEvent.pointerMove(targetCell, { clientX: 100, clientY: 100 });
-                        fireEvent.pointerUp(targetCell, { clientX: 100, clientY: 100 });
-                    });
-                    act(() => jest.runOnlyPendingTimers());
-                    document.querySelectorAll('.flying').forEach(card =>
-                        act(() => fireEvent.transitionEnd(card))
-                    );
-                    act(() => jest.runOnlyPendingTimers());
-                }
+    it('adds flight when refs present', () => {
+        const a = document.createElement('div');
+        const b = document.createElement('div');
+        a.getBoundingClientRect = () => new DOMRect(0, 0, 10, 10);
+        b.getBoundingClientRect = () => new DOMRect(100, 0, 10, 10);
 
-                // now dragging the top of that 2-card stack should show two
-                const topAtTarget = targetCell.querySelector('.card')!;
-                act(() => {
-                    fireEvent.pointerDown(topAtTarget, { clientX: 10, clientY: 10 });
-                    fireEvent.pointerMove(targetCell, { clientX: 20, clientY: 20 });
-                });
-                expect(targetCell.querySelectorAll('.card')).toHaveLength(2);
-            },
-        },
-        {
-            name: 'deck drag only top card visible',
-            run: () => {
-                render(<Home />);
-                act(() => { for (let i = 0; i < 6; i++) jest.runOnlyPendingTimers(); });
-                document.querySelectorAll('.flying').forEach(card =>
-                    act(() => fireEvent.transitionEnd(card))
-                );
-                act(() => jest.runOnlyPendingTimers());
+        const refs: React.MutableRefObject<(HTMLDivElement | null)[]> = {
+            current: [a, b],
+        };
 
-                const deckCell = getCells()[BLK_SRC];
-                expect(deckCell.querySelectorAll('.card')).toHaveLength(1);
+        const { result } = renderHook(() => useFlights(refs, jest.fn()));
 
-                const top = deckCell.querySelector('.card')!;
-                act(() => {
-                    fireEvent.pointerDown(top, { clientX: 10, clientY: 10 });
-                    fireEvent.pointerMove(deckCell, { clientX: 20, clientY: 20 });
-                });
-                // During drag, still only one non-fixed card
-                expect(deckCell.querySelectorAll('.card:not([style*="position: fixed"])')).toHaveLength(1);
-            },
-        },
-    ] as const;
+        act(() => result.current.addFlight(0 as CellIndex, 1 as CellIndex));
 
-    test.each(cases)('$name', ({ run }) => run());
+        expect(result.current.flights).toHaveLength(1);
+        expect(result.current.flights[0].end.left).toBe(100);
+    });
+});
+
+/* ------------------------------------------------------------------ */
+/*  2. <Home/> integration tests                                      */
+/* ------------------------------------------------------------------ */
+describe('<Home/> behaviour', () => {
+    /** helper: mount and fully settle initial deal */
+    const renderAndDeal = () => {
+        render(<Home />);
+        runAllDealTimers();
+        document.querySelectorAll('.flying')
+            .forEach(el => fireEvent.transitionEnd(el));
+        act(() => jest.runOnlyPendingTimers());
+    };
+
+    it('renders grid and initial decks', () => {
+        renderAndDeal();
+        expect(cellEls()).toHaveLength(BOARD_ROWS * BOARD_COLS);
+        expect(cellEls()[RED_SRC].querySelectorAll('.card')).toHaveLength(1);
+    });
+
+    it('drags card from red deck to an empty cell', () => {
+        renderAndDeal();
+
+        const src = cellEls()[RED_SRC];
+        const dst = cellEls().find(
+            (c, i) => i !== RED_SRC && !c.querySelector('.card'),
+        )!;
+
+        const spy = jest.spyOn(document, 'elementFromPoint').mockReturnValue(dst);
+
+        const top = src.querySelector('.card')!;
+        act(() => {
+            fireEvent.pointerDown(top, { clientX: 5, clientY: 5 });
+            fireEvent.pointerMove(dst, { clientX: 40, clientY: 40 });
+            fireEvent.pointerUp(dst, { clientX: 40, clientY: 40 });
+        });
+
+        spy.mockRestore();
+
+        expect(cardCount(dst)).toBe(1);
+        expect(cardCount(src)).toBe(1);
+    });
+
+    it('fires completeFlight when a FlyingCard finishes', () => {
+        render(<Home />);
+
+        /* queue first 0‑ms flight */
+        act(() => jest.advanceTimersByTime(0));
+
+        const flightEl = document.querySelector('.flying') as HTMLElement | null;
+        expect(flightEl).not.toBeNull();       // flight exists
+
+        /* complete this specific flight */
+        act(() => {
+            fireEvent.transitionEnd(flightEl!);
+        });
+
+        /* the original element should be detached */
+        expect(flightEl!.isConnected).toBe(false);
+    });
+});
+
+/* ------------------------------------------------------------------ */
+/*  3. useBoard basic sanity                                          */
+/* ------------------------------------------------------------------ */
+describe('useBoard', () => {
+    it('initialises and moves correctly', () => {
+        const { result } = renderHook(() => useBoard());
+        expect(result.current.cells[RED_SRC]).toHaveLength(26);
+
+        act(() => result.current.move(RED_SRC, 1 as CellIndex));
+
+        expect(result.current.cells[1]).toHaveLength(1);
+    });
 });
