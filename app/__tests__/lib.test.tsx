@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  *
- * lib.test.tsx – full line + branch coverage for lib.tsx
+ * lib.test.tsx – full line + branch coverage for lib.tsx
  */
 import React from 'react';
 import {
@@ -27,14 +27,14 @@ import {
     useBoard, useFlights, makeStartingCells,
     reducer,
     Card, PixelPosition, Origin, CellIndex,
-    BoardDimension, Suit, Flight,
+    BoardDimension, Flight,
     CardView, Cell, FlyingCard,
     RED_SRC, BLK_SRC,
 } from '../lib';
 
 /* helpers */
 const box = (xy = { left: 5, top: 5 }) => ({ ...xy, width: 50, height: 60, right: xy.left + 50, bottom: xy.top + 60, x: xy.left, y: xy.top, toJSON() { } });
-const mockEl = (b = box()) => { const el = document.createElement('div'); (el as any).getBoundingClientRect = () => b; return el; };
+const mockEl = (b = box()) => { const el = document.createElement('div'); (el as HTMLDivElement).getBoundingClientRect = () => b; return el; };
 const ptr = (x = 10, y = 20) => new PointerEvent('pointermove', { clientX: x, clientY: y });
 
 /*──────────────── CardView branches ─────────────────────*/
@@ -101,7 +101,6 @@ describe('useSnapDrag pointerUp & pointerMove', () => {
         let savedHandler: EventListener | undefined;
         const spyAdd = jest.spyOn(document, 'addEventListener').mockImplementation((t, f, o) => {
             if (t === 'pointerup') savedHandler = f as EventListener;
-            // @ts-ignore
             return EventTarget.prototype.addEventListener.call(document, t, f, o);
         });
         initDrag();                                    // create a new drag
@@ -132,7 +131,6 @@ describe('reducer & useBoard', () => {
     it('MOVE same cell returns unchanged', () => {
         const c: Card = { suit: SUITS.Spades, rank: RANKS.Two, faceUp: false };
         const st = { cells: [[c] as Card[], [] as Card[]], dragSrc: 0 as CellIndex };
-        // @ts-ignore minimal
         const nx = reducer(st, { type: 'MOVE', from: 0 as CellIndex, to: 0 as CellIndex });
         expect(nx.cells).toBe(st.cells); expect(nx.dragSrc).toBeNull();
     });
@@ -155,7 +153,7 @@ describe('useFlights', () => {
     ${false}|${true} |${0}
     ${true} |${true} |${1}
   `('addFlight guards from=$a to=$b', ({ a, b, len }) => {
-        const { result } = renderHook(() => useFlights(refs(a, b) as any, jest.fn()));
+        const { result } = renderHook(() => useFlights(refs(a, b) as React.RefObject<Array<HTMLDivElement | null>>, jest.fn()));
         act(() => result.current.addFlight(0 as CellIndex, 1 as CellIndex));
         expect(result.current.flights).toHaveLength(len);
     });
