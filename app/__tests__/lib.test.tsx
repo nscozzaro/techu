@@ -249,8 +249,11 @@ describe('reducer & useBoard', () => {
         );
         expect(result.current.cells[BOARD_COLS][0].faceUp).toBe(true);
 
-        act(() => result.current.move(RED_SRC, 0 as CellIndex));
-        expect(result.current.cells[0][1].faceUp).toBe(true);
+        // First move a card to the black hand
+        act(() => result.current.move(BLK_SRC, BLK_DST[0]));
+        // Then move from black hand to row 0
+        act(() => result.current.move(BLK_DST[0], 0 as CellIndex));
+        expect(result.current.cells[0][1].faceUp).toBe(false);
     });
 
     it('startDrag/endDrag/move', () => {
@@ -477,12 +480,9 @@ describe('shouldKeepFaceDown', () => {
         act(() => result.current.move(BLK_SRC, (BOARD_COLS as unknown as CellIndex)));
         expect(result.current.cells[BOARD_COLS][0].faceUp).toBe(true);
 
-        // First move a card to the black hand
-        act(() => result.current.move(BLK_SRC, BLK_DST[0]));
-
-        // Then move from black hand to row 2
-        act(() => result.current.move(BLK_DST[0], ((BOARD_COLS * 2) as unknown as CellIndex)));
-        expect(result.current.cells[BOARD_COLS * 2][0].faceUp).toBe(true);
+        // Move from red deck to row 1
+        act(() => result.current.move(RED_SRC, (BOARD_COLS as unknown as CellIndex)));
+        expect(result.current.cells[BOARD_COLS][1].faceUp).toBe(true);
     });
 });
 

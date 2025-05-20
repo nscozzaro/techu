@@ -28,8 +28,9 @@ export const BLK_SRC = (BOARD_COLS - 1) as CellIndex;               // 4
 export const BLK_DST = [3, 2, 1] as CellIndex[];
 export const DEAL_DELAY_MS = 1_000;
 
-/* export handy list of the two deck cells */
+/* handy helpers */
 export const DECK_CELLS = [RED_SRC, BLK_SRC] as const;
+const HAND_CELLS: CellIndex[] = [...RED_DST, ...BLK_DST];
 
 /* ──────────────────────────
    Card domain
@@ -98,11 +99,16 @@ export type BoardAction =
     | { type: 'START_DRAG'; src: CellIndex }
     | { type: 'END_DRAG' };
 
-/* Helpers */
-const shouldKeepFaceDown = (from: CellIndex, dstRow: number): boolean => {
-    return (from === BLK_SRC && dstRow === 0) ||
-        (BLK_DST.includes(from) && dstRow === 1);
-};
+/* ──────────────────────────
+   Face‑down rule helper
+   ──────────────────────────
+   A card stays face‑down when:
+     • it’s moving out of either player’s “hand” cells; OR
+     • the black deck deals straight to row 0 (initial layout)
+*/
+const shouldKeepFaceDown = (from: CellIndex, dstRow: number): boolean =>
+    HAND_CELLS.includes(from) ||
+    (from === BLK_SRC && dstRow === 0);
 
 const moveCardInCells = (cells: Cards[], from: CellIndex, to: CellIndex) => {
     if (from === to) return cells;
@@ -112,10 +118,10 @@ const moveCardInCells = (cells: Cards[], from: CellIndex, to: CellIndex) => {
     if (card) {
         const dstRow = Math.floor(to / BOARD_COLS);
 
-        /* keep card face‑down if:
-           1. initial black‑deck deal to row 0
-           2. bot plays a black‑hand card to row 1 centre          */
+        /* obey new face‑down rule */
         if (!shouldKeepFaceDown(from, dstRow)) card.faceUp = true;
+        else card.faceUp = false;
+
         next[to].push(card);
     }
     return next;
@@ -352,6 +358,9 @@ export const Cell = forwardRef<
 });
 Cell.displayName = 'Cell';
 
+/* ──────────────────────────
+   Flying card (animation)
+   ────────────────────────── */
 export function FlyingCard({
     flight,
     onFinish,
@@ -359,7 +368,6 @@ export function FlyingCard({
     flight: Flight;
     onFinish: () => void;
 }) {
-    /* 1. place card at start coords */
     const [style, setStyle] = useState<React.CSSProperties>(() => ({
         position: 'fixed',
         left: flight.start.left,
@@ -369,7 +377,6 @@ export function FlyingCard({
         transition: 'left 250ms ease, top 250ms ease',
     }));
 
-    /* 2. schedule the move on the next frame */
     useEffect(() => {
         const id = requestAnimationFrame(() =>
             setStyle(s => ({
@@ -381,7 +388,6 @@ export function FlyingCard({
         return () => cancelAnimationFrame(id);
     }, [flight.end]);
 
-    /* 3. fire onFinish **once** */
     const done = useRef(false);
     const handleEnd = () => {
         if (done.current) return;
@@ -402,7 +408,7 @@ export function FlyingCard({
 }
 
 /* ──────────────────────────
-   Bot play logic
+   Bot play helper
    ────────────────────────── */
 export function makeBotMove(
     cells: Array<Array<{ suit: string; rank: string; faceUp: boolean }>>,
@@ -417,7 +423,7 @@ export function makeBotMove(
 }
 
 /* ──────────────────────────
-   ▍ Logic hooks exported here
+   State hooks
    ────────────────────────── */
 export function useBoard() {
     const [state, dispatch] = useReducer(reducer, undefined, () => ({
