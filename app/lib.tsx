@@ -281,7 +281,11 @@ export const CardView = ({
                 <div>{card.suit}</div>
             </>
         ) : (
-            <span>🂠</span>
+            <>
+                <span>🂠</span>
+                <div>{card.rank}</div>
+                <div>{card.suit}</div>
+            </>
         )}
     </div>
 );
