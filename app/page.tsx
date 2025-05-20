@@ -6,6 +6,7 @@ import React, {
   useEffect,
   useRef,
   useCallback,
+  useMemo,
 } from 'react';
 import styles from './page.module.css';
 import {
@@ -28,6 +29,7 @@ import {
  ▍Intro / splash component
  ────────────────────────── */
 function IntroScreen({ onPlay }: { onPlay: () => void }) {
+  /* 3×3 grid top row black, blank middle, bottom red */
   const squares = Array.from({ length: 9 });
   const cellClass = (i: number) => {
     const row = Math.floor(i / 3);
@@ -67,7 +69,7 @@ function IntroScreen({ onPlay }: { onPlay: () => void }) {
 }
 
 /* ──────────────────────────
- ▍Main game board & root
+ ▍Main game board
  ────────────────────────── */
 function GameBoard() {
   const {
@@ -76,31 +78,48 @@ function GameBoard() {
     startDrag,
     endDrag,
     move: boardMove,
+    swap: boardSwap,
   } = useBoard();
 
-  /* ★ First‑move restriction state */
+  /* first‑move state */
   const firstRedMove = useRef(true);
 
-  /* Calculate center position of red home row */
-  const RED_HOME_ROW = BOARD_ROWS - 2; // Second to last row
-  const RED_HOME_CENTER = (RED_HOME_ROW * BOARD_COLS) + Math.floor(BOARD_COLS / 2);
+  /* indices */
+  const RED_HOME_ROW = BOARD_ROWS - 2;
+  const RED_HOME_CENTER =
+    (RED_HOME_ROW * BOARD_COLS) + Math.floor(BOARD_COLS / 2);
 
-  /* move wrapper that also updates first‑move flag */
+  /* set of hand indices (31‑33) */
+  const handSet = useMemo(() => new Set<CellIndex>(RED_DST), []);
+
+  /* wrapper to decide swap vs move */
   const moveCard = useCallback(
     (from: CellIndex, to: CellIndex) => {
+      const inHand = handSet.has(from) && handSet.has(to);
+      if (inHand) {
+        boardSwap(from, to);
+        return;
+      }
+
       boardMove(from, to);
+
       if (firstRedMove.current && to === RED_HOME_CENTER) {
         firstRedMove.current = false;
       }
     },
-    [boardMove],
+    [boardMove, boardSwap, handSet, RED_HOME_CENTER],
   );
 
-  /* validate drops */
+  /* validity rules */
   const canDrop = useCallback(
-    (_from: CellIndex, to: CellIndex) =>
-      firstRedMove.current ? to === RED_HOME_CENTER : true,
-    [],
+    (from: CellIndex, to: CellIndex) => {
+      const inHand = handSet.has(from) && handSet.has(to);
+      if (inHand) return true;                 // always allow swap
+      return firstRedMove.current
+        ? to === RED_HOME_CENTER
+        : true;
+    },
+    [handSet, RED_HOME_CENTER],
   );
 
   const drag = useSnapDrag(moveCard, canDrop);
@@ -113,9 +132,7 @@ function GameBoard() {
     completeFlight,
   } = useFlights(cellRefs, moveCard);
 
-  /* ╔════════════════════════════════════════════════════╗
-     ║  Deal *exactly once* – even under Strict‑Mode      ║
-     ╚════════════════════════════════════════════════════╝ */
+  /* Deal exactly once */
   const dealtRef = useRef(false);
   useEffect(() => {
     if (dealtRef.current) return;
@@ -130,7 +147,7 @@ function GameBoard() {
     queue(BLK_SRC, BLK_DST);
   }, [addFlight]);
 
-  /* keep drag‑source in sync with global pointer‑up */
+  /* sync dragSrc with pointer */
   useEffect(() => {
     document.addEventListener('pointerup', endDrag);
     return () => document.removeEventListener('pointerup', endDrag);
@@ -138,7 +155,6 @@ function GameBoard() {
 
   const handleDown = (e: Ptr<HTMLElement>, idx: CellIndex) => {
     if (idx === RED_SRC || idx === BLK_SRC) return;
-
     startDrag(idx);
     drag.down(e, idx);
   };
@@ -154,9 +170,7 @@ function GameBoard() {
         {cells.map((stack, idx) => (
           <Cell
             key={idx}
-            ref={el => {
-              cellRefs.current[idx] = el;
-            }}
+            ref={el => { cellRefs.current[idx] = el; }}
             idx={idx as CellIndex}
             stack={stack}
             hidden={hiddenByCell(idx)}
@@ -180,9 +194,5 @@ function GameBoard() {
 
 export default function Home() {
   const [started, setStarted] = useState(false);
-  return started ? (
-    <GameBoard />
-  ) : (
-    <IntroScreen onPlay={() => setStarted(true)} />
-  );
+  return started ? <GameBoard /> : <IntroScreen onPlay={() => setStarted(true)} />;
 }

@@ -69,6 +69,7 @@ export function makeStartingCells(): Cards[] {
         { length: BOARD_ROWS * BOARD_COLS },
         () => [] as Cards,
     );
+
     const push = (cell: CellIndex, suit: Suit, rank: Rank) =>
         cells[cell].push({ suit, rank, faceUp: false });
 
@@ -89,15 +90,11 @@ export interface BoardState {
 }
 export type BoardAction =
     | { type: 'MOVE'; from: CellIndex; to: CellIndex }
+    | { type: 'SWAP'; a: CellIndex; b: CellIndex }
     | { type: 'START_DRAG'; src: CellIndex }
     | { type: 'END_DRAG' };
 
-/**
- * Move one card and decide if it should be flipped.
- * – Cards dealt from the black deck (`BLK_SRC`) to the **top row** (`row 0`)
- *   stay face‑down.
- * – All other moves flip the card face‑up.
- */
+/* Helpers */
 const moveCardInCells = (cells: Cards[], from: CellIndex, to: CellIndex) => {
     if (from === to) return cells;
     const next = cells.map(s => [...s]) as Cards[];
@@ -111,11 +108,26 @@ const moveCardInCells = (cells: Cards[], from: CellIndex, to: CellIndex) => {
     return next;
 };
 
+const swapCardsInCells = (cells: Cards[], a: CellIndex, b: CellIndex) => {
+    if (a === b) return cells;
+    const next = cells.map(s => [...s]) as Cards[];
+    const cardA = next[a].pop();
+    const cardB = next[b].pop();
+    if (cardA) next[b].push(cardA);
+    if (cardB) next[a].push(cardB);
+    return next;
+};
+
 export const reducer: Reducer<BoardState, BoardAction> = (state, action) => {
     switch (action.type) {
         case 'MOVE':
             return {
                 cells: moveCardInCells(state.cells, action.from, action.to),
+                dragSrc: null,
+            };
+        case 'SWAP':
+            return {
+                cells: swapCardsInCells(state.cells, action.a, action.b),
                 dragSrc: null,
             };
         case 'START_DRAG':
@@ -169,7 +181,7 @@ export const snapBack = (el: HTMLElement, o: Origin, ms = 250) => {
 };
 
 /* ──────────────────────────
-   Hook: useSnapDrag  ★ UPDATED
+   Hook: useSnapDrag
    ────────────────────────── */
 type DropFn = (from: CellIndex, to: CellIndex) => void;
 const SNAP_MS = 250;
@@ -384,6 +396,8 @@ export function useBoard() {
         endDrag: () => dispatch({ type: 'END_DRAG' }),
         move: (from: CellIndex, to: CellIndex) =>
             dispatch({ type: 'MOVE', from, to }),
+        swap: (a: CellIndex, b: CellIndex) =>
+            dispatch({ type: 'SWAP', a, b }),
     };
 }
 

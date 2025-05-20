@@ -94,7 +94,11 @@ beforeAll(() => {
     }
     (global as unknown as { DOMRect: typeof DOMRect }).DOMRect = MockRect;
 });
-afterEach(() => { cleanup(); jest.clearAllMocks(); });
+afterEach(() => {
+    cleanup();
+    jest.clearAllMocks();
+    jest.restoreAllMocks();
+});
 
 /* helpers ----------------------------------------------------------- */
 const cellEls = () =>
@@ -229,6 +233,36 @@ describe('<Home/> behaviour', () => {
 
         expect(cardCount(newDstEl)).toBe(1);
         expect(cardCount(dstEl)).toBe(0);
+    });
+
+    it('uses boardSwap when moving between hand positions', () => {
+        renderAndDeal();
+
+        const handIdx1 = 31;              /* first hand position */
+        const handIdx2 = 32;              /* second hand position */
+        const handEl1 = cellEls()[handIdx1];
+        const handEl2 = cellEls()[handIdx2];
+
+        // Get initial card values
+        const initialCard1 = handEl1.querySelector('[data-testid^="card-"]')?.textContent;
+        const initialCard2 = handEl2.querySelector('[data-testid^="card-"]')?.textContent;
+
+        const spy = jest
+            .spyOn(document, 'elementFromPoint')
+            .mockReturnValue(handEl2);
+
+        const top = handEl1.querySelector('[data-testid^="card-"]')!;
+        act(() => {
+            fireEvent.pointerDown(top, { clientX: 5, clientY: 5 });
+            fireEvent.pointerMove(handEl2, { clientX: 40, clientY: 40 });
+            fireEvent.pointerUp(handEl2, { clientX: 40, clientY: 40 });
+        });
+
+        spy.mockRestore();
+
+        // Verify cards were swapped
+        expect(handEl1.querySelector('[data-testid^="card-"]')?.textContent).toBe(initialCard2);
+        expect(handEl2.querySelector('[data-testid^="card-"]')?.textContent).toBe(initialCard1);
     });
 
     it('fires completeFlight when a FlyingCard finishes', () => {

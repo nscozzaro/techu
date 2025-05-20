@@ -1,6 +1,12 @@
 {
     "extends": "next/core-web-vitals",
     "rules": {
-        "@typescript-eslint/no-unused-vars": "error"
+        "@typescript-eslint/no-unused-vars": "error",
+        "@typescript-eslint/no-require-imports": "error",
+        "@typescript-eslint/no-var-requires": "error",
+        "@typescript-eslint/no-require-import": "error"
+    },
+    "parserOptions": {
+        "project": "./tsconfig.json"
     }
 }
