@@ -10,6 +10,45 @@ import {
     cleanup,
 } from '@testing-library/react';
 import { renderHook } from '@testing-library/react';
+import '@testing-library/jest-dom';
+
+/* ------------------------------------------------------------------ */
+/*  MOCK: replace Cell so it *always* forwards onDown                 */
+/* ------------------------------------------------------------------ */
+jest.mock('../lib', () => {
+    const actual = jest.requireActual('../lib');
+
+    const FakeCell = React.forwardRef(function FakeCell(
+        props: {
+            idx: number;
+            stack: Array<{ suit: string; rank: string; faceUp: boolean }>;
+            onDown: (e: React.PointerEvent<HTMLElement>, idx: number) => void;
+        },
+        ref: React.Ref<HTMLDivElement>,
+    ) {
+        const { idx, stack, onDown } = props;
+        const top = stack[stack.length - 1];
+        return (
+            <div
+                ref={ref}
+                data-cell={idx}
+                role="generic"
+                className="cell"            /* ★ add class */
+            >
+                {top && (
+                    <div
+                        data-testid={`card-${idx}`}
+                        onPointerDown={(e) => onDown(e, idx)}
+                    />
+                )}
+            </div>
+        );
+    }) as unknown as typeof actual.Cell;
+
+    return { ...actual, Cell: FakeCell };
+});
+
+/* ── import AFTER the mock ────────────────────────────────────────── */
 import Home from '../page';
 import {
     useFlights,
@@ -17,9 +56,10 @@ import {
     BOARD_ROWS,
     BOARD_COLS,
     RED_SRC,
+    BLK_SRC,
+    DECK_CELLS,
     CellIndex,
 } from '../lib';
-import '@testing-library/jest-dom';
 
 /* predictable CSS class names */
 jest.mock('../page.module.css', () => ({
@@ -34,6 +74,7 @@ jest.mock('../page.module.css', () => ({
 /* ───── JSDOM quirks & timers ───── */
 beforeAll(() => {
     jest.useFakeTimers();
+
     global.requestAnimationFrame = cb => (cb(0), 0);
     global.cancelAnimationFrame = () => { };
 
@@ -54,18 +95,25 @@ beforeAll(() => {
     }
     (global as unknown as { DOMRect: typeof DOMRect }).DOMRect = MockRect;
 });
-afterEach(() => {
-    cleanup();
-    jest.clearAllMocks();
-});
+afterEach(() => { cleanup(); jest.clearAllMocks(); });
 
 /* helpers ----------------------------------------------------------- */
 const cellEls = () =>
     screen.getAllByRole('generic').filter(el => el.className.includes('cell'));
-const cardCount = (el: Element) => el.querySelectorAll('.card').length;
-const runAllDealTimers = () => {
-    /* six setTimeouts (3 red + 3 black) */
-    for (let i = 0; i < 6; i++) jest.runOnlyPendingTimers();
+const cardCount = (el: Element) => el.querySelectorAll('[data-testid^="card-"]').length;
+
+/** mount <Home/>, start the game, run timers, finish flights */
+const renderAndDeal = () => {
+    render(<Home />);
+    fireEvent.click(screen.getByText('Begin'));
+
+    act(() => { jest.runAllTimers(); });               // fire all deal timers
+
+    act(() => {                                        // finish flights
+        document
+            .querySelectorAll('.flying')
+            .forEach(el => fireEvent.transitionEnd(el));
+    });
 };
 
 /* ------------------------------------------------------------------ */
@@ -73,9 +121,7 @@ const runAllDealTimers = () => {
 /* ------------------------------------------------------------------ */
 describe('useFlights', () => {
     it('early‑returns when refs missing', () => {
-        const refs: React.RefObject<(HTMLDivElement | null)[]> = {
-            current: [null, null],
-        };
+        const refs: React.RefObject<(HTMLDivElement | null)[]> = { current: [null, null] };
         const move = jest.fn();
 
         const { result } = renderHook(() => useFlights(refs, move));
@@ -92,9 +138,7 @@ describe('useFlights', () => {
         a.getBoundingClientRect = () => new DOMRect(0, 0, 10, 10);
         b.getBoundingClientRect = () => new DOMRect(100, 0, 10, 10);
 
-        const refs: React.RefObject<(HTMLDivElement | null)[]> = {
-            current: [a, b],
-        };
+        const refs: React.RefObject<(HTMLDivElement | null)[]> = { current: [a, b] };
 
         const { result } = renderHook(() => useFlights(refs, jest.fn()));
 
@@ -109,89 +153,74 @@ describe('useFlights', () => {
 /*  2. <Home/> integration tests                                      */
 /* ------------------------------------------------------------------ */
 describe('<Home/> behaviour', () => {
-    /** helper: mount and fully settle initial deal */
-    const renderAndDeal = () => {
-        render(<Home />);
-        fireEvent.click(screen.getByText('Begin'));
-        runAllDealTimers();
-        document.querySelectorAll('.flying')
-            .forEach(el => fireEvent.transitionEnd(el));
-        act(() => jest.runOnlyPendingTimers());
-    };
-
     it('renders grid and initial decks', () => {
         renderAndDeal();
-        expect(cellEls()).toHaveLength(BOARD_ROWS * BOARD_COLS);
-        expect(cellEls()[RED_SRC].querySelectorAll('.card')).toHaveLength(1);
+        expect(cellEls()).toHaveLength(BOARD_ROWS * BOARD_COLS);  // ✅
+        expect(cardCount(cellEls()[RED_SRC])).toBe(1);
     });
 
-    it('drags card from red deck to an empty cell', () => {
+    it('drags card **from a dealt cell**, not from a deck', () => {
         renderAndDeal();
 
-        const src = cellEls()[RED_SRC];
-        const dst = cellEls().find(
-            (c, i) => i !== RED_SRC && !c.querySelector('.card'),
+        const srcIdx = 31;
+        const srcEl = cellEls()[srcIdx];
+        expect(cardCount(srcEl)).toBe(1);
+
+        const dstEl = cellEls().find(
+            (el, i) =>
+                !DECK_CELLS.includes(i as CellIndex) &&
+                i !== srcIdx &&
+                cardCount(el) === 0,
         )!;
 
-        const spy = jest.spyOn(document, 'elementFromPoint').mockReturnValue(dst);
+        const spy = jest
+            .spyOn(document, 'elementFromPoint')
+            .mockReturnValue(dstEl);
 
-        const top = src.querySelector('.card')!;
+        const top = srcEl.querySelector('[data-testid^="card-"]')!;
         act(() => {
             fireEvent.pointerDown(top, { clientX: 5, clientY: 5 });
-            fireEvent.pointerMove(dst, { clientX: 40, clientY: 40 });
-            fireEvent.pointerUp(dst, { clientX: 40, clientY: 40 });
+            fireEvent.pointerMove(dstEl, { clientX: 40, clientY: 40 });
+            fireEvent.pointerUp(dstEl, { clientX: 40, clientY: 40 });
         });
 
         spy.mockRestore();
 
-        expect(cardCount(dst)).toBe(1);
-        expect(cardCount(src)).toBe(1);
+        expect(cardCount(dstEl)).toBe(1);
+        expect(cardCount(srcEl)).toBe(0);
     });
 
     it('fires completeFlight when a FlyingCard finishes', () => {
         render(<Home />);
         fireEvent.click(screen.getByText('Begin'));
 
-        /* queue first 0‑ms flight */
-        act(() => jest.advanceTimersByTime(0));
+        act(() => jest.advanceTimersByTime(0));          // first flight queued
 
-        const flightEl = document.querySelector('.flying') as HTMLElement | null;
-        expect(flightEl).not.toBeNull();       // flight exists
+        const flightEl =
+            document.querySelector('.flying') as HTMLElement | null;
+        expect(flightEl).not.toBeNull();
 
-        /* complete this specific flight */
-        act(() => {
-            fireEvent.transitionEnd(flightEl!);
-        });
+        act(() => { fireEvent.transitionEnd(flightEl!); });
 
-        /* the original element should be detached */
         expect(flightEl!.isConnected).toBe(false);
     });
 });
 
 /* ------------------------------------------------------------------ */
-/*  NEW 3. dealtRef guard coverage                                    */
+/*  3. dealtRef guard coverage                                        */
 /* ------------------------------------------------------------------ */
 describe('GameBoard deal guard', () => {
     it('queues deals only once even under React.StrictMode', () => {
-        // Fresh timer / spy setup
-        jest.clearAllMocks();
         const spy = jest.spyOn(global, 'setTimeout');
 
-        // Mount inside StrictMode to trigger the double‑invocation of effects
         render(
             <React.StrictMode>
                 <Home />
             </React.StrictMode>,
         );
-
-        // Start the game (mounts <GameBoard/>)
         fireEvent.click(screen.getByText('Begin'));
 
-        // First effect run schedules exactly 6 setTimeouts (3 red + 3 black)
         expect(spy).toHaveBeenCalledTimes(6);
-
-        // If the second (StrictMode) run triggered more deals,
-        // the call count would be higher. It isn’t – covering the guard.
         spy.mockRestore();
     });
 });
@@ -205,7 +234,27 @@ describe('useBoard', () => {
         expect(result.current.cells[RED_SRC]).toHaveLength(26);
 
         act(() => result.current.move(RED_SRC, 1 as CellIndex));
-
         expect(result.current.cells[1]).toHaveLength(1);
+    });
+});
+
+/* ------------------------------------------------------------------ */
+/*  5. COVER handleDown guard (deck‑cell early return)                */
+/* ------------------------------------------------------------------ */
+describe('handleDown early‑return for deck cells', () => {
+    it('pointer‑down on deck piles does not start a drag', () => {
+        renderAndDeal();
+
+        const redCard = screen.getByTestId(`card-${RED_SRC}`);
+        const blackCard = screen.getByTestId(`card-${BLK_SRC}`);
+
+        const redBefore = cardCount(cellEls()[RED_SRC]);
+        const blackBefore = cardCount(cellEls()[BLK_SRC]);
+
+        fireEvent.pointerDown(redCard, { clientX: 5, clientY: 5 });
+        fireEvent.pointerDown(blackCard, { clientX: 10, clientY: 10 });
+
+        expect(cardCount(cellEls()[RED_SRC])).toBe(redBefore);
+        expect(cardCount(cellEls()[BLK_SRC])).toBe(blackBefore);
     });
 });

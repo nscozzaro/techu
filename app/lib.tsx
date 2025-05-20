@@ -1,4 +1,3 @@
-// lib.tsx
 'use client';
 
 import React, {
@@ -25,9 +24,12 @@ export type PixelPosition = number & { __brand: 'PixelPosition' };
 
 export const RED_SRC = ((BOARD_ROWS - 1) * BOARD_COLS) as CellIndex; // 30
 export const RED_DST = [31, 32, 33] as CellIndex[];
-export const BLK_SRC = (BOARD_COLS - 1) as CellIndex;               // 4
+export const BLK_SRC = (BOARD_COLS - 1) as CellIndex;      // 4
 export const BLK_DST = [3, 2, 1] as CellIndex[];
 export const DEAL_DELAY_MS = 1_000;
+
+/* export handy list of the two deck cells */
+export const DECK_CELLS = [RED_SRC, BLK_SRC] as const;
 
 /* ──────────────────────────
    Card domain
@@ -41,19 +43,10 @@ export const SUITS = {
 export type Suit = (typeof SUITS)[keyof typeof SUITS];
 
 export const RANKS = {
-    Two: 'Two',
-    Three: 'Three',
-    Four: 'Four',
-    Five: 'Five',
-    Six: 'Six',
-    Seven: 'Seven',
-    Eight: 'Eight',
-    Nine: 'Nine',
-    Ten: 'Ten',
-    Jack: 'Jack',
-    Queen: 'Queen',
-    King: 'King',
-    Ace: 'Ace',
+    Two: 'Two', Three: 'Three', Four: 'Four',
+    Five: 'Five', Six: 'Six', Seven: 'Seven',
+    Eight: 'Eight', Nine: 'Nine', Ten: 'Ten',
+    Jack: 'Jack', Queen: 'Queen', King: 'King', Ace: 'Ace',
 } as const;
 export type Rank = (typeof RANKS)[keyof typeof RANKS];
 
@@ -101,9 +94,9 @@ export type BoardAction =
 
 /**
  * Move one card and decide if it should be flipped.
- * – Cards dealt from the black deck (`BLK_SRC`) to the **top row** (`row 0`)
+ * – Cards dealt from the black deck (`BLK_SRC`) to the **top row** (`row 0`)
  *   stay face‑down.
- * – All other moves flip the card face‑up.
+ * – All other moves flip the card face‑up.
  */
 const moveCardInCells = (cells: Cards[], from: CellIndex, to: CellIndex) => {
     if (from === to) return cells;
@@ -139,14 +132,8 @@ type StyleKV = Partial<CSSStyleDeclaration>;
 const setStyle = (el: HTMLElement, kv: StyleKV) => Object.assign(el.style, kv);
 
 const ORIGIN_CLEAR: StyleKV = {
-    position: '',
-    left: '',
-    top: '',
-    zIndex: '',
-    width: '',
-    height: '',
-    transition: '',
-    pointerEvents: '',
+    position: '', left: '', top: '', zIndex: '',
+    width: '', height: '', transition: '', pointerEvents: '',
 };
 export const clearStyles = (el: HTMLElement) => setStyle(el, ORIGIN_CLEAR);
 
@@ -157,13 +144,9 @@ export interface Origin {
 
 export const fixedDragStyle = (box: DOMRect): StyleKV => ({
     position: 'fixed',
-    left: `${box.left}px`,
-    top: `${box.top}px`,
-    width: `${box.width}px`,
-    height: `${box.height}px`,
-    zIndex: '10',
-    transition: 'none',
-    pointerEvents: 'none',
+    left: `${box.left}px`, top: `${box.top}px`,
+    width: `${box.width}px`, height: `${box.height}px`,
+    zIndex: '10', transition: 'none', pointerEvents: 'none',
 });
 
 const dragPos = (o: Origin, e: PointerEvent): StyleKV => ({
@@ -177,8 +160,7 @@ export const setPos = (
 ) => el && o && setStyle(el, dragPos(o, e));
 
 const snapBackStyle = (o: Origin, ms: number): StyleKV => ({
-    left: `${o.x}px`,
-    top: `${o.y}px`,
+    left: `${o.x}px`, top: `${o.y}px`,
     transition: `left ${ms}ms ease, top ${ms}ms ease`,
 });
 export const snapBack = (el: HTMLElement, o: Origin, ms = 250) => {
@@ -209,21 +191,15 @@ export function useSnapDrag(onDrop: DropFn) {
 
     const pointerUp = (e: PointerEvent) => {
         if (!isActive()) return;
-        const el = elRef.current!;
-        const o = origRef.current!;
-        const dst = destCell(e);
+        const el = elRef.current!, o = origRef.current!, dst = destCell(e);
 
         if (dst === o.cell) snapBack(el, o, SNAP_MS);
-        else {
-            clearStyles(el);
-            onDrop(o.cell, dst);
-        }
+        else { clearStyles(el); onDrop(o.cell, dst); }
 
         if (moveRef.current)
             document.removeEventListener('pointermove', moveRef.current);
         document.removeEventListener('pointerup', pointerUp);
-        moveRef.current = null;
-        elRef.current = origRef.current = null;
+        moveRef.current = null; elRef.current = origRef.current = null;
     };
 
     const down = (evt: React.PointerEvent<HTMLElement>, idx: CellIndex) => {
@@ -251,11 +227,8 @@ export function useSnapDrag(onDrop: DropFn) {
    Flights reducer
    ────────────────────────── */
 export interface Flight {
-    id: string;
-    src: CellIndex;
-    dst: CellIndex;
-    start: DOMRect;
-    end: DOMRect;
+    id: string; src: CellIndex; dst: CellIndex;
+    start: DOMRect; end: DOMRect;
 }
 export type Flights = Flight[];
 
@@ -264,9 +237,7 @@ type FlightAction =
     | { type: 'REMOVE'; id: string };
 
 export const flightsReducer = (l: Flights, a: FlightAction): Flights =>
-    a.type === 'ADD'
-        ? [...l, a.payload]
-        : l.filter(f => f.id !== a.id);
+    a.type === 'ADD' ? [...l, a.payload] : l.filter(f => f.id !== a.id);
 
 /* ──────────────────────────
    Presentational components
@@ -299,6 +270,8 @@ export const CardView = ({
     </div>
 );
 
+const noop: (e: Ptr<HTMLElement>) => void = () => { };
+
 export const Cell = forwardRef<HTMLDivElement, {
     idx: CellIndex;
     stack: Cards;
@@ -311,13 +284,23 @@ export const Cell = forwardRef<HTMLDivElement, {
     const top = stack[stack.length - 1 - hidden];
     const next = stack[stack.length - 2 - hidden];
 
+    /* deck cells get pointer‑events disabled */
+    const isDeck = idx === RED_SRC || idx === BLK_SRC;
+    const deckStyle = isDeck ? { pointerEvents: 'none' as const } : undefined;
+    const down = isDeck ? noop : (e: Ptr<HTMLElement>) => onDown(e, idx);
+
     return (
-        <div ref={ref} data-cell={idx} className={styles.cell} role="generic">
-            {top && (
-                <CardView card={top} onDown={e => onDown(e, idx)} />
-            )}
+        <div
+            ref={ref}
+            data-cell={idx}
+            data-testid="cell"
+            className={styles.cell}
+            role="generic"
+            style={deckStyle}
+        >
+            {top && <CardView card={top} onDown={down} />}
             {next && isDragging && dragSrc === idx && (
-                <CardView card={next} onDown={e => onDown(e, idx)} />
+                <CardView card={next} onDown={down} />
             )}
         </div>
     );
@@ -334,15 +317,13 @@ export function FlyingCard({
     flight: Flight;
     onFinish: () => void;
 }) {
-    /* 1. place card at start coords */
+    /* 1. place card at start coords */
     const [style, setStyle] = useState<React.CSSProperties>(() => ({
         position: 'fixed',
         left: flight.start.left,
         top: flight.start.top,
         width: flight.start.width,
         height: flight.start.height,
-        /* animate only **left** and **top** – keeps one transitionend event
-           & lets us use the same test assertions. */
         transition: 'left 250ms ease, top 250ms ease',
     }));
 
@@ -358,7 +339,7 @@ export function FlyingCard({
         return () => cancelAnimationFrame(id);
     }, [flight.end]);
 
-    /* 3. fire onFinish **once** (even though two properties transition) */
+    /* 3. fire onFinish **once** */
     const done = useRef(false);
     const handleEnd = () => {
         if (done.current) return;
@@ -388,8 +369,7 @@ export function useBoard() {
     }));
     return {
         ...state,
-        startDrag: (src: CellIndex) =>
-            dispatch({ type: 'START_DRAG', src }),
+        startDrag: (src: CellIndex) => dispatch({ type: 'START_DRAG', src }),
         endDrag: () => dispatch({ type: 'END_DRAG' }),
         move: (from: CellIndex, to: CellIndex) =>
             dispatch({ type: 'MOVE', from, to }),
@@ -417,8 +397,7 @@ export function useFlights(
                 type: 'ADD',
                 payload: {
                     id: Math.random().toString(36).slice(2),
-                    src,
-                    dst,
+                    src, dst,
                     start: fromEl.getBoundingClientRect(),
                     end: toEl.getBoundingClientRect(),
                 },

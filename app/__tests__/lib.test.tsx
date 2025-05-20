@@ -217,6 +217,50 @@ describe('Cell pointerDown', () => {
         fireEvent.pointerDown(screen.getAllByRole('img')[1]);
         expect(cb).toHaveBeenCalledTimes(2);
     });
+
+    it('disables pointer events and uses noop for deck cells', () => {
+        const pile = [{ suit: SUITS.Hearts, rank: RANKS.Two, faceUp: true }];
+        const cb = jest.fn();
+
+        // Test red deck cell
+        const { rerender } = render(
+            <Cell
+                idx={RED_SRC}
+                stack={pile}
+                hidden={0}
+                dragSrc={null}
+                isDragging={false}
+                onDown={cb}
+            />
+        );
+
+        // Check that pointer events are disabled
+        const cell = screen.getByTestId('cell');
+        expect(cell.style.pointerEvents).toBe('none');
+
+        // Try to trigger pointer down - should not call callback
+        fireEvent.pointerDown(screen.getByRole('img'));
+        expect(cb).not.toHaveBeenCalled();
+
+        // Test black deck cell
+        rerender(
+            <Cell
+                idx={BLK_SRC}
+                stack={pile}
+                hidden={0}
+                dragSrc={null}
+                isDragging={false}
+                onDown={cb}
+            />
+        );
+
+        // Check that pointer events are disabled
+        expect(cell.style.pointerEvents).toBe('none');
+
+        // Try to trigger pointer down - should not call callback
+        fireEvent.pointerDown(screen.getByRole('img'));
+        expect(cb).not.toHaveBeenCalled();
+    });
 });
 
 /*──────────────── misc sanity ─────────────────────────*/

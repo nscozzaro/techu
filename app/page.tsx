@@ -1,4 +1,3 @@
-// page.tsx
 'use client';
 
 import React, {
@@ -38,10 +37,7 @@ function IntroScreen({ onPlay }: { onPlay: () => void }) {
     <div className={styles.intro}>
       <div className={styles.logoGrid}>
         {squares.map((_, i) => (
-          <div
-            key={i}
-            className={`${styles.logoCell} ${cellClass(i)}`}
-          />
+          <div key={i} className={`${styles.logoCell} ${cellClass(i)}`} />
         ))}
       </div>
 
@@ -75,10 +71,8 @@ function GameBoard() {
   const drag = useSnapDrag(move);
 
   const cellRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const { flights, hiddenByCell, addFlight, completeFlight } = useFlights(
-    cellRefs,
-    move,
-  );
+  const { flights, hiddenByCell,
+    addFlight, completeFlight } = useFlights(cellRefs, move);
 
   /* ╔════════════════════════════════════════════════════╗
      ║  Deal *exactly once* – even under Strict‑Mode      ║
@@ -104,6 +98,8 @@ function GameBoard() {
   }, [endDrag]);
 
   const handleDown = (e: Ptr<HTMLElement>, idx: CellIndex) => {
+    if (idx === RED_SRC || idx === BLK_SRC) return;
+
     startDrag(idx);
     drag.down(e, idx);
   };
@@ -119,9 +115,7 @@ function GameBoard() {
         {cells.map((stack, idx) => (
           <Cell
             key={idx}
-            ref={el => {
-              cellRefs.current[idx] = el;
-            }}
+            ref={el => { cellRefs.current[idx] = el; }}
             idx={idx as CellIndex}
             stack={stack}
             hidden={hiddenByCell(idx)}
