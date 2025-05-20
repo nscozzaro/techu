@@ -58,6 +58,9 @@ import {
     RED_SRC,
     BLK_SRC,
     CellIndex,
+    BLK_DST,
+    SUITS,
+    RANKS,
 } from '../lib';
 
 /* predictable CSS class names */
@@ -332,5 +335,146 @@ describe('handleDown early‑return for deck cells', () => {
 
         expect(cardCount(cellEls()[RED_SRC])).toBe(redBefore);
         expect(cardCount(cellEls()[BLK_SRC])).toBe(blackBefore);
+    });
+});
+
+/* ------------------------------------------------------------------ */
+/*  6. Bot play coverage                                              */
+/* ------------------------------------------------------------------ */
+describe('Bot play functionality', () => {
+    it('makes a move after black cards are dealt', () => {
+        render(<Home />);
+        fireEvent.click(screen.getByText('Begin'));
+
+        // Run all deal timers to get cards in place
+        act(() => {
+            jest.runAllTimers();
+        });
+
+        // Complete all flights
+        act(() => {
+            document
+                .querySelectorAll('.flying')
+                .forEach(el => fireEvent.transitionEnd(el));
+        });
+
+        // Run the bot play timer
+        act(() => {
+            jest.runAllTimers();
+        });
+
+        // Complete the bot's flight
+        act(() => {
+            document
+                .querySelectorAll('.flying')
+                .forEach(el => fireEvent.transitionEnd(el));
+        });
+
+        // Verify a card was moved to the black home center
+        const blackHomeCenter = 7 as CellIndex; // BLK_HOME_CENTER = 1 * BOARD_COLS + Math.floor(BOARD_COLS / 2)
+        expect(cardCount(cellEls()[blackHomeCenter])).toBe(1);
+    });
+
+    it('handles case when no black cards are available', () => {
+        // Mock useBoard to return empty cells for black destinations
+        const mockUseBoard = jest.spyOn({ useBoard }, 'useBoard');
+        mockUseBoard.mockImplementation(() => ({
+            cells: Array(BOARD_ROWS * BOARD_COLS).fill([]).map((_, i) =>
+                BLK_DST.includes(i as CellIndex) ? [] : [{ suit: SUITS.Spades, rank: RANKS.Ace, faceUp: true }]
+            ),
+            dragSrc: null,
+            startDrag: jest.fn(),
+            endDrag: jest.fn(),
+            move: jest.fn(),
+            swap: jest.fn(),
+        }));
+
+        render(<Home />);
+        fireEvent.click(screen.getByText('Begin'));
+
+        // Run all deal timers
+        act(() => {
+            jest.runAllTimers();
+        });
+
+        // Complete all flights
+        act(() => {
+            document
+                .querySelectorAll('.flying')
+                .forEach(el => fireEvent.transitionEnd(el));
+        });
+
+        // Run the bot play timer
+        act(() => {
+            jest.runAllTimers();
+        });
+
+        // Complete any remaining flights
+        act(() => {
+            document
+                .querySelectorAll('.flying')
+                .forEach(el => fireEvent.transitionEnd(el));
+        });
+
+        // Verify no new flights were created
+        expect(document.querySelectorAll('.flying')).toHaveLength(0);
+
+        // Clean up mock
+        mockUseBoard.mockRestore();
+    });
+
+    it('handles case when black cards are dealt but then removed', () => {
+        // Mock useBoard to return empty cells for black destinations
+        const mockUseBoard = jest.spyOn({ useBoard }, 'useBoard');
+        let cells = Array(BOARD_ROWS * BOARD_COLS).fill([]).map((_, i) =>
+            BLK_DST.includes(i as CellIndex) ? [{ suit: SUITS.Spades, rank: RANKS.Ace, faceUp: true }] : [{ suit: SUITS.Spades, rank: RANKS.Ace, faceUp: true }]
+        );
+
+        mockUseBoard.mockImplementation(() => ({
+            cells,
+            dragSrc: null,
+            startDrag: jest.fn(),
+            endDrag: jest.fn(),
+            move: jest.fn(),
+            swap: jest.fn(),
+        }));
+
+        render(<Home />);
+        fireEvent.click(screen.getByText('Begin'));
+
+        // Run all deal timers to get cards in place
+        act(() => {
+            jest.runAllTimers();
+        });
+
+        // Complete all flights
+        act(() => {
+            document
+                .querySelectorAll('.flying')
+                .forEach(el => fireEvent.transitionEnd(el));
+        });
+
+        // Update cells to remove black cards
+        cells = Array(BOARD_ROWS * BOARD_COLS).fill([]).map((_, i) =>
+            BLK_DST.includes(i as CellIndex) ? [] : [{ suit: SUITS.Spades, rank: RANKS.Ace, faceUp: true }]
+        );
+
+        // Run the bot play timer
+        act(() => {
+            jest.runAllTimers();
+        });
+
+        // Complete any remaining flights
+        act(() => {
+            document
+                .querySelectorAll('.flying')
+                .forEach(el => fireEvent.transitionEnd(el));
+        });
+
+        // Verify no new flights were created
+        expect(document.querySelectorAll('.flying')).toHaveLength(0);
+
+        // Clean up mock
+        mockUseBoard.mockRestore();
     });
 });

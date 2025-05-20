@@ -31,8 +31,9 @@ import {
     Card, PixelPosition, Origin, CellIndex,
     BoardDimension, Flight,
     CardView, Cell, FlyingCard,
-    RED_SRC, BLK_SRC,
-    BOARD_COLS,
+    RED_SRC, BLK_SRC, BLK_DST,
+    BOARD_COLS, BOARD_ROWS,
+    makeBotMove,
 } from '../lib';
 
 /* helpers ------------------------------------------------------------------ */
@@ -443,5 +444,77 @@ describe('misc', () => {
         const a: BoardDimension = 7 as BoardDimension;
         const b: PixelPosition = 3 as PixelPosition;
         expect(a + (b as unknown as number)).toBe(10);
+    });
+});
+
+/*───────────────────────────────────────────────────────────────────────────*/
+/*  Card face-up/down rules                                                  */
+/*───────────────────────────────────────────────────────────────────────────*/
+describe('shouldKeepFaceDown', () => {
+    it('keeps face down for black deck to row 0', () => {
+        const { result } = renderHook(() => useBoard());
+
+        // Move from black deck to row 0
+        act(() => result.current.move(BLK_SRC, 0 as CellIndex));
+        expect(result.current.cells[0][0].faceUp).toBe(false);
+    });
+
+    it('keeps face down for black hand to row 1', () => {
+        const { result } = renderHook(() => useBoard());
+
+        // First move a card to the black hand
+        act(() => result.current.move(BLK_SRC, BLK_DST[0]));
+
+        // Then move from black hand to row 1 center
+        act(() => result.current.move(BLK_DST[0], (BOARD_COLS as unknown as CellIndex)));
+        expect(result.current.cells[BOARD_COLS][0].faceUp).toBe(false);
+    });
+
+    it('turns face up for other moves', () => {
+        const { result } = renderHook(() => useBoard());
+
+        // Move from black deck to row 1
+        act(() => result.current.move(BLK_SRC, (BOARD_COLS as unknown as CellIndex)));
+        expect(result.current.cells[BOARD_COLS][0].faceUp).toBe(true);
+
+        // First move a card to the black hand
+        act(() => result.current.move(BLK_SRC, BLK_DST[0]));
+
+        // Then move from black hand to row 2
+        act(() => result.current.move(BLK_DST[0], ((BOARD_COLS * 2) as unknown as CellIndex)));
+        expect(result.current.cells[BOARD_COLS * 2][0].faceUp).toBe(true);
+    });
+});
+
+/*───────────────────────────────────────────────────────────────────────────*/
+/*  Bot play logic                                                          */
+/*───────────────────────────────────────────────────────────────────────────*/
+describe('makeBotMove', () => {
+    it('returns early when no cards are available', () => {
+        const addFlight = jest.fn();
+        const cells = Array(BOARD_ROWS * BOARD_COLS).fill([]);
+        const blackDestinations = [31, 32, 33] as CellIndex[];
+        const blackHomeCenter = 7 as CellIndex;
+
+        makeBotMove(cells, addFlight, blackDestinations, blackHomeCenter);
+
+        expect(addFlight).not.toHaveBeenCalled();
+    });
+
+    it('makes a move when cards are available', () => {
+        const addFlight = jest.fn();
+        const cells = Array(BOARD_ROWS * BOARD_COLS).fill([]).map((_, i) =>
+            [31, 32, 33].includes(i) ? [{ suit: '♠', rank: 'A', faceUp: true }] : []
+        );
+        const blackDestinations = [31, 32, 33] as CellIndex[];
+        const blackHomeCenter = 7 as CellIndex;
+
+        makeBotMove(cells, addFlight, blackDestinations, blackHomeCenter);
+
+        expect(addFlight).toHaveBeenCalledTimes(1);
+        expect(addFlight).toHaveBeenCalledWith(
+            expect.any(Number),
+            blackHomeCenter
+        );
     });
 });

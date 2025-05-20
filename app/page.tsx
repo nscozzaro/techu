@@ -23,13 +23,14 @@ import {
   DEAL_DELAY_MS,
   BOARD_ROWS,
   BOARD_COLS,
+  makeBotMove,
 } from './lib';
 
 /* ──────────────────────────
  ▍Intro / splash component
  ────────────────────────── */
 function IntroScreen({ onPlay }: { onPlay: () => void }) {
-  /* 3×3 grid top row black, blank middle, bottom red */
+  /* 3×3 grid – top row black, blank middle, bottom red */
   const squares = Array.from({ length: 9 });
   const cellClass = (i: number) => {
     const row = Math.floor(i / 3);
@@ -81,49 +82,56 @@ function GameBoard() {
     swap: boardSwap,
   } = useBoard();
 
-  /* first‑move state */
+  /* first‑move state (red only) */
   const firstRedMove = useRef(true);
 
-  /* indices */
+  /* row / column helpers */
   const RED_HOME_ROW = BOARD_ROWS - 2;
   const RED_HOME_CENTER =
-    (RED_HOME_ROW * BOARD_COLS) + Math.floor(BOARD_COLS / 2);
+    RED_HOME_ROW * BOARD_COLS + Math.floor(BOARD_COLS / 2);
 
-  /* set of hand indices (31‑33) */
-  const handSet = useMemo(() => new Set<CellIndex>(RED_DST), []);
+  const BLK_HOME_ROW = 1;
+  const BLK_HOME_CENTER =
+    BLK_HOME_ROW * BOARD_COLS + Math.floor(BOARD_COLS / 2);
 
-  /* wrapper to decide swap vs move */
+  /* sets of "hand" cells */
+  const redHand = useMemo(() => new Set<CellIndex>(RED_DST), []);
+
+  /* wrapper deciding swap vs move */
   const moveCard = useCallback(
     (from: CellIndex, to: CellIndex) => {
-      const inHand = handSet.has(from) && handSet.has(to);
-      if (inHand) {
+      const fromInRedHand = redHand.has(from);
+      const toInRedHand = redHand.has(to);
+
+      /* hand‑to‑hand swap for RED only (black hand is bot‑controlled) */
+      if (fromInRedHand && toInRedHand) {
         boardSwap(from, to);
         return;
       }
 
       boardMove(from, to);
 
+      /* record that red's first move has occurred */
       if (firstRedMove.current && to === RED_HOME_CENTER) {
         firstRedMove.current = false;
       }
     },
-    [boardMove, boardSwap, handSet, RED_HOME_CENTER],
+    [boardMove, boardSwap, redHand, RED_HOME_CENTER],
   );
 
-  /* validity rules */
+  /* pointer‑drag rules */
   const canDrop = useCallback(
     (from: CellIndex, to: CellIndex) => {
-      const inHand = handSet.has(from) && handSet.has(to);
-      if (inHand) return true;                 // always allow swap
-      return firstRedMove.current
-        ? to === RED_HOME_CENTER
-        : true;
+      const inRedHand = redHand.has(from) && redHand.has(to);
+      if (inRedHand) return true; // always allow swap within red hand
+      return firstRedMove.current ? to === RED_HOME_CENTER : true;
     },
-    [handSet, RED_HOME_CENTER],
+    [redHand, RED_HOME_CENTER],
   );
 
   const drag = useSnapDrag(moveCard, canDrop);
 
+  /* flight helpers */
   const cellRefs = useRef<(HTMLDivElement | null)[]>([]);
   const {
     flights,
@@ -132,7 +140,7 @@ function GameBoard() {
     completeFlight,
   } = useFlights(cellRefs, moveCard);
 
-  /* Deal exactly once */
+  /* ───── initial deal (fires once) ───── */
   const dealtRef = useRef(false);
   useEffect(() => {
     if (dealtRef.current) return;
@@ -147,13 +155,33 @@ function GameBoard() {
     queue(BLK_SRC, BLK_DST);
   }, [addFlight]);
 
-  /* sync dragSrc with pointer */
+  /* ───── auto‑play bot move (black) ───── */
+  const botPlayedRef = useRef(false);
+  useEffect(() => {
+    if (botPlayedRef.current) return;
+
+    /* have all three black hand cards arrived? */
+    const handReady = BLK_DST.every(idx => cells[idx].length > 0);
+    if (!handReady) return;
+
+    botPlayedRef.current = true;
+
+    /* schedule bot play after the same delay as a human turn */
+    const id = setTimeout(() => {
+      makeBotMove(cells, addFlight, BLK_DST, BLK_HOME_CENTER as CellIndex);
+    }, DEAL_DELAY_MS);
+
+    return () => clearTimeout(id);
+  }, [cells, addFlight, BLK_HOME_CENTER]);
+
+  /* ───── keep dragSrc in sync with pointer‑up anywhere ───── */
   useEffect(() => {
     document.addEventListener('pointerup', endDrag);
     return () => document.removeEventListener('pointerup', endDrag);
   }, [endDrag]);
 
   const handleDown = (e: Ptr<HTMLElement>, idx: CellIndex) => {
+    /* decks are not draggable */
     if (idx === RED_SRC || idx === BLK_SRC) return;
     startDrag(idx);
     drag.down(e, idx);
@@ -170,7 +198,9 @@ function GameBoard() {
         {cells.map((stack, idx) => (
           <Cell
             key={idx}
-            ref={el => { cellRefs.current[idx] = el; }}
+            ref={el => {
+              cellRefs.current[idx] = el;
+            }}
             idx={idx as CellIndex}
             stack={stack}
             hidden={hiddenByCell(idx)}
@@ -194,5 +224,9 @@ function GameBoard() {
 
 export default function Home() {
   const [started, setStarted] = useState(false);
-  return started ? <GameBoard /> : <IntroScreen onPlay={() => setStarted(true)} />;
+  return started ? (
+    <GameBoard />
+  ) : (
+    <IntroScreen onPlay={() => setStarted(true)} />
+  );
 }

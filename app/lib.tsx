@@ -50,7 +50,11 @@ export const RANKS = {
 } as const;
 export type Rank = (typeof RANKS)[keyof typeof RANKS];
 
-export interface Card { suit: Suit; rank: Rank; faceUp: boolean }
+export interface Card {
+    suit: Suit;
+    rank: Rank;
+    faceUp: boolean;
+}
 export type Cards = Card[];
 
 export const SUIT_COLOR: Record<Suit, 'black' | 'red'> = {
@@ -95,14 +99,23 @@ export type BoardAction =
     | { type: 'END_DRAG' };
 
 /* Helpers */
+const shouldKeepFaceDown = (from: CellIndex, dstRow: number): boolean => {
+    return (from === BLK_SRC && dstRow === 0) ||
+        (BLK_DST.includes(from) && dstRow === 1);
+};
+
 const moveCardInCells = (cells: Cards[], from: CellIndex, to: CellIndex) => {
     if (from === to) return cells;
+
     const next = cells.map(s => [...s]) as Cards[];
     const card = next[from].pop();
     if (card) {
         const dstRow = Math.floor(to / BOARD_COLS);
-        const keepFaceDown = from === BLK_SRC && dstRow === 0;
-        if (!keepFaceDown) card.faceUp = true;
+
+        /* keep card face‑down if:
+           1. initial black‑deck deal to row 0
+           2. bot plays a black‑hand card to row 1 centre          */
+        if (!shouldKeepFaceDown(from, dstRow)) card.faceUp = true;
         next[to].push(card);
     }
     return next;
@@ -250,8 +263,11 @@ export function useSnapDrag(
    Flights reducer
    ────────────────────────── */
 export interface Flight {
-    id: string; src: CellIndex; dst: CellIndex;
-    start: DOMRect; end: DOMRect;
+    id: string;
+    src: CellIndex;
+    dst: CellIndex;
+    start: DOMRect;
+    end: DOMRect;
 }
 export type Flights = Flight[];
 
@@ -295,14 +311,17 @@ export const CardView = ({
 
 const noop: (e: Ptr<HTMLElement>) => void = () => { };
 
-export const Cell = forwardRef<HTMLDivElement, {
-    idx: CellIndex;
-    stack: Cards;
-    hidden: number;
-    dragSrc: CellIndex | null;
-    isDragging: boolean;
-    onDown: (e: Ptr<HTMLElement>, idx: CellIndex) => void;
-}>((p, ref) => {
+export const Cell = forwardRef<
+    HTMLDivElement,
+    {
+        idx: CellIndex;
+        stack: Cards;
+        hidden: number;
+        dragSrc: CellIndex | null;
+        isDragging: boolean;
+        onDown: (e: Ptr<HTMLElement>, idx: CellIndex) => void;
+    }
+>((p, ref) => {
     const { idx, stack, hidden, dragSrc, isDragging, onDown } = p;
     const top = stack[stack.length - 1 - hidden];
     const next = stack[stack.length - 2 - hidden];
@@ -383,6 +402,21 @@ export function FlyingCard({
 }
 
 /* ──────────────────────────
+   Bot play logic
+   ────────────────────────── */
+export function makeBotMove(
+    cells: Array<Array<{ suit: string; rank: string; faceUp: boolean }>>,
+    addFlight: (src: CellIndex, dst: CellIndex) => void,
+    blackDestinations: CellIndex[],
+    blackHomeCenter: CellIndex,
+) {
+    const available = blackDestinations.filter(idx => cells[idx].length > 0);
+    if (!available.length) return;
+    const src = available[Math.floor(Math.random() * available.length)] as CellIndex;
+    addFlight(src, blackHomeCenter);
+}
+
+/* ──────────────────────────
    ▍ Logic hooks exported here
    ────────────────────────── */
 export function useBoard() {
@@ -422,7 +456,8 @@ export function useFlights(
                 type: 'ADD',
                 payload: {
                     id: Math.random().toString(36).slice(2),
-                    src, dst,
+                    src,
+                    dst,
                     start: fromEl.getBoundingClientRect(),
                     end: toEl.getBoundingClientRect(),
                 },
