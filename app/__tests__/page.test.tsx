@@ -33,12 +33,12 @@ jest.mock('../lib', () => {
                 ref={ref}
                 data-cell={idx}
                 role="generic"
-                className="cell"            /* ★ add class */
+                className="cell"
             >
                 {top && (
                     <div
                         data-testid={`card-${idx}`}
-                        onPointerDown={(e) => onDown(e, idx)}
+                        onPointerDown={e => onDown(e, idx)}
                     />
                 )}
             </div>
@@ -57,7 +57,6 @@ import {
     BOARD_COLS,
     RED_SRC,
     BLK_SRC,
-    DECK_CELLS,
     CellIndex,
 } from '../lib';
 
@@ -100,16 +99,19 @@ afterEach(() => { cleanup(); jest.clearAllMocks(); });
 /* helpers ----------------------------------------------------------- */
 const cellEls = () =>
     screen.getAllByRole('generic').filter(el => el.className.includes('cell'));
-const cardCount = (el: Element) => el.querySelectorAll('[data-testid^="card-"]').length;
+const cardCount = (el: Element) =>
+    el.querySelectorAll('[data-testid^="card-"]').length;
 
 /** mount <Home/>, start the game, run timers, finish flights */
 const renderAndDeal = () => {
     render(<Home />);
     fireEvent.click(screen.getByText('Begin'));
 
-    act(() => { jest.runAllTimers(); });               // fire all deal timers
+    act(() => {
+        jest.runAllTimers(); /* fire all deal timers */
+    });
 
-    act(() => {                                        // finish flights
+    act(() => { /* finish flights */
         document
             .querySelectorAll('.flying')
             .forEach(el => fireEvent.transitionEnd(el));
@@ -121,7 +123,9 @@ const renderAndDeal = () => {
 /* ------------------------------------------------------------------ */
 describe('useFlights', () => {
     it('early‑returns when refs missing', () => {
-        const refs: React.RefObject<(HTMLDivElement | null)[]> = { current: [null, null] };
+        const refs: React.RefObject<(HTMLDivElement | null)[]> = {
+            current: [null, null],
+        };
         const move = jest.fn();
 
         const { result } = renderHook(() => useFlights(refs, move));
@@ -138,7 +142,9 @@ describe('useFlights', () => {
         a.getBoundingClientRect = () => new DOMRect(0, 0, 10, 10);
         b.getBoundingClientRect = () => new DOMRect(100, 0, 10, 10);
 
-        const refs: React.RefObject<(HTMLDivElement | null)[]> = { current: [a, b] };
+        const refs: React.RefObject<(HTMLDivElement | null)[]> = {
+            current: [a, b],
+        };
 
         const { result } = renderHook(() => useFlights(refs, jest.fn()));
 
@@ -155,23 +161,20 @@ describe('useFlights', () => {
 describe('<Home/> behaviour', () => {
     it('renders grid and initial decks', () => {
         renderAndDeal();
-        expect(cellEls()).toHaveLength(BOARD_ROWS * BOARD_COLS);  // ✅
+        expect(cellEls()).toHaveLength(BOARD_ROWS * BOARD_COLS);
         expect(cardCount(cellEls()[RED_SRC])).toBe(1);
     });
 
-    it('drags card **from a dealt cell**, not from a deck', () => {
+    it('first red move only allowed to cell 27', () => {
         renderAndDeal();
 
-        const srcIdx = 31;
+        const srcIdx = 31;                /* one of the dealt red cards */
+        const dstIdx = 27;                /* centre of red home row */
         const srcEl = cellEls()[srcIdx];
-        expect(cardCount(srcEl)).toBe(1);
+        const dstEl = cellEls()[dstIdx];
 
-        const dstEl = cellEls().find(
-            (el, i) =>
-                !DECK_CELLS.includes(i as CellIndex) &&
-                i !== srcIdx &&
-                cardCount(el) === 0,
-        )!;
+        expect(cardCount(srcEl)).toBe(1);
+        expect(cardCount(dstEl)).toBe(0);
 
         const spy = jest
             .spyOn(document, 'elementFromPoint')
@@ -190,17 +193,56 @@ describe('<Home/> behaviour', () => {
         expect(cardCount(srcEl)).toBe(0);
     });
 
+    it('allows red moves to any cell after first move', () => {
+        renderAndDeal();
+
+        const srcIdx = 31;                /* one of the dealt red cards */
+        const dstIdx = 27;                /* centre of red home row */
+        const srcEl = cellEls()[srcIdx];
+        const dstEl = cellEls()[dstIdx];
+
+        // Make first move to center
+        const spy = jest
+            .spyOn(document, 'elementFromPoint')
+            .mockReturnValue(dstEl);
+
+        const top = srcEl.querySelector('[data-testid^="card-"]')!;
+        act(() => {
+            fireEvent.pointerDown(top, { clientX: 5, clientY: 5 });
+            fireEvent.pointerMove(dstEl, { clientX: 40, clientY: 40 });
+            fireEvent.pointerUp(dstEl, { clientX: 40, clientY: 40 });
+        });
+
+        // Now try moving to a different cell
+        const newDstIdx = 28;             /* adjacent to center */
+        const newDstEl = cellEls()[newDstIdx];
+        spy.mockReturnValue(newDstEl);
+
+        const newTop = dstEl.querySelector('[data-testid^="card-"]')!;
+        act(() => {
+            fireEvent.pointerDown(newTop, { clientX: 5, clientY: 5 });
+            fireEvent.pointerMove(newDstEl, { clientX: 40, clientY: 40 });
+            fireEvent.pointerUp(newDstEl, { clientX: 40, clientY: 40 });
+        });
+
+        spy.mockRestore();
+
+        expect(cardCount(newDstEl)).toBe(1);
+        expect(cardCount(dstEl)).toBe(0);
+    });
+
     it('fires completeFlight when a FlyingCard finishes', () => {
         render(<Home />);
         fireEvent.click(screen.getByText('Begin'));
 
-        act(() => jest.advanceTimersByTime(0));          // first flight queued
+        act(() => jest.advanceTimersByTime(0)); /* first flight queued */
 
-        const flightEl =
-            document.querySelector('.flying') as HTMLElement | null;
+        const flightEl = document.querySelector('.flying') as HTMLElement | null;
         expect(flightEl).not.toBeNull();
 
-        act(() => { fireEvent.transitionEnd(flightEl!); });
+        act(() => {
+            fireEvent.transitionEnd(flightEl!);
+        });
 
         expect(flightEl!.isConnected).toBe(false);
     });

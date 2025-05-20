@@ -169,12 +169,15 @@ export const snapBack = (el: HTMLElement, o: Origin, ms = 250) => {
 };
 
 /* ──────────────────────────
-   Hook: useSnapDrag
+   Hook: useSnapDrag  ★ UPDATED
    ────────────────────────── */
 type DropFn = (from: CellIndex, to: CellIndex) => void;
 const SNAP_MS = 250;
 
-export function useSnapDrag(onDrop: DropFn) {
+export function useSnapDrag(
+    onDrop: DropFn,
+    canDrop?: (from: CellIndex, to: CellIndex) => boolean,
+) {
     const elRef = useRef<HTMLElement | null>(null);
     const origRef = useRef<Origin | null>(null);
     const moveRef = useRef<((e: PointerEvent) => void) | null>(null);
@@ -191,15 +194,23 @@ export function useSnapDrag(onDrop: DropFn) {
 
     const pointerUp = (e: PointerEvent) => {
         if (!isActive()) return;
-        const el = elRef.current!, o = origRef.current!, dst = destCell(e);
+        const el = elRef.current!;
+        const o = origRef.current!;
+        const dst = destCell(e);
+        const allowed = canDrop ? canDrop(o.cell, dst) : true;
 
-        if (dst === o.cell) snapBack(el, o, SNAP_MS);
-        else { clearStyles(el); onDrop(o.cell, dst); }
+        if (!allowed || dst === o.cell) {
+            snapBack(el, o, SNAP_MS);
+        } else {
+            clearStyles(el);
+            onDrop(o.cell, dst);
+        }
 
         if (moveRef.current)
             document.removeEventListener('pointermove', moveRef.current);
         document.removeEventListener('pointerup', pointerUp);
-        moveRef.current = null; elRef.current = origRef.current = null;
+        moveRef.current = null;
+        elRef.current = origRef.current = null;
     };
 
     const down = (evt: React.PointerEvent<HTMLElement>, idx: CellIndex) => {

@@ -5,6 +5,7 @@ import React, {
   PointerEvent as Ptr,
   useEffect,
   useRef,
+  useCallback,
 } from 'react';
 import styles from './page.module.css';
 import {
@@ -19,6 +20,8 @@ import {
   BLK_SRC,
   BLK_DST,
   DEAL_DELAY_MS,
+  BOARD_ROWS,
+  BOARD_COLS,
 } from './lib';
 
 /* ──────────────────────────
@@ -67,12 +70,48 @@ function IntroScreen({ onPlay }: { onPlay: () => void }) {
  ▍Main game board & root
  ────────────────────────── */
 function GameBoard() {
-  const { cells, dragSrc, startDrag, endDrag, move } = useBoard();
-  const drag = useSnapDrag(move);
+  const {
+    cells,
+    dragSrc,
+    startDrag,
+    endDrag,
+    move: boardMove,
+  } = useBoard();
+
+  /* ★ First‑move restriction state */
+  const firstRedMove = useRef(true);
+
+  /* Calculate center position of red home row */
+  const RED_HOME_ROW = BOARD_ROWS - 2; // Second to last row
+  const RED_HOME_CENTER = (RED_HOME_ROW * BOARD_COLS) + Math.floor(BOARD_COLS / 2);
+
+  /* move wrapper that also updates first‑move flag */
+  const moveCard = useCallback(
+    (from: CellIndex, to: CellIndex) => {
+      boardMove(from, to);
+      if (firstRedMove.current && to === RED_HOME_CENTER) {
+        firstRedMove.current = false;
+      }
+    },
+    [boardMove],
+  );
+
+  /* validate drops */
+  const canDrop = useCallback(
+    (_from: CellIndex, to: CellIndex) =>
+      firstRedMove.current ? to === RED_HOME_CENTER : true,
+    [],
+  );
+
+  const drag = useSnapDrag(moveCard, canDrop);
 
   const cellRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const { flights, hiddenByCell,
-    addFlight, completeFlight } = useFlights(cellRefs, move);
+  const {
+    flights,
+    hiddenByCell,
+    addFlight,
+    completeFlight,
+  } = useFlights(cellRefs, moveCard);
 
   /* ╔════════════════════════════════════════════════════╗
      ║  Deal *exactly once* – even under Strict‑Mode      ║
@@ -115,7 +154,9 @@ function GameBoard() {
         {cells.map((stack, idx) => (
           <Cell
             key={idx}
-            ref={el => { cellRefs.current[idx] = el; }}
+            ref={el => {
+              cellRefs.current[idx] = el;
+            }}
             idx={idx as CellIndex}
             stack={stack}
             hidden={hiddenByCell(idx)}
