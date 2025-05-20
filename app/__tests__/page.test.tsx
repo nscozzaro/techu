@@ -23,17 +23,18 @@ jest.mock('../lib', () => {
             idx: number;
             stack: Array<{ suit: string; rank: string; faceUp: boolean }>;
             onDown: (e: React.PointerEvent<HTMLElement>, idx: number) => void;
+            highlight?: boolean;
         },
         ref: React.Ref<HTMLDivElement>,
     ) {
-        const { idx, stack, onDown } = props;
+        const { idx, stack, onDown, highlight } = props;
         const top = stack[stack.length - 1];
         return (
             <div
                 ref={ref}
                 data-cell={idx}
                 role="generic"
-                className="cell"
+                className={`cell ${highlight ? 'highlight' : ''}`}
             >
                 {top && (
                     <div
@@ -71,6 +72,7 @@ jest.mock('../page.module.css', () => ({
     card: 'card',
     back: 'back',
     flying: 'flying',
+    highlight: 'highlight',
 }));
 
 /* ───── JSDOM quirks & timers ───── */
@@ -236,6 +238,50 @@ describe('<Home/> behaviour', () => {
 
         expect(cardCount(newDstEl)).toBe(1);
         expect(cardCount(dstEl)).toBe(0);
+    });
+
+    it('highlights valid cells when dragging red hand card after first move', () => {
+        renderAndDeal();
+
+        // First make the initial move to center
+        const srcIdx = 31;                /* one of the dealt red cards */
+        const dstIdx = 27;                /* centre of red home row */
+        const srcEl = cellEls()[srcIdx];
+        const dstEl = cellEls()[dstIdx];
+
+        const spy = jest
+            .spyOn(document, 'elementFromPoint')
+            .mockReturnValue(dstEl);
+
+        const top = srcEl.querySelector('[data-testid^="card-"]')!;
+        act(() => {
+            fireEvent.pointerDown(top, { clientX: 5, clientY: 5 });
+            fireEvent.pointerMove(dstEl, { clientX: 40, clientY: 40 });
+            fireEvent.pointerUp(dstEl, { clientX: 40, clientY: 40 });
+        });
+
+        // Now start dragging another red hand card
+        const handIdx = 32;               /* another red hand position */
+        const handEl = cellEls()[handIdx];
+        const handCard = handEl.querySelector('[data-testid^="card-"]')!;
+
+        act(() => {
+            fireEvent.pointerDown(handCard, { clientX: 5, clientY: 5 });
+        });
+
+        // Check that all valid cells are highlighted
+        const cells = cellEls();
+        cells.forEach((cell, idx) => {
+            const isHighlighted = cell.className.includes('highlight');
+            const shouldBeHighlighted =
+                idx !== RED_SRC &&
+                idx !== BLK_SRC &&
+                ![31, 32, 33].includes(idx); // Not in red hand
+
+            expect(isHighlighted).toBe(shouldBeHighlighted);
+        });
+
+        spy.mockRestore();
     });
 
     it('uses boardSwap when moving between hand positions', () => {

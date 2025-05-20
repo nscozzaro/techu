@@ -31,6 +31,24 @@
   min-height: 0;
 }
 
+/* ✨ highlight for legal drop targets */
+@keyframes slowPulse {
+
+  0%,
+  100% {
+    border-color: #d4c237;
+  }
+
+  50% {
+    border-color: rgba(212, 194, 55, 0.3);
+  }
+}
+
+.highlight {
+  border-color: #d4c237;
+  animation: slowPulse 3s ease-in-out infinite;
+}
+
 .card {
   width: 85%;
   height: 85%;
@@ -62,7 +80,7 @@
 }
 
 /*  transition now applied inline in <FlyingCard>;
-      CSS keeps only positioning concerns */
+        CSS keeps only positioning concerns */
 .flying {
   position: fixed;
   z-index: 999;
@@ -70,8 +88,8 @@
 }
 
 /* ──────────────────────────
-     Intro‑screen styles
-     ────────────────────────── */
+       Intro‑screen styles
+       ────────────────────────── */
 .intro {
   position: fixed;
   inset: 0;

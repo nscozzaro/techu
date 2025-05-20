@@ -101,11 +101,7 @@ export type BoardAction =
 
 /* ──────────────────────────
    Face‑down rule helper
-   ──────────────────────────
-   A card stays face‑down when:
-     • it’s moving out of either player’s “hand” cells; OR
-     • the black deck deals straight to row 0 (initial layout)
-*/
+ ────────────────────────── */
 const shouldKeepFaceDown = (from: CellIndex, dstRow: number): boolean =>
     HAND_CELLS.includes(from) ||
     (from === BLK_SRC && dstRow === 0);
@@ -117,11 +113,7 @@ const moveCardInCells = (cells: Cards[], from: CellIndex, to: CellIndex) => {
     const card = next[from].pop();
     if (card) {
         const dstRow = Math.floor(to / BOARD_COLS);
-
-        /* obey new face‑down rule */
-        if (!shouldKeepFaceDown(from, dstRow)) card.faceUp = true;
-        else card.faceUp = false;
-
+        card.faceUp = !shouldKeepFaceDown(from, dstRow);
         next[to].push(card);
     }
     return next;
@@ -325,10 +317,19 @@ export const Cell = forwardRef<
         hidden: number;
         dragSrc: CellIndex | null;
         isDragging: boolean;
+        highlight?: boolean;
         onDown: (e: Ptr<HTMLElement>, idx: CellIndex) => void;
     }
 >((p, ref) => {
-    const { idx, stack, hidden, dragSrc, isDragging, onDown } = p;
+    const {
+        idx,
+        stack,
+        hidden,
+        dragSrc,
+        isDragging,
+        highlight = false,
+        onDown,
+    } = p;
     const top = stack[stack.length - 1 - hidden];
     const next = stack[stack.length - 2 - hidden];
 
@@ -341,11 +342,13 @@ export const Cell = forwardRef<
     const cellStyle = inactive ? { pointerEvents: 'none' as const } : undefined;
     const down = inactive ? noop : (e: Ptr<HTMLElement>) => onDown(e, idx);
 
+    const cls = `${styles.cell} ${highlight ? styles.highlight : ''}`;
+
     return (
         <div
             ref={ref}
             data-cell={idx}
-            className={styles.cell}
+            className={cls}
             role="generic"
             style={cellStyle}
         >

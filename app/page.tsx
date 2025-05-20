@@ -97,6 +97,11 @@ function GameBoard() {
   /* sets of "hand" cells */
   const redHand = useMemo(() => new Set<CellIndex>(RED_DST), []);
 
+  /* ✨ Highlight state */
+  const [highlightCells, setHighlightCells] = useState<Set<CellIndex>>(
+    () => new Set(),
+  );
+
   /* wrapper deciding swap vs move */
   const moveCard = useCallback(
     (from: CellIndex, to: CellIndex) => {
@@ -106,10 +111,12 @@ function GameBoard() {
       /* hand‑to‑hand swap for RED only (black hand is bot‑controlled) */
       if (fromInRedHand && toInRedHand) {
         boardSwap(from, to);
+        setHighlightCells(new Set());      // clear highlight
         return;
       }
 
       boardMove(from, to);
+      setHighlightCells(new Set());        // clear highlight
 
       /* record that red's first move has occurred */
       if (firstRedMove.current && to === RED_HOME_CENTER) {
@@ -180,9 +187,32 @@ function GameBoard() {
     return () => document.removeEventListener('pointerup', endDrag);
   }, [endDrag]);
 
+  /* ✨ clear highlight once dragging finishes */
+  useEffect(() => {
+    if (dragSrc === null) setHighlightCells(new Set());
+  }, [dragSrc]);
+
   const handleDown = (e: Ptr<HTMLElement>, idx: CellIndex) => {
     /* decks are not draggable */
     if (idx === RED_SRC || idx === BLK_SRC) return;
+
+    /* only compute highlight for RED‑hand drags */
+    if (redHand.has(idx)) {
+      const allowed = new Set<CellIndex>();
+
+      if (firstRedMove.current) {
+        allowed.add(RED_HOME_CENTER as CellIndex); // first move – only centre
+      } else {
+        /* after first move: any board cell except decks & red hand */
+        for (let i = 0; i < BOARD_ROWS * BOARD_COLS; i++) {
+          const id = i as CellIndex;
+          if (id !== RED_SRC && id !== BLK_SRC && !redHand.has(id))
+            allowed.add(id);
+        }
+      }
+      setHighlightCells(allowed);
+    }
+
     startDrag(idx);
     drag.down(e, idx);
   };
@@ -206,6 +236,7 @@ function GameBoard() {
             hidden={hiddenByCell(idx)}
             dragSrc={dragSrc}
             isDragging={dragSrc !== null}
+            highlight={highlightCells.has(idx as CellIndex)}
             onDown={handleDown}
           />
         ))}

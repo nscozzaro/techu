@@ -20,6 +20,7 @@ jest.mock('../page.module.css', () => ({
     back: 'back',
     flying: 'flying',
     cell: 'cell',
+    highlight: 'highlight',
 }));
 
 /* imports ------------------------------------------------------------------ */
@@ -384,6 +385,23 @@ describe('Cell pointerDown', () => {
         );
         fireEvent.pointerDown(screen.getAllByRole('img')[1]);
         expect(cb).toHaveBeenCalledTimes(2);
+    });
+
+    it('applies highlight class when highlight prop is true', () => {
+        const pile = [{ suit: SUITS.Hearts, rank: RANKS.Two, faceUp: true }];
+        const { container } = render(
+            <Cell
+                idx={8 as CellIndex}
+                stack={pile}
+                hidden={0}
+                dragSrc={null}
+                isDragging={false}
+                highlight={true}
+                onDown={() => { }}
+            />,
+        );
+        const cell = container.firstChild as HTMLElement;
+        expect(cell.className).toContain('highlight');
     });
 
     it('deck & black‑top disable interactivity', () => {
