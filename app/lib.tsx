@@ -293,7 +293,6 @@ export const Cell = forwardRef<HTMLDivElement, {
         <div
             ref={ref}
             data-cell={idx}
-            data-testid="cell"
             className={styles.cell}
             role="generic"
             style={deckStyle}

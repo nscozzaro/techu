@@ -235,7 +235,7 @@ describe('Cell pointerDown', () => {
         );
 
         // Check that pointer events are disabled
-        const cell = screen.getByTestId('cell');
+        const cell = screen.getByText('Two').closest('[data-cell="30"]') as HTMLDivElement;
         expect(cell.style.pointerEvents).toBe('none');
 
         // Try to trigger pointer down - should not call callback
