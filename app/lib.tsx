@@ -24,7 +24,7 @@ export type PixelPosition = number & { __brand: 'PixelPosition' };
 
 export const RED_SRC = ((BOARD_ROWS - 1) * BOARD_COLS) as CellIndex; // 30
 export const RED_DST = [31, 32, 33] as CellIndex[];
-export const BLK_SRC = (BOARD_COLS - 1) as CellIndex;      // 4
+export const BLK_SRC = (BOARD_COLS - 1) as CellIndex;               // 4
 export const BLK_DST = [3, 2, 1] as CellIndex[];
 export const DEAL_DELAY_MS = 1_000;
 
@@ -284,10 +284,14 @@ export const Cell = forwardRef<HTMLDivElement, {
     const top = stack[stack.length - 1 - hidden];
     const next = stack[stack.length - 2 - hidden];
 
-    /* deck cells get pointer‑events disabled */
+    /* determine interactivity rules */
     const isDeck = idx === RED_SRC || idx === BLK_SRC;
-    const deckStyle = isDeck ? { pointerEvents: 'none' as const } : undefined;
-    const down = isDeck ? noop : (e: Ptr<HTMLElement>) => onDown(e, idx);
+    const isBlackTop = top && cardColor(top.suit) === 'black';
+    const inactive = isDeck || isBlackTop;
+
+    /* style / handler based on interactivity */
+    const cellStyle = inactive ? { pointerEvents: 'none' as const } : undefined;
+    const down = inactive ? noop : (e: Ptr<HTMLElement>) => onDown(e, idx);
 
     return (
         <div
@@ -295,7 +299,7 @@ export const Cell = forwardRef<HTMLDivElement, {
             data-cell={idx}
             className={styles.cell}
             role="generic"
-            style={deckStyle}
+            style={cellStyle}
         >
             {top && <CardView card={top} onDown={down} />}
             {next && isDragging && dragSrc === idx && (
@@ -306,9 +310,6 @@ export const Cell = forwardRef<HTMLDivElement, {
 });
 Cell.displayName = 'Cell';
 
-/*───────────────────────────
-   ✔ Fixed: idempotent flight
-  ──────────────────────────*/
 export function FlyingCard({
     flight,
     onFinish,

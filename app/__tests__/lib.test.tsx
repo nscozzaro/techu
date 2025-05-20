@@ -208,11 +208,13 @@ describe('Cell pointerDown', () => {
     it('fires for top & next', () => {
         const pile = [
             { suit: SUITS.Hearts, rank: RANKS.Two, faceUp: true },
-            { suit: SUITS.Spades, rank: RANKS.Three, faceUp: true },
+            { suit: SUITS.Hearts, rank: RANKS.Three, faceUp: true },
         ];
         const cb = jest.fn();
         const { rerender } = render(<Cell idx={8 as CellIndex} stack={pile} hidden={0} dragSrc={null} isDragging={false} onDown={cb} />);
         fireEvent.pointerDown(screen.getByRole('img'));
+        expect(cb).toHaveBeenCalledTimes(1);
+
         rerender(<Cell idx={8 as CellIndex} stack={pile} hidden={0} dragSrc={8 as CellIndex} isDragging={true} onDown={cb} />);
         fireEvent.pointerDown(screen.getAllByRole('img')[1]);
         expect(cb).toHaveBeenCalledTimes(2);
@@ -255,6 +257,29 @@ describe('Cell pointerDown', () => {
         );
 
         // Check that pointer events are disabled
+        expect(cell.style.pointerEvents).toBe('none');
+
+        // Try to trigger pointer down - should not call callback
+        fireEvent.pointerDown(screen.getByRole('img'));
+        expect(cb).not.toHaveBeenCalled();
+    });
+
+    it('disables pointer events and uses noop for cells with black cards on top', () => {
+        const pile = [{ suit: SUITS.Spades, rank: RANKS.Two, faceUp: true }];
+        const cb = jest.fn();
+        render(
+            <Cell
+                idx={8 as CellIndex}
+                stack={pile}
+                hidden={0}
+                dragSrc={null}
+                isDragging={false}
+                onDown={cb}
+            />
+        );
+
+        // Check that pointer events are disabled
+        const cell = screen.getByText('Two').closest('[data-cell="8"]') as HTMLDivElement;
         expect(cell.style.pointerEvents).toBe('none');
 
         // Try to trigger pointer down - should not call callback
