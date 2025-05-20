@@ -51,9 +51,9 @@ function IntroScreen({ onPlay }: { onPlay: () => void }) {
       </h1>
 
       <p className={styles.introSub}>
-        Red&nbsp;vs&nbsp;black. 14 moves each.
+        Red&nbsp;vs&nbsp;black.
         <br />
-        Most spaces wins.
+        Most covered spaces wins.
       </p>
 
       <button className={styles.playBtn} onClick={onPlay}>

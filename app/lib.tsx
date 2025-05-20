@@ -1,3 +1,4 @@
+// lib.tsx
 'use client';
 
 import React, {
@@ -98,12 +99,20 @@ export type BoardAction =
     | { type: 'START_DRAG'; src: CellIndex }
     | { type: 'END_DRAG' };
 
+/**
+ * Move one card and decide if it should be flipped.
+ * – Cards dealt from the black deck (`BLK_SRC`) to the **top row** (`row 0`)
+ *   stay face‑down.
+ * – All other moves flip the card face‑up.
+ */
 const moveCardInCells = (cells: Cards[], from: CellIndex, to: CellIndex) => {
     if (from === to) return cells;
     const next = cells.map(s => [...s]) as Cards[];
     const card = next[from].pop();
     if (card) {
-        card.faceUp = true;
+        const dstRow = Math.floor(to / BOARD_COLS);
+        const keepFaceDown = from === BLK_SRC && dstRow === 0;
+        if (!keepFaceDown) card.faceUp = true;
         next[to].push(card);
     }
     return next;

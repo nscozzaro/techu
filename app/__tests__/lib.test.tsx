@@ -151,6 +151,22 @@ describe('reducer & useBoard', () => {
         expect(nx.cells).toBe(st.cells); expect(nx.dragSrc).toBeNull();
     });
 
+    it('cards from black source to top row stay face down, others flip face up', () => {
+        const { result } = renderHook(() => useBoard());
+
+        // Test 1: Moving from black source to top row (should stay face down)
+        act(() => result.current.move(BLK_SRC, 0 as CellIndex));
+        expect(result.current.cells[0][0].faceUp).toBe(false);
+
+        // Test 2: Moving from black source to non-top row (should flip face up)
+        act(() => result.current.move(BLK_SRC, BOARD_COLS as unknown as CellIndex));
+        expect(result.current.cells[BOARD_COLS][0].faceUp).toBe(true);
+
+        // Test 3: Moving from red source to top row (should flip face up)
+        act(() => result.current.move(RED_SRC, 0 as CellIndex));
+        expect(result.current.cells[0][1].faceUp).toBe(true);
+    });
+
     it('startDrag, endDrag, move', () => {
         const { result } = renderHook(() => useBoard());
         act(() => result.current.startDrag(4 as CellIndex)); expect(result.current.dragSrc).toBe(4);
