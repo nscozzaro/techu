@@ -1,8 +1,8 @@
+// page.tsx
 'use client';
 
 import React, {
   useState,
-  PointerEvent as Ptr,
   useEffect,
   useRef,
   useCallback,
@@ -16,6 +16,7 @@ import {
   Cell,
   FlyingCard,
   CellIndex,
+  Flight,
   RED_SRC,
   RED_DST,
   BLK_SRC,
@@ -24,13 +25,11 @@ import {
   BOARD_ROWS,
   BOARD_COLS,
   makeBotMove,
+  canDrop as canDropCard,
+  useHandleDown,
 } from './lib';
 
-/* ──────────────────────────
- ▍Intro / splash component
- ────────────────────────── */
 function IntroScreen({ onPlay }: { onPlay: () => void }) {
-  /* 3×3 grid – top row black, blank middle, bottom red */
   const squares = Array.from({ length: 9 });
   const cellClass = (i: number) => {
     const row = Math.floor(i / 3);
@@ -63,15 +62,14 @@ function IntroScreen({ onPlay }: { onPlay: () => void }) {
       </button>
 
       <p className={styles.meta}>
-        May&nbsp;18&nbsp;2025<br />v&nbsp;1.0
+        May&nbsp;18&nbsp;2025
+        <br />
+        v&nbsp;1.0
       </p>
     </div>
   );
 }
 
-/* ──────────────────────────
- ▍Main game board
- ────────────────────────── */
 function GameBoard() {
   const {
     cells,
@@ -80,74 +78,69 @@ function GameBoard() {
     endDrag,
     move: boardMove,
     swap: boardSwap,
+    reveal: boardReveal,
   } = useBoard();
 
-  /* first‑move state (red only) */
   const firstRedMove = useRef(true);
 
-  /* row / column helpers */
   const RED_HOME_ROW = BOARD_ROWS - 2;
   const RED_HOME_CENTER =
-    RED_HOME_ROW * BOARD_COLS + Math.floor(BOARD_COLS / 2);
+    RED_HOME_ROW * BOARD_COLS + Math.floor(BOARD_COLS / 2) as CellIndex;
 
   const BLK_HOME_ROW = 1;
   const BLK_HOME_CENTER =
-    BLK_HOME_ROW * BOARD_COLS + Math.floor(BOARD_COLS / 2);
+    BLK_HOME_ROW * BOARD_COLS + Math.floor(BOARD_COLS / 2) as CellIndex;
 
-  /* sets of "hand" cells */
   const redHand = useMemo(() => new Set<CellIndex>(RED_DST), []);
 
-  /* ✨ Highlight state */
   const [highlightCells, setHighlightCells] = useState<Set<CellIndex>>(
     () => new Set(),
   );
 
-  /* wrapper deciding swap vs move */
   const moveCard = useCallback(
     (from: CellIndex, to: CellIndex) => {
       const fromInRedHand = redHand.has(from);
       const toInRedHand = redHand.has(to);
 
-      /* hand‑to‑hand swap for RED only (black hand is bot‑controlled) */
       if (fromInRedHand && toInRedHand) {
         boardSwap(from, to);
-        setHighlightCells(new Set());      // clear highlight
+        setHighlightCells(new Set());
         return;
       }
 
       boardMove(from, to);
-      setHighlightCells(new Set());        // clear highlight
-
-      /* record that red's first move has occurred */
-      if (firstRedMove.current && to === RED_HOME_CENTER) {
-        firstRedMove.current = false;
-      }
+      setHighlightCells(new Set());
     },
-    [boardMove, boardSwap, redHand, RED_HOME_CENTER],
+    [boardMove, boardSwap, redHand],
   );
 
-  /* pointer‑drag rules */
   const canDrop = useCallback(
     (from: CellIndex, to: CellIndex) => {
-      const inRedHand = redHand.has(from) && redHand.has(to);
-      if (inRedHand) return true; // always allow swap within red hand
-      return firstRedMove.current ? to === RED_HOME_CENTER : true;
+      return canDropCard(from, to, redHand, firstRedMove.current, RED_HOME_CENTER as CellIndex);
     },
     [redHand, RED_HOME_CENTER],
   );
 
   const drag = useSnapDrag(moveCard, canDrop);
 
-  /* flight helpers */
   const cellRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const {
-    flights,
-    hiddenByCell,
-    addFlight,
-    completeFlight,
-  } = useFlights(cellRefs, moveCard);
+  const { flights, hiddenByCell, addFlight, completeFlight } = useFlights(
+    cellRefs,
+    moveCard,
+  );
 
-  /* ───── initial deal (fires once) ───── */
+  const handleDown = useHandleDown(
+    firstRedMove,
+    redHand,
+    RED_HOME_CENTER as CellIndex,
+    BLK_HOME_CENTER as CellIndex,
+    boardReveal,
+    setHighlightCells,
+    startDrag,
+    drag
+  );
+
+  // ─── initial deal ─────────────────────────────────
   const dealtRef = useRef(false);
   useEffect(() => {
     if (dealtRef.current) return;
@@ -162,60 +155,29 @@ function GameBoard() {
     queue(BLK_SRC, BLK_DST);
   }, [addFlight]);
 
-  /* ───── auto‑play bot move (black) ───── */
+  // ─── bot play ─────────────────────────────────────
   const botPlayedRef = useRef(false);
   useEffect(() => {
     if (botPlayedRef.current) return;
-
-    /* have all three black hand cards arrived? */
     const handReady = BLK_DST.every(idx => cells[idx].length > 0);
     if (!handReady) return;
 
     botPlayedRef.current = true;
-
-    /* schedule bot play after the same delay as a human turn */
     const id = setTimeout(() => {
       makeBotMove(cells, addFlight, BLK_DST, BLK_HOME_CENTER as CellIndex);
     }, DEAL_DELAY_MS);
-
     return () => clearTimeout(id);
   }, [cells, addFlight, BLK_HOME_CENTER]);
 
-  /* ───── keep dragSrc in sync with pointer‑up anywhere ───── */
+  // ─── pointer-up cleanup ────────────────────────────
   useEffect(() => {
     document.addEventListener('pointerup', endDrag);
     return () => document.removeEventListener('pointerup', endDrag);
   }, [endDrag]);
 
-  /* ✨ clear highlight once dragging finishes */
   useEffect(() => {
     if (dragSrc === null) setHighlightCells(new Set());
   }, [dragSrc]);
-
-  const handleDown = (e: Ptr<HTMLElement>, idx: CellIndex) => {
-    /* decks are not draggable */
-    if (idx === RED_SRC || idx === BLK_SRC) return;
-
-    /* only compute highlight for RED‑hand drags */
-    if (redHand.has(idx)) {
-      const allowed = new Set<CellIndex>();
-
-      if (firstRedMove.current) {
-        allowed.add(RED_HOME_CENTER as CellIndex); // first move – only centre
-      } else {
-        /* after first move: any board cell except decks & red hand */
-        for (let i = 0; i < BOARD_ROWS * BOARD_COLS; i++) {
-          const id = i as CellIndex;
-          if (id !== RED_SRC && id !== BLK_SRC && !redHand.has(id))
-            allowed.add(id);
-        }
-      }
-      setHighlightCells(allowed);
-    }
-
-    startDrag(idx);
-    drag.down(e, idx);
-  };
 
   return (
     <>
@@ -233,7 +195,7 @@ function GameBoard() {
             }}
             idx={idx as CellIndex}
             stack={stack}
-            hidden={hiddenByCell(idx)}
+            hidden={hiddenByCell(idx as CellIndex)}
             dragSrc={dragSrc}
             isDragging={dragSrc !== null}
             highlight={highlightCells.has(idx as CellIndex)}
@@ -242,7 +204,7 @@ function GameBoard() {
         ))}
       </div>
 
-      {flights.map(f => (
+      {flights.map((f: Flight) => (
         <FlyingCard
           key={f.id}
           flight={f}

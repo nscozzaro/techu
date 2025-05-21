@@ -1,3 +1,4 @@
+// lib.tsx
 'use client';
 
 import React, {
@@ -87,7 +88,7 @@ export function makeStartingCells(): Cards[] {
 }
 
 /* ──────────────────────────
-   Board reducer
+   Board reducer & actions
    ────────────────────────── */
 export interface BoardState {
     cells: Cards[];
@@ -97,10 +98,11 @@ export type BoardAction =
     | { type: 'MOVE'; from: CellIndex; to: CellIndex }
     | { type: 'SWAP'; a: CellIndex; b: CellIndex }
     | { type: 'START_DRAG'; src: CellIndex }
-    | { type: 'END_DRAG' };
+    | { type: 'END_DRAG' }
+    | { type: 'REVEAL'; indices: CellIndex[] };
 
 /* ──────────────────────────
-   Face‑down rule helper
+   Face-down rule helper
  ────────────────────────── */
 const shouldKeepFaceDown = (from: CellIndex, dstRow: number): boolean =>
     HAND_CELLS.includes(from) ||
@@ -145,6 +147,17 @@ export const reducer: Reducer<BoardState, BoardAction> = (state, action) => {
             return { ...state, dragSrc: action.src };
         case 'END_DRAG':
             return { ...state, dragSrc: null };
+        case 'REVEAL': {
+            // flip top cards at each center index
+            const next = state.cells.map(stack => stack.map(c => ({ ...c })));
+            action.indices.forEach(idx => {
+                const stack = next[idx];
+                if (stack.length) {
+                    stack[stack.length - 1].faceUp = true;
+                }
+            });
+            return { cells: next, dragSrc: null };
+        }
     }
 };
 
@@ -165,29 +178,20 @@ export interface Origin {
     offX: PixelPosition; offY: PixelPosition;
 }
 
-export const fixedDragStyle = (box: DOMRect): StyleKV => ({
-    position: 'fixed',
-    left: `${box.left}px`, top: `${box.top}px`,
-    width: `${box.width}px`, height: `${box.height}px`,
-    zIndex: '10', transition: 'none', pointerEvents: 'none',
-});
-
-const dragPos = (o: Origin, e: PointerEvent): StyleKV => ({
-    left: `${e.clientX - o.offX}px`,
-    top: `${e.clientY - o.offY}px`,
-});
 export const setPos = (
     el: HTMLElement | null,
     o: Origin | null,
     e: PointerEvent,
-) => el && o && setStyle(el, dragPos(o, e));
-
-const snapBackStyle = (o: Origin, ms: number): StyleKV => ({
-    left: `${o.x}px`, top: `${o.y}px`,
-    transition: `left ${ms}ms ease, top ${ms}ms ease`,
+) => el && o && setStyle(el, {
+    left: `${e.clientX - o.offX}px`,
+    top: `${e.clientY - o.offY}px`,
 });
+
 export const snapBack = (el: HTMLElement, o: Origin, ms = 250) => {
-    setStyle(el, snapBackStyle(o, ms));
+    setStyle(el, {
+        left: `${o.x}px`, top: `${o.y}px`,
+        transition: `left ${ms}ms ease, top ${ms}ms ease`,
+    });
     el.addEventListener('transitionend', () => clearStyles(el), { once: true });
 };
 
@@ -195,8 +199,6 @@ export const snapBack = (el: HTMLElement, o: Origin, ms = 250) => {
    Hook: useSnapDrag
    ────────────────────────── */
 type DropFn = (from: CellIndex, to: CellIndex) => void;
-const SNAP_MS = 250;
-
 export function useSnapDrag(
     onDrop: DropFn,
     canDrop?: (from: CellIndex, to: CellIndex) => boolean,
@@ -223,7 +225,7 @@ export function useSnapDrag(
         const allowed = canDrop ? canDrop(o.cell, dst) : true;
 
         if (!allowed || dst === o.cell) {
-            snapBack(el, o, SNAP_MS);
+            snapBack(el, o);
         } else {
             clearStyles(el);
             onDrop(o.cell, dst);
@@ -232,8 +234,7 @@ export function useSnapDrag(
         if (moveRef.current)
             document.removeEventListener('pointermove', moveRef.current);
         document.removeEventListener('pointerup', pointerUp);
-        moveRef.current = null;
-        elRef.current = origRef.current = null;
+        moveRef.current = elRef.current = origRef.current = null;
     };
 
     const down = (evt: React.PointerEvent<HTMLElement>, idx: CellIndex) => {
@@ -247,7 +248,16 @@ export function useSnapDrag(
             offY: (evt.clientY - box.top) as PixelPosition,
         };
         elRef.current = el;
-        setStyle(el, fixedDragStyle(box));
+        setStyle(el, {
+            position: 'fixed',
+            left: `${box.left}px`,
+            top: `${box.top}px`,
+            width: `${box.width}px`,
+            height: `${box.height}px`,
+            zIndex: '10',
+            transition: 'none',
+            pointerEvents: 'none',
+        });
 
         moveRef.current = e => setPos(elRef.current, origRef.current, e);
         document.addEventListener('pointermove', moveRef.current);
@@ -338,10 +348,8 @@ export const Cell = forwardRef<
     const isBlackTop = top && cardColor(top.suit) === 'black';
     const inactive = isDeck || isBlackTop;
 
-    /* style / handler based on interactivity */
     const cellStyle = inactive ? { pointerEvents: 'none' as const } : undefined;
     const down = inactive ? noop : (e: Ptr<HTMLElement>) => onDown(e, idx);
-
     const cls = `${styles.cell} ${highlight ? styles.highlight : ''}`;
 
     return (
@@ -426,8 +434,92 @@ export function makeBotMove(
 }
 
 /* ──────────────────────────
+   Move validation helpers
+   ────────────────────────── */
+const isValidSource = (idx: CellIndex, redHand: Set<CellIndex>): boolean => {
+    return redHand.has(idx);
+};
+
+const getFirstMoveDestination = (redHomeCenter: CellIndex): Set<CellIndex> => {
+    const allowed = new Set<CellIndex>();
+    allowed.add(redHomeCenter);
+    return allowed;
+};
+
+export const getSubsequentMoveDestinations = (redHand: Set<CellIndex>): Set<CellIndex> => {
+    const allowed = new Set<CellIndex>();
+    for (let i = 0; i < BOARD_ROWS * BOARD_COLS; i++) {
+        const id = i as CellIndex;
+        if (id !== RED_SRC && id !== BLK_SRC && !redHand.has(id)) {
+            allowed.add(id);
+        }
+    }
+    return allowed;
+};
+
+export function getAllowedMoves(
+    idx: CellIndex,
+    redHand: Set<CellIndex>,
+    firstRedMove: boolean,
+    redHomeCenter: CellIndex,
+): Set<CellIndex> {
+    if (!isValidSource(idx, redHand)) return new Set();
+    return firstRedMove
+        ? getFirstMoveDestination(redHomeCenter)
+        : getSubsequentMoveDestinations(redHand);
+}
+
+export const canDrop = (
+    from: CellIndex,
+    to: CellIndex,
+    redHand: Set<CellIndex>,
+    isFirstRedMove: boolean,
+    redHomeCenter: CellIndex,
+): boolean => {
+    const inRedHand = redHand.has(from) && redHand.has(to);
+    if (inRedHand) return true;
+    return isFirstRedMove ? to === redHomeCenter : true;
+};
+
+/* ──────────────────────────
    State hooks
    ────────────────────────── */
+export function useFlights(
+    cellRefs: React.MutableRefObject<(HTMLDivElement | null)[]>,
+    onComplete: (from: CellIndex, to: CellIndex) => void,
+) {
+    const [flights, dispatch] = useReducer(flightsReducer, []);
+
+    const addFlight = useCallback((src: CellIndex, dst: CellIndex) => {
+        const srcEl = cellRefs.current[src];
+        const dstEl = cellRefs.current[dst];
+        if (!srcEl || !dstEl) return;
+
+        const id = Math.random().toString(36).slice(2);
+        dispatch({
+            type: 'ADD',
+            payload: {
+                id,
+                src,
+                dst,
+                start: srcEl.getBoundingClientRect(),
+                end: dstEl.getBoundingClientRect(),
+            },
+        });
+    }, [cellRefs]);
+
+    const completeFlight = useCallback((flight: Flight) => {
+        dispatch({ type: 'REMOVE', id: flight.id });
+        onComplete(flight.src, flight.dst);
+    }, [onComplete]);
+
+    const hiddenByCell = useCallback((idx: CellIndex) => {
+        return flights.filter(f => f.src === idx).length;
+    }, [flights]);
+
+    return { flights, addFlight, completeFlight, hiddenByCell };
+}
+
 export function useBoard() {
     const [state, dispatch] = useReducer(reducer, undefined, () => ({
         cells: makeStartingCells(),
@@ -441,47 +533,39 @@ export function useBoard() {
             dispatch({ type: 'MOVE', from, to }),
         swap: (a: CellIndex, b: CellIndex) =>
             dispatch({ type: 'SWAP', a, b }),
+        reveal: (indices: CellIndex[]) =>
+            dispatch({ type: 'REVEAL', indices }),
     };
 }
 
-export function useFlights(
-    refs: React.RefObject<(HTMLDivElement | null)[]>,
-    moveCard: (from: CellIndex, to: CellIndex) => void,
+export function useHandleDown(
+    firstRedMove: React.RefObject<boolean>,
+    redHand: Set<CellIndex>,
+    redHomeCenter: CellIndex,
+    blackHomeCenter: CellIndex,
+    boardReveal: (indices: CellIndex[]) => void,
+    setHighlightCells: (cells: Set<CellIndex>) => void,
+    startDrag: (idx: CellIndex) => void,
+    drag: { down: (e: React.PointerEvent<HTMLElement>, idx: CellIndex) => void }
 ) {
-    const [flights, dispatch] = useReducer(flightsReducer, [] as Flights);
+    return useCallback((e: React.PointerEvent<HTMLElement>, idx: CellIndex) => {
+        // 1st-tap reveal
+        if (firstRedMove.current && idx === redHomeCenter) {
+            boardReveal([redHomeCenter, blackHomeCenter]);
+            firstRedMove.current = false;
+            setHighlightCells(new Set());
+            return;
+        }
 
-    const hiddenByCell = useCallback(
-        (idx: number) => flights.filter(f => f.src === idx).length,
-        [flights],
-    );
+        // decks are not draggable
+        if (idx === RED_SRC || idx === BLK_SRC) return;
 
-    const addFlight = useCallback(
-        (src: CellIndex, dst: CellIndex) => {
-            const fromEl = refs.current[src];
-            const toEl = refs.current[dst];
-            if (!fromEl || !toEl) return;
+        // highlight valid red-hand targets
+        if (redHand.has(idx)) {
+            setHighlightCells(getAllowedMoves(idx, redHand, firstRedMove.current, redHomeCenter));
+        }
 
-            dispatch({
-                type: 'ADD',
-                payload: {
-                    id: Math.random().toString(36).slice(2),
-                    src,
-                    dst,
-                    start: fromEl.getBoundingClientRect(),
-                    end: toEl.getBoundingClientRect(),
-                },
-            });
-        },
-        [refs],
-    );
-
-    const completeFlight = useCallback(
-        (f: Flight) => {
-            moveCard(f.src, f.dst);
-            dispatch({ type: 'REMOVE', id: f.id });
-        },
-        [moveCard],
-    );
-
-    return { flights, hiddenByCell, addFlight, completeFlight };
+        startDrag(idx);
+        drag.down(e, idx);
+    }, [firstRedMove, redHand, redHomeCenter, blackHomeCenter, boardReveal, setHighlightCells, startDrag, drag]);
 }

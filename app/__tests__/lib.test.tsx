@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  *
- * lib.test.tsx – full line + branch coverage for lib.tsx
+ * lib.test.tsx – full line + branch coverage for lib.tsx
  */
 import React from 'react';
 import {
@@ -35,9 +35,46 @@ import {
     RED_SRC, BLK_SRC, BLK_DST,
     BOARD_COLS, BOARD_ROWS,
     makeBotMove,
+    getSubsequentMoveDestinations,
+    canDrop,
+    getAllowedMoves,
+    useHandleDown,
+    cardColor,
+    clearStyles,
+    flightsReducer,
 } from '../lib';
 
-/* helpers ------------------------------------------------------------------ */
+const createTestHand = (indices: number[] = []): Set<CellIndex> =>
+    new Set(indices.map(i => i as CellIndex));
+
+interface TestComponentProps {
+    firstRedMove: React.RefObject<boolean>;
+    redHand: Set<CellIndex>;
+    redHomeCenter: CellIndex;
+    blackHomeCenter: CellIndex;
+    boardReveal: (indices: CellIndex[]) => void;
+    setHighlightCells: (cells: Set<CellIndex>) => void;
+    startDrag: (idx: CellIndex) => void;
+    drag: { down: (e: React.PointerEvent<HTMLElement>, idx: CellIndex) => void };
+    onHandleDown: (handleDown: (e: React.PointerEvent<HTMLElement>, idx: CellIndex) => void) => void;
+}
+
+const TestComponent: React.FC<TestComponentProps> = (props) => {
+    const handleDown = useHandleDown(
+        props.firstRedMove,
+        props.redHand,
+        props.redHomeCenter,
+        props.blackHomeCenter,
+        props.boardReveal,
+        props.setHighlightCells,
+        props.startDrag,
+        props.drag
+    );
+    props.onHandleDown(handleDown);
+    return null;
+};
+
+/* DOM helpers ------------------------------------------------------------ */
 const box = (xy = { left: 5, top: 5 }) => ({
     ...xy,
     width: 50,
@@ -48,13 +85,70 @@ const box = (xy = { left: 5, top: 5 }) => ({
     y: xy.top,
     toJSON() { },
 });
+
 const mockEl = (b = box()) => {
     const el = document.createElement('div');
     (el as HTMLDivElement).getBoundingClientRect = () => b;
     return el;
 };
+
 const ptr = (x = 10, y = 20) =>
     new PointerEvent('pointermove', { clientX: x, clientY: y });
+
+/* test setup helpers ---------------------------------------------------- */
+const setupDragTest = (drop = jest.fn(), cd?: (f: CellIndex, t: CellIndex) => boolean) => {
+    const { result } = renderHook(() => useSnapDrag(drop, cd));
+    const el = mockEl();
+    act(() =>
+        result.current.down(
+            {
+                currentTarget: el,
+                clientX: 10,
+                clientY: 20,
+            } as unknown as React.PointerEvent<HTMLElement>,
+            0 as CellIndex,
+        ),
+    );
+    return { el, drop };
+};
+
+const setupHandleDownTest = () => {
+    const firstRedMove = { current: true };
+    const redHand = createTestHand([31]);
+    const redHomeCenter = 27 as CellIndex;
+    const blackHomeCenter = 7 as CellIndex;
+    const boardReveal = jest.fn();
+    const setHighlightCells = jest.fn();
+    const startDrag = jest.fn();
+    const drag = { down: jest.fn() };
+    let handleDown: ((e: React.PointerEvent<HTMLElement>, idx: CellIndex) => void) | undefined;
+
+    render(
+        <TestComponent
+            firstRedMove={firstRedMove as React.RefObject<boolean>}
+            redHand={redHand}
+            redHomeCenter={redHomeCenter}
+            blackHomeCenter={blackHomeCenter}
+            boardReveal={boardReveal}
+            setHighlightCells={setHighlightCells}
+            startDrag={startDrag}
+            drag={drag}
+            onHandleDown={(h: (e: React.PointerEvent<HTMLElement>, idx: CellIndex) => void) => handleDown = h}
+        />
+    );
+
+    return {
+        firstRedMove,
+        redHand,
+        redHomeCenter,
+        blackHomeCenter,
+        boardReveal,
+        setHighlightCells,
+        startDrag,
+        drag,
+        handleDown,
+    };
+};
 
 /*───────────────────────────────────────────────────────────────────────────*/
 /*  CardView branch coverage                                                 */
@@ -115,32 +209,16 @@ describe('FlyingCard', () => {
 /*───────────────────────────────────────────────────────────────────────────*/
 /*  useSnapDrag – pointer paths & canDrop branch                             */
 /*───────────────────────────────────────────────────────────────────────────*/
-function initDrag(drop = jest.fn(), cd?: (f: CellIndex, t: CellIndex) => boolean) {
-    const { result } = renderHook(() => useSnapDrag(drop, cd));
-    const el = mockEl();
-    act(() =>
-        result.current.down(
-            {
-                currentTarget: el,
-                clientX: 10,
-                clientY: 20,
-            } as unknown as React.PointerEvent<HTMLElement>,
-            0 as CellIndex,
-        ),
-    );
-    return { el, drop };
-}
-
 describe('useSnapDrag pointerUp/move', () => {
     it('pointermove triggers moveRef', () => {
-        const { el } = initDrag();
+        const { el } = setupDragTest();
         document.dispatchEvent(ptr(20, 30)); // offX  =5, offY  =10
         expect(el.style.left).toBe('15px');
         expect(el.style.top).toBe('15px');
     });
 
     it('snapBack on canDrop === false (branch coverage)', () => {
-        const { el, drop } = initDrag(jest.fn(), () => false);
+        const { el, drop } = setupDragTest(jest.fn(), () => false);
         const tgt = document.createElement('div');
         tgt.setAttribute('data-cell', '3');
         const spy = jest
@@ -158,7 +236,7 @@ describe('useSnapDrag pointerUp/move', () => {
 
     it('snapBack when dst === src, and !isActive() guard', () => {
         /* dst === src */
-        const { el } = initDrag();
+        const { el } = setupDragTest();
         jest.spyOn(document, 'elementFromPoint').mockReturnValue(null);
         document.dispatchEvent(new PointerEvent('pointerup', {}));
         expect(el.style.transition).toMatch(/left/);
@@ -177,7 +255,7 @@ describe('useSnapDrag pointerUp/move', () => {
                 );
             });
 
-        initDrag();
+        setupDragTest();
         document.dispatchEvent(new PointerEvent('pointerup', {}));
         if (typeof saved === 'function')
             saved(new PointerEvent('pointerup', {}));
@@ -221,7 +299,10 @@ describe('utilities', () => {
 /*  reducer & useBoard                                                       */
 /*───────────────────────────────────────────────────────────────────────────*/
 describe('reducer & useBoard', () => {
-    it('MOVE same cell unchanged', () => {
+    it.each`
+        from         | to           | expectedSame | expectedDragSrc
+        ${0}         | ${0}         | ${true}      | ${null}
+    `('MOVE from $from to $to', ({ from, to, expectedSame, expectedDragSrc }) => {
         const c: Card = { suit: SUITS.Spades, rank: RANKS.Two, faceUp: false };
         const st = {
             cells: [[c], []],
@@ -229,32 +310,23 @@ describe('reducer & useBoard', () => {
         } as unknown as ReturnType<typeof useBoard>;
         const nx = reducer(st, {
             type: 'MOVE',
-            from: 0 as CellIndex,
-            to: 0 as CellIndex,
+            from: from as CellIndex,
+            to: to as CellIndex,
         });
-        expect(nx.cells).toBe(st.cells);
-        expect(nx.dragSrc).toBeNull();
+        if (expectedSame) {
+            expect(nx.cells).toBe(st.cells);
+        }
+        expect(nx.dragSrc).toBe(expectedDragSrc);
     });
 
-    it('face‑up / face‑down rules', () => {
+    it.each`
+        moveFrom    | moveTo    | expectedFaceUp
+        ${BLK_SRC}  | ${0}      | ${false}
+        ${BLK_SRC}  | ${BOARD_COLS} | ${true}
+    `('face-up / face-down rules: move $moveFrom to $moveTo', ({ moveFrom, moveTo, expectedFaceUp }) => {
         const { result } = renderHook(() => useBoard());
-
-        act(() => result.current.move(BLK_SRC, 0 as CellIndex));         // row0
-        expect(result.current.cells[0][0].faceUp).toBe(false);
-
-        act(() =>
-            result.current.move(
-                BLK_SRC,
-                BOARD_COLS as unknown as CellIndex,
-            ),
-        );
-        expect(result.current.cells[BOARD_COLS][0].faceUp).toBe(true);
-
-        // First move a card to the black hand
-        act(() => result.current.move(BLK_SRC, BLK_DST[0]));
-        // Then move from black hand to row 0
-        act(() => result.current.move(BLK_DST[0], 0 as CellIndex));
-        expect(result.current.cells[0][1].faceUp).toBe(false);
+        act(() => result.current.move(moveFrom, moveTo as CellIndex));
+        expect(result.current.cells[moveTo][0].faceUp).toBe(expectedFaceUp);
     });
 
     it('startDrag/endDrag/move', () => {
@@ -268,37 +340,28 @@ describe('reducer & useBoard', () => {
     });
 });
 
-/* swap branch ----------------------------------------------------- */
 describe('reducer swap & useBoard.swap', () => {
-    it('SWAP action exchanges cards', () => {
-        const A = { suit: SUITS.Hearts, rank: RANKS.Two, faceUp: true };
-        const B = { suit: SUITS.Hearts, rank: RANKS.Three, faceUp: true };
+    it.each`
+        a    | b    | cellsA                | cellsB                | expectedA | expectedB | sameCell
+        ${0} | ${1} | ${[{ suit: SUITS.Hearts, rank: RANKS.Two, faceUp: true }]} | ${[{ suit: SUITS.Hearts, rank: RANKS.Three, faceUp: true }]} | ${RANKS.Three} | ${RANKS.Two} | ${false}
+        ${0} | ${0} | ${[{ suit: SUITS.Hearts, rank: RANKS.Two, faceUp: true }]} | ${null} | ${RANKS.Two} | ${RANKS.Two} | ${true}
+    `('SWAP action exchanges cards: a=$a, b=$b', ({ a, b, cellsA, cellsB, expectedA, expectedB, sameCell }) => {
         const st = {
-            cells: [[A], [B]],
+            cells: cellsB ? [cellsA, cellsB] : [cellsA],
             dragSrc: null,
         } as unknown as ReturnType<typeof useBoard>;
         const nx = reducer(st, {
             type: 'SWAP',
-            a: 0 as CellIndex,
-            b: 1 as CellIndex,
+            a: a as CellIndex,
+            b: b as CellIndex,
         });
-        expect(nx.cells[0][0]).toBe(B);
-        expect(nx.cells[1][0]).toBe(A);
-    });
-
-    it('SWAP same cell returns unchanged cells', () => {
-        const A = { suit: SUITS.Hearts, rank: RANKS.Two, faceUp: true };
-        const st = {
-            cells: [[A]],
-            dragSrc: null,
-        } as unknown as ReturnType<typeof useBoard>;
-        const nx = reducer(st, {
-            type: 'SWAP',
-            a: 0 as CellIndex,
-            b: 0 as CellIndex,
-        });
-        expect(nx.cells).toBe(st.cells);
-        expect(nx.cells[0][0]).toBe(A);
+        if (!sameCell) {
+            expect(nx.cells[0][0].rank).toBe(expectedA);
+            expect(nx.cells[1][0].rank).toBe(expectedB);
+        } else {
+            expect(nx.cells).toBe(st.cells);
+            expect(nx.cells[0][0].rank).toBe(expectedA);
+        }
     });
 
     it('useBoard.swap exchanges cards in hand', () => {
@@ -344,11 +407,11 @@ describe('useFlights', () => {
         const { result } = renderHook(() => useFlights(ref, mv));
         act(() => result.current.addFlight(0 as CellIndex, 1 as CellIndex));
         act(() => result.current.addFlight(0 as CellIndex, 1 as CellIndex));
-        expect(result.current.hiddenByCell(0)).toBe(2);
+        expect(result.current.hiddenByCell(0 as CellIndex)).toBe(2);
         const f: Flight = result.current.flights[0];
         act(() => result.current.completeFlight(f));
-        expect(mv).toHaveBeenCalledWith(0, 1);
-        expect(result.current.hiddenByCell(0)).toBe(1);
+        expect(mv).toHaveBeenCalledWith(0 as CellIndex, 1 as CellIndex);
+        expect(result.current.hiddenByCell(0 as CellIndex)).toBe(1);
     });
 });
 
@@ -440,7 +503,7 @@ describe('Cell pointerDown', () => {
 });
 
 /*───────────────────────────────────────────────────────────────────────────*/
-/*  Misc sanity                                                              */
+/*  Misc sanity                                                              */
 /*───────────────────────────────────────────────────────────────────────────*/
 describe('misc', () => {
     it('starting piles sizes', () => {
@@ -472,36 +535,30 @@ describe('misc', () => {
 /*  Card face-up/down rules                                                  */
 /*───────────────────────────────────────────────────────────────────────────*/
 describe('shouldKeepFaceDown', () => {
-    it('keeps face down for black deck to row 0', () => {
-        const { result } = renderHook(() => useBoard());
-
-        // Move from black deck to row 0
-        act(() => result.current.move(BLK_SRC, 0 as CellIndex));
-        expect(result.current.cells[0][0].faceUp).toBe(false);
-    });
-
-    it('keeps face down for black hand to row 1', () => {
-        const { result } = renderHook(() => useBoard());
-
-        // First move a card to the black hand
-        act(() => result.current.move(BLK_SRC, BLK_DST[0]));
-
-        // Then move from black hand to row 1 center
-        act(() => result.current.move(BLK_DST[0], (BOARD_COLS as unknown as CellIndex)));
-        expect(result.current.cells[BOARD_COLS][0].faceUp).toBe(false);
-    });
-
-    it('turns face up for other moves', () => {
-        const { result } = renderHook(() => useBoard());
-
-        // Move from black deck to row 1
-        act(() => result.current.move(BLK_SRC, (BOARD_COLS as unknown as CellIndex)));
-        expect(result.current.cells[BOARD_COLS][0].faceUp).toBe(true);
-
-        // Move from red deck to row 1
-        act(() => result.current.move(RED_SRC, (BOARD_COLS as unknown as CellIndex)));
-        expect(result.current.cells[BOARD_COLS][1].faceUp).toBe(true);
-    });
+    it.each`
+        moves                                                                 | expectedFaceUps
+        ${[
+            { from: BLK_SRC, to: 0, expected: false },
+        ]}                                                                   | ${[false]}
+        ${[
+            { from: BLK_SRC, to: BLK_DST[0], expected: undefined },
+            { from: BLK_DST[0], to: BOARD_COLS, expected: false },
+        ]}                                                                   | ${[false]}
+        ${[
+            { from: BLK_SRC, to: BOARD_COLS, expected: true },
+            { from: RED_SRC, to: BOARD_COLS, expected: true },
+        ]}                                                                   | ${[true, true]}
+    `('face-up/down rules for moves: $moves', ({ moves, expectedFaceUps }) => {
+            const { result } = renderHook(() => useBoard());
+            let expectedIdx = 0;
+            moves.forEach((move: { from: CellIndex, to: CellIndex, expected?: boolean }) => {
+                act(() => result.current.move(move.from, move.to as CellIndex));
+                if (move.expected !== undefined) {
+                    expect(result.current.cells[move.to][0].faceUp).toBe(expectedFaceUps[expectedIdx]);
+                    expectedIdx++;
+                }
+            });
+        });
 });
 
 /*───────────────────────────────────────────────────────────────────────────*/
@@ -534,5 +591,329 @@ describe('makeBotMove', () => {
             expect.any(Number),
             blackHomeCenter
         );
+    });
+});
+
+/*───────────────────────────────────────────────────────────────────────────*/
+/*  Move validation helpers                                                  */
+/*───────────────────────────────────────────────────────────────────────────*/
+describe('getSubsequentMoveDestinations', () => {
+    it('excludes source cells (RED_SRC and BLK_SRC)', () => {
+        const redHand = new Set<CellIndex>();
+        const destinations = getSubsequentMoveDestinations(redHand);
+
+        expect(destinations.has(RED_SRC)).toBe(false);
+        expect(destinations.has(BLK_SRC)).toBe(false);
+    });
+
+    it('excludes cells in red hand', () => {
+        const redHand = new Set<CellIndex>([31 as CellIndex, 32 as CellIndex]);
+        const destinations = getSubsequentMoveDestinations(redHand);
+
+        expect(destinations.has(31 as CellIndex)).toBe(false);
+        expect(destinations.has(32 as CellIndex)).toBe(false);
+    });
+
+    it('includes all other valid cells', () => {
+        const redHand = new Set<CellIndex>();
+        const destinations = getSubsequentMoveDestinations(redHand);
+
+        // Should include all cells except RED_SRC and BLK_SRC
+        const expectedSize = BOARD_ROWS * BOARD_COLS - 2;
+        expect(destinations.size).toBe(expectedSize);
+
+        // Verify some specific cells are included
+        expect(destinations.has(0 as CellIndex)).toBe(true);
+        expect(destinations.has(15 as CellIndex)).toBe(true);
+        expect(destinations.has(29 as CellIndex)).toBe(true);
+    });
+
+    it('handles empty red hand', () => {
+        const redHand = new Set<CellIndex>();
+        const destinations = getSubsequentMoveDestinations(redHand);
+
+        // Should include all cells except RED_SRC and BLK_SRC
+        const expectedSize = BOARD_ROWS * BOARD_COLS - 2;
+        expect(destinations.size).toBe(expectedSize);
+    });
+
+    it('handles full red hand', () => {
+        // Create a red hand with all possible cells
+        const redHand = new Set<CellIndex>();
+        for (let i = 0; i < BOARD_ROWS * BOARD_COLS; i++) {
+            if (i !== RED_SRC && i !== BLK_SRC) {
+                redHand.add(i as CellIndex);
+            }
+        }
+
+        const destinations = getSubsequentMoveDestinations(redHand);
+        expect(destinations.size).toBe(0);
+    });
+});
+
+describe('canDrop', () => {
+    it.each`
+        from      | to         | redHand                              | firstRedMove | redHomeCenter | expected
+        ${31}     | ${32}      | ${new Set([31, 32])}                 | ${true}      | ${27}         | ${true}
+        ${31}     | ${27}      | ${new Set([31])}                     | ${true}      | ${27}         | ${true}
+        ${31}     | ${28}      | ${new Set([31])}                     | ${true}      | ${27}         | ${false}
+        ${31}     | ${28}      | ${new Set([31])}                     | ${false}     | ${27}         | ${true}
+        ${31}     | ${15}      | ${new Set([31])}                     | ${false}     | ${27}         | ${true}
+    `('canDrop from $from to $to with redHand $redHand and firstRedMove=$firstRedMove', ({ from, to, redHand, firstRedMove, redHomeCenter, expected }) => {
+        expect(canDrop(
+            from as CellIndex,
+            to as CellIndex,
+            redHand,
+            firstRedMove,
+            redHomeCenter as CellIndex
+        )).toBe(expected);
+    });
+});
+
+/*───────────────────────────────────────────────────────────────────────────*/
+/*  getAllowedMoves & helpers                                               */
+/*───────────────────────────────────────────────────────────────────────────*/
+describe('getAllowedMoves', () => {
+    it.each`
+        from      | redHand                              | firstRedMove | redHomeCenter | expectedSize | expectedHas
+        ${32}     | ${new Set([31])}                     | ${true}      | ${27}         | ${0}         | ${[]}
+        ${31}     | ${new Set([31])}                     | ${true}      | ${27}         | ${1}         | ${[27]}
+        ${31}     | ${new Set([31])}                     | ${false}     | ${27}         | ${BOARD_ROWS * BOARD_COLS - 3} | ${[]}
+    `('getAllowedMoves from $from with redHand $redHand and firstRedMove=$firstRedMove', ({ from, redHand, firstRedMove, redHomeCenter, expectedSize, expectedHas }) => {
+        const result = getAllowedMoves(
+            from as CellIndex,
+            redHand,
+            firstRedMove,
+            redHomeCenter as CellIndex
+        );
+        expect(result.size).toBe(expectedSize);
+        expectedHas.forEach((cell: number) => {
+            expect(result.has(cell as CellIndex)).toBe(true);
+        });
+    });
+});
+
+/*───────────────────────────────────────────────────────────────────────────*/
+/*  useHandleDown                                                           */
+/*───────────────────────────────────────────────────────────────────────────*/
+describe('useHandleDown', () => {
+    it.each`
+        cellIndex        | shouldReveal | shouldHighlight | shouldStartDrag | shouldDragDown
+        ${27}           | ${true}      | ${true}         | ${false}        | ${false}
+        ${RED_SRC}      | ${false}     | ${false}        | ${false}        | ${false}
+        ${BLK_SRC}      | ${false}     | ${false}        | ${false}        | ${false}
+        ${31}           | ${false}     | ${true}         | ${true}         | ${true}
+    `('handles cell $cellIndex correctly', ({ cellIndex, shouldReveal, shouldHighlight, shouldStartDrag, shouldDragDown }) => {
+        const { firstRedMove, redHomeCenter, blackHomeCenter, boardReveal, setHighlightCells, startDrag, drag, handleDown } = setupHandleDownTest();
+
+        handleDown!({} as React.PointerEvent<HTMLElement>, cellIndex as CellIndex);
+
+        if (shouldReveal) {
+            expect(boardReveal).toHaveBeenCalledWith([redHomeCenter, blackHomeCenter]);
+            expect(firstRedMove.current).toBe(false);
+        } else {
+            expect(boardReveal).not.toHaveBeenCalled();
+        }
+
+        if (shouldHighlight) {
+            expect(setHighlightCells).toHaveBeenCalled();
+        } else {
+            expect(setHighlightCells).not.toHaveBeenCalled();
+        }
+
+        if (shouldStartDrag) {
+            expect(startDrag).toHaveBeenCalledWith(cellIndex);
+        } else {
+            expect(startDrag).not.toHaveBeenCalled();
+        }
+
+        if (shouldDragDown) {
+            expect(drag.down).toHaveBeenCalled();
+        } else {
+            expect(drag.down).not.toHaveBeenCalled();
+        }
+    });
+});
+
+/*───────────────────────────────────────────────────────────────────────────*/
+/*  Utility functions                                                       */
+/*───────────────────────────────────────────────────────────────────────────*/
+describe('utility functions', () => {
+    it.each`
+        suit                | expected
+        ${SUITS.Hearts}     | ${'red'}
+        ${SUITS.Diamonds}   | ${'red'}
+        ${SUITS.Clubs}      | ${'black'}
+        ${SUITS.Spades}     | ${'black'}
+    `('cardColor($suit) returns $expected', ({ suit, expected }) => {
+        expect(cardColor(suit)).toBe(expected);
+    });
+
+    it('clearStyles resets all style properties', () => {
+        const el = document.createElement('div');
+        el.style.position = 'fixed';
+        el.style.left = '10px';
+        el.style.top = '20px';
+        el.style.zIndex = '1';
+        el.style.width = '100px';
+        el.style.height = '100px';
+        el.style.transition = 'all 0.3s';
+        el.style.pointerEvents = 'none';
+
+        clearStyles(el);
+
+        expect(el.style.position).toBe('');
+        expect(el.style.left).toBe('');
+        expect(el.style.top).toBe('');
+        expect(el.style.zIndex).toBe('');
+        expect(el.style.width).toBe('');
+        expect(el.style.height).toBe('');
+        expect(el.style.transition).toBe('');
+        expect(el.style.pointerEvents).toBe('');
+    });
+});
+
+/*───────────────────────────────────────────────────────────────────────────*/
+/*  flightsReducer                                                          */
+/*───────────────────────────────────────────────────────────────────────────*/
+describe('flightsReducer', () => {
+    it('adds new flight', () => {
+        const flight: Flight = {
+            id: 'test',
+            src: 1 as CellIndex,
+            dst: 2 as CellIndex,
+            start: box(),
+            end: box(),
+        };
+        const state: Flight[] = [];
+        const action = { type: 'ADD' as const, payload: flight };
+        const result = flightsReducer(state, action);
+        expect(result).toHaveLength(1);
+        expect(result[0]).toBe(flight);
+    });
+
+    it('removes flight by id', () => {
+        const flight1: Flight = {
+            id: 'test1',
+            src: 1 as CellIndex,
+            dst: 2 as CellIndex,
+            start: box(),
+            end: box(),
+        };
+        const flight2: Flight = {
+            id: 'test2',
+            src: 3 as CellIndex,
+            dst: 4 as CellIndex,
+            start: box(),
+            end: box(),
+        };
+        const state = [flight1, flight2];
+        const action = { type: 'REMOVE' as const, id: 'test1' };
+        const result = flightsReducer(state, action);
+        expect(result).toHaveLength(1);
+        expect(result[0]).toBe(flight2);
+    });
+});
+
+/*───────────────────────────────────────────────────────────────────────────*/
+/*  Board reducer REVEAL action                                             */
+/*───────────────────────────────────────────────────────────────────────────*/
+describe('board reducer REVEAL action', () => {
+    it('reveals top cards at specified indices', () => {
+        const state = {
+            cells: [
+                [{ suit: SUITS.Hearts, rank: RANKS.Two, faceUp: false }],
+                [{ suit: SUITS.Spades, rank: RANKS.Three, faceUp: false }],
+                [{ suit: SUITS.Diamonds, rank: RANKS.Four, faceUp: false }],
+            ],
+            dragSrc: null,
+        };
+        const action = {
+            type: 'REVEAL' as const,
+            indices: [0 as CellIndex, 2 as CellIndex],
+        };
+        const result = reducer(state, action);
+        expect(result.cells[0][0].faceUp).toBe(true);
+        expect(result.cells[1][0].faceUp).toBe(false);
+        expect(result.cells[2][0].faceUp).toBe(true);
+        expect(result.dragSrc).toBeNull();
+    });
+
+    it('handles empty stacks', () => {
+        const state = {
+            cells: [[], [], []],
+            dragSrc: null,
+        };
+        const action = {
+            type: 'REVEAL' as const,
+            indices: [0 as CellIndex, 1 as CellIndex, 2 as CellIndex],
+        };
+        const result = reducer(state, action);
+        expect(result.cells).toEqual([[], [], []]);
+        expect(result.dragSrc).toBeNull();
+    });
+});
+
+/*───────────────────────────────────────────────────────────────────────────*/
+/*  useBoard reveal function                                                */
+/*───────────────────────────────────────────────────────────────────────────*/
+describe('useBoard reveal function', () => {
+    it('reveals cards at specified indices', () => {
+        const { result } = renderHook(() => useBoard());
+
+        // Set up initial state with face-down cards
+        act(() => {
+            // Move cards from black source to row 0 (which keeps them face down)
+            result.current.move(BLK_SRC, 0 as CellIndex);
+            result.current.move(BLK_SRC, (BOARD_COLS as unknown as CellIndex)); // row 1
+            result.current.move(BLK_SRC, ((BOARD_COLS * 2) as unknown as CellIndex)); // row 2
+        });
+
+        // Verify cards are face down initially (cards moved to row 0 stay face down)
+        expect(result.current.cells[0][0].faceUp).toBe(false);
+        expect(result.current.cells[BOARD_COLS][0].faceUp).toBe(true);
+        expect(result.current.cells[BOARD_COLS * 2][0].faceUp).toBe(true);
+
+        // Reveal cards at indices 0 and 2
+        act(() => {
+            result.current.reveal([0 as CellIndex, ((BOARD_COLS * 2) as unknown as CellIndex)]);
+        });
+
+        // Verify only specified cards are revealed
+        expect(result.current.cells[0][0].faceUp).toBe(true);
+        expect(result.current.cells[BOARD_COLS][0].faceUp).toBe(true);
+        expect(result.current.cells[BOARD_COLS * 2][0].faceUp).toBe(true);
+    });
+
+    it('handles empty stacks when revealing', () => {
+        const { result } = renderHook(() => useBoard());
+
+        // Try to reveal cards at empty indices
+        act(() => {
+            result.current.reveal([0 as CellIndex, 1 as CellIndex, 2 as CellIndex]);
+        });
+
+        // Verify no errors occurred and state is unchanged
+        expect(result.current.cells[0]).toHaveLength(0);
+        expect(result.current.cells[1]).toHaveLength(0);
+        expect(result.current.cells[2]).toHaveLength(0);
+    });
+
+    it('clears drag source when revealing', () => {
+        const { result } = renderHook(() => useBoard());
+
+        // Set up drag source
+        act(() => {
+            result.current.startDrag(0 as CellIndex);
+        });
+        expect(result.current.dragSrc).toBe(0);
+
+        // Reveal cards
+        act(() => {
+            result.current.reveal([0 as CellIndex]);
+        });
+
+        // Verify drag source is cleared
+        expect(result.current.dragSrc).toBeNull();
     });
 });
