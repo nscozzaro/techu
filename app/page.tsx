@@ -29,6 +29,7 @@ import {
   useHandleDown,
   useHandleClick,
   handleCardMove,
+  handleFlightComplete,
 } from './lib';
 
 function IntroScreen({ onPlay }: { onPlay: () => void }) {
@@ -77,6 +78,7 @@ function GameBoard() {
     move: boardMove,
     swap: boardSwap,
     reveal: boardReveal,
+    deal: boardDeal,
   } = useBoard();
 
   const firstRedMove = useRef(true);
@@ -112,9 +114,17 @@ function GameBoard() {
   const drag = useSnapDrag(moveCard, canDrop);
 
   const cellRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  const onFlightComplete = useCallback(
+    (from: CellIndex, to: CellIndex) => {
+      handleFlightComplete(from, to, boardDeal, moveCard);
+    },
+    [boardDeal, moveCard]
+  );
+
   const { flights, hiddenByCell, addFlight, completeFlight } = useFlights(
     cellRefs,
-    moveCard,
+    onFlightComplete,
   );
 
   // pure pointer-down → highlight/drag

@@ -100,7 +100,8 @@ export type BoardAction =
     | { type: 'SWAP'; a: CellIndex; b: CellIndex }
     | { type: 'START_DRAG'; src: CellIndex }
     | { type: 'END_DRAG' }
-    | { type: 'REVEAL'; indices: CellIndex[] };
+    | { type: 'REVEAL'; indices: CellIndex[] }
+    | { type: 'DEAL'; from: CellIndex; to: CellIndex };
 
 const shouldKeepFaceDown = (from: CellIndex, dstRow: number): boolean =>
     HAND_CELLS.includes(from) ||
@@ -154,6 +155,13 @@ export const reducer: Reducer<BoardState, BoardAction> = (state, action) => {
             });
             return { cells: next, dragSrc: null };
         }
+        case 'DEAL':
+            return {
+                cells: moveCardInCells(state.cells, action.from, action.to),
+                dragSrc: state.dragSrc,
+            };
+        default:
+            return state;
     }
 };
 
@@ -522,6 +530,8 @@ export function useBoard() {
             dispatch({ type: 'SWAP', a, b }),
         reveal: (indices: CellIndex[]) =>
             dispatch({ type: 'REVEAL', indices }),
+        deal: (from: CellIndex, to: CellIndex) =>
+            dispatch({ type: 'DEAL', from, to }),
     };
 }
 
@@ -577,6 +587,19 @@ export function handleCardMove(
         handleMoveToOccupiedHand(from, to, cells, boardMove, boardSwap);
     } else {
         handleRegularMove(from, to, boardMove);
+    }
+}
+
+export function handleFlightComplete(
+    from: CellIndex,
+    to: CellIndex,
+    boardDeal: (from: CellIndex, to: CellIndex) => void,
+    moveCard: (from: CellIndex, to: CellIndex) => void,
+) {
+    if (DECK_CELLS.includes(from) || BLK_DST.includes(from)) {
+        boardDeal(from, to);
+    } else {
+        moveCard(from, to);
     }
 }
 

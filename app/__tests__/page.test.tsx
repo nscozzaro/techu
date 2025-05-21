@@ -352,6 +352,7 @@ describe('Bot play functionality', () => {
             move: jest.fn(),
             swap: jest.fn(),
             reveal: jest.fn(),
+            deal: jest.fn(),
         }));
 
         render(<Home />);
@@ -403,6 +404,7 @@ describe('Bot play functionality', () => {
             move: jest.fn(),
             swap: jest.fn(),
             reveal: jest.fn(),
+            deal: jest.fn(),
         }));
 
         render(<Home />);

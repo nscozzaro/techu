@@ -50,6 +50,8 @@ import {
     handleRegularMove,
     type Suit,
     type Rank,
+    type BoardAction,
+    handleFlightComplete,
 } from '../lib';
 
 const createTestHand = (indices: number[] = []): Set<CellIndex> =>
@@ -325,6 +327,16 @@ describe('reducer & useBoard', () => {
             expect(nx.cells).toBe(st.cells);
         }
         expect(nx.dragSrc).toBe(expectedDragSrc);
+    });
+
+    it('returns unchanged state for unknown action type', () => {
+        const state = {
+            cells: [[{ suit: SUITS.Spades, rank: RANKS.Two, faceUp: false }]],
+            dragSrc: null,
+        };
+        const action = { type: 'INVALID_ACTION' } as unknown as BoardAction;
+        const result = reducer(state, action);
+        expect(result).toEqual(state);
     });
 
     it.each`
@@ -1256,5 +1268,55 @@ describe('handleCardMove and helpers', () => {
             expect(boardMove).toHaveBeenCalledWith(0, 1);
             expect(boardSwap).not.toHaveBeenCalled();
         });
+    });
+});
+
+/*───────────────────────────────────────────────────────────────────────────*/
+/*  handleFlightComplete                                                    */
+/*───────────────────────────────────────────────────────────────────────────*/
+describe('handleFlightComplete', () => {
+    it('calls boardDeal when from is in DECK_CELLS', () => {
+        const boardDeal = jest.fn();
+        const moveCard = jest.fn();
+
+        handleFlightComplete(
+            RED_SRC as CellIndex,
+            0 as CellIndex,
+            boardDeal,
+            moveCard
+        );
+
+        expect(boardDeal).toHaveBeenCalledWith(RED_SRC, 0);
+        expect(moveCard).not.toHaveBeenCalled();
+    });
+
+    it('calls boardDeal when from is in BLK_DST', () => {
+        const boardDeal = jest.fn();
+        const moveCard = jest.fn();
+
+        handleFlightComplete(
+            BLK_DST[0] as CellIndex,
+            0 as CellIndex,
+            boardDeal,
+            moveCard
+        );
+
+        expect(boardDeal).toHaveBeenCalledWith(BLK_DST[0], 0);
+        expect(moveCard).not.toHaveBeenCalled();
+    });
+
+    it('calls moveCard when from is not in DECK_CELLS or BLK_DST', () => {
+        const boardDeal = jest.fn();
+        const moveCard = jest.fn();
+
+        handleFlightComplete(
+            0 as CellIndex,
+            1 as CellIndex,
+            boardDeal,
+            moveCard
+        );
+
+        expect(boardDeal).not.toHaveBeenCalled();
+        expect(moveCard).toHaveBeenCalledWith(0, 1);
     });
 });
