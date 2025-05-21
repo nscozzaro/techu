@@ -9,6 +9,7 @@ import React, {
     useCallback,
     useReducer,
     PointerEvent as Ptr,
+    MouseEvent,
 } from 'react';
 import type { Reducer } from 'react';
 import styles from './page.module.css';
@@ -23,9 +24,9 @@ export const BOARD_COLS = 5 as BoardDimension;
 export type CellIndex = number & { __brand: 'CellIndex' };
 export type PixelPosition = number & { __brand: 'PixelPosition' };
 
-export const RED_SRC = ((BOARD_ROWS - 1) * BOARD_COLS) as CellIndex; // 30
+export const RED_SRC = ((BOARD_ROWS - 1) * BOARD_COLS) as CellIndex;
 export const RED_DST = [31, 32, 33] as CellIndex[];
-export const BLK_SRC = (BOARD_COLS - 1) as CellIndex;               // 4
+export const BLK_SRC = (BOARD_COLS - 1) as CellIndex;
 export const BLK_DST = [3, 2, 1] as CellIndex[];
 export const DEAL_DELAY_MS = 1_000;
 
@@ -101,16 +102,12 @@ export type BoardAction =
     | { type: 'END_DRAG' }
     | { type: 'REVEAL'; indices: CellIndex[] };
 
-/* ──────────────────────────
-   Face-down rule helper
- ────────────────────────── */
 const shouldKeepFaceDown = (from: CellIndex, dstRow: number): boolean =>
     HAND_CELLS.includes(from) ||
     (from === BLK_SRC && dstRow === 0);
 
 const moveCardInCells = (cells: Cards[], from: CellIndex, to: CellIndex) => {
     if (from === to) return cells;
-
     const next = cells.map(s => [...s]) as Cards[];
     const card = next[from].pop();
     if (card) {
@@ -148,7 +145,6 @@ export const reducer: Reducer<BoardState, BoardAction> = (state, action) => {
         case 'END_DRAG':
             return { ...state, dragSrc: null };
         case 'REVEAL': {
-            // flip top cards at each center index
             const next = state.cells.map(stack => stack.map(c => ({ ...c })));
             action.indices.forEach(idx => {
                 const stack = next[idx];
@@ -208,14 +204,13 @@ export function useSnapDrag(
     const moveRef = useRef<((e: PointerEvent) => void) | null>(null);
 
     const isActive = () => elRef.current && origRef.current;
-
     const destCell = (e: PointerEvent): CellIndex =>
-    (Number(
-        document
-            .elementFromPoint(e.clientX, e.clientY)
-            ?.closest('[data-cell]')
-            ?.getAttribute('data-cell') ?? origRef.current!.cell,
-    ) as CellIndex);
+        Number(
+            document
+                .elementFromPoint(e.clientX, e.clientY)
+                ?.closest('[data-cell]')
+                ?.getAttribute('data-cell') ?? origRef.current!.cell,
+        ) as CellIndex;
 
     const pointerUp = (e: PointerEvent) => {
         if (!isActive()) return;
@@ -317,8 +312,6 @@ export const CardView = ({
     </div>
 );
 
-const noop: (e: Ptr<HTMLElement>) => void = () => { };
-
 export const Cell = forwardRef<
     HTMLDivElement,
     {
@@ -329,6 +322,7 @@ export const Cell = forwardRef<
         isDragging: boolean;
         highlight?: boolean;
         onDown: (e: Ptr<HTMLElement>, idx: CellIndex) => void;
+        onClick?: (e: MouseEvent<HTMLElement>, idx: CellIndex) => void;
     }
 >((p, ref) => {
     const {
@@ -339,18 +333,19 @@ export const Cell = forwardRef<
         isDragging,
         highlight = false,
         onDown,
+        onClick,
     } = p;
     const top = stack[stack.length - 1 - hidden];
     const next = stack[stack.length - 2 - hidden];
 
-    /* determine interactivity rules */
     const isDeck = idx === RED_SRC || idx === BLK_SRC;
     const isBlackTop = top && cardColor(top.suit) === 'black';
     const inactive = isDeck || isBlackTop;
 
-    const cellStyle = inactive ? { pointerEvents: 'none' as const } : undefined;
-    const down = inactive ? noop : (e: Ptr<HTMLElement>) => onDown(e, idx);
     const cls = `${styles.cell} ${highlight ? styles.highlight : ''}`;
+    const cellStyle = inactive ? { pointerEvents: 'none' as const } : undefined;
+    const down = inactive ? () => { } : (e: Ptr<HTMLElement>) => onDown(e, idx);
+    const click = inactive ? undefined : onClick;
 
     return (
         <div
@@ -359,6 +354,7 @@ export const Cell = forwardRef<
             className={cls}
             role="generic"
             style={cellStyle}
+            onClick={click && ((e) => click(e, idx))}
         >
             {top && <CardView card={top} onDown={down} />}
             {next && isDragging && dragSrc === idx && (
@@ -369,9 +365,6 @@ export const Cell = forwardRef<
 });
 Cell.displayName = 'Cell';
 
-/* ──────────────────────────
-   Flying card (animation)
-   ────────────────────────── */
 export function FlyingCard({
     flight,
     onFinish,
@@ -419,7 +412,7 @@ export function FlyingCard({
 }
 
 /* ──────────────────────────
-   Bot play helper
+   Bot play, validation, hooks
    ────────────────────────── */
 export function makeBotMove(
     cells: Array<Array<{ suit: string; rank: string; faceUp: boolean }>>,
@@ -433,17 +426,13 @@ export function makeBotMove(
     addFlight(src, blackHomeCenter);
 }
 
-/* ──────────────────────────
-   Move validation helpers
-   ────────────────────────── */
-const isValidSource = (idx: CellIndex, redHand: Set<CellIndex>): boolean => {
-    return redHand.has(idx);
-};
+const isValidSource = (idx: CellIndex, redHand: Set<CellIndex>): boolean =>
+    redHand.has(idx);
 
 const getFirstMoveDestination = (redHomeCenter: CellIndex): Set<CellIndex> => {
-    const allowed = new Set<CellIndex>();
-    allowed.add(redHomeCenter);
-    return allowed;
+    const out = new Set<CellIndex>();
+    out.add(redHomeCenter);
+    return out;
 };
 
 export const getSubsequentMoveDestinations = (redHand: Set<CellIndex>): Set<CellIndex> => {
@@ -476,16 +465,15 @@ export const canDrop = (
     isFirstRedMove: boolean,
     redHomeCenter: CellIndex,
 ): boolean => {
-    const inRedHand = redHand.has(from) && redHand.has(to);
-    if (inRedHand) return true;
+    if (isFirstRedMove && from === redHomeCenter) {
+        return redHand.has(to);
+    }
+    if (redHand.has(from) && redHand.has(to)) return true;
     return isFirstRedMove ? to === redHomeCenter : true;
 };
 
-/* ──────────────────────────
-   State hooks
-   ────────────────────────── */
 export function useFlights(
-    cellRefs: React.MutableRefObject<(HTMLDivElement | null)[]>,
+    cellRefs: React.RefObject<(HTMLDivElement | null)[]>,
     onComplete: (from: CellIndex, to: CellIndex) => void,
 ) {
     const [flights, dispatch] = useReducer(flightsReducer, []);
@@ -494,7 +482,6 @@ export function useFlights(
         const srcEl = cellRefs.current[src];
         const dstEl = cellRefs.current[dst];
         if (!srcEl || !dstEl) return;
-
         const id = Math.random().toString(36).slice(2);
         dispatch({
             type: 'ADD',
@@ -549,23 +536,40 @@ export function useHandleDown(
     drag: { down: (e: React.PointerEvent<HTMLElement>, idx: CellIndex) => void }
 ) {
     return useCallback((e: React.PointerEvent<HTMLElement>, idx: CellIndex) => {
-        // 1st-tap reveal
-        if (firstRedMove.current && idx === redHomeCenter) {
-            boardReveal([redHomeCenter, blackHomeCenter]);
-            firstRedMove.current = false;
-            setHighlightCells(new Set());
-            return;
-        }
-
-        // decks are not draggable
+        if (!firstRedMove.current && idx === redHomeCenter) return;
         if (idx === RED_SRC || idx === BLK_SRC) return;
-
-        // highlight valid red-hand targets
         if (redHand.has(idx)) {
-            setHighlightCells(getAllowedMoves(idx, redHand, firstRedMove.current, redHomeCenter));
+            setHighlightCells(
+                getAllowedMoves(idx, redHand, firstRedMove.current, redHomeCenter)
+            );
         }
-
         startDrag(idx);
         drag.down(e, idx);
-    }, [firstRedMove, redHand, redHomeCenter, blackHomeCenter, boardReveal, setHighlightCells, startDrag, drag]);
+    }, [
+        firstRedMove,
+        redHand,
+        redHomeCenter,
+        setHighlightCells,
+        startDrag,
+        drag,
+    ]);
+}
+
+export function useHandleClick(
+    firstRedMove: React.RefObject<boolean>,
+    redHomeCenter: CellIndex,
+    blackHomeCenter: CellIndex,
+    boardReveal: (indices: CellIndex[]) => void,
+    setHighlightCells: (cells: Set<CellIndex>) => void,
+) {
+    return useCallback(
+        (e: MouseEvent<HTMLElement>, idx: CellIndex) => {
+            if (firstRedMove.current && idx === redHomeCenter) {
+                boardReveal([redHomeCenter, blackHomeCenter]);
+                firstRedMove.current = false;
+                setHighlightCells(new Set());
+            }
+        },
+        [firstRedMove, redHomeCenter, blackHomeCenter, boardReveal, setHighlightCells],
+    );
 }

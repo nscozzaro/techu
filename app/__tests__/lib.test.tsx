@@ -3,7 +3,7 @@
  *
  * lib.test.tsx – full line + branch coverage for lib.tsx
  */
-import React from 'react';
+import React, { MouseEvent } from 'react';
 import {
     render,
     screen,
@@ -42,6 +42,7 @@ import {
     cardColor,
     clearStyles,
     flightsReducer,
+    useHandleClick,
 } from '../lib';
 
 const createTestHand = (indices: number[] = []): Set<CellIndex> =>
@@ -114,7 +115,7 @@ const setupDragTest = (drop = jest.fn(), cd?: (f: CellIndex, t: CellIndex) => bo
 
 const setupHandleDownTest = () => {
     const firstRedMove = { current: true };
-    const redHand = createTestHand([31]);
+    const redHand = createTestHand([31, 27]);
     const redHomeCenter = 27 as CellIndex;
     const blackHomeCenter = 7 as CellIndex;
     const boardReveal = jest.fn();
@@ -500,6 +501,50 @@ describe('Cell pointerDown', () => {
         fireEvent.pointerDown(screen.getByRole('img'));
         expect(cb).not.toHaveBeenCalled();
     });
+
+    it('handles click events correctly', () => {
+        const pile = [{ suit: SUITS.Hearts, rank: RANKS.Two, faceUp: true }];
+        const clickHandler = jest.fn();
+
+        // Test with click handler
+        const { container } = render(
+            <Cell
+                idx={8 as CellIndex}
+                stack={pile}
+                hidden={0}
+                dragSrc={null}
+                isDragging={false}
+                onDown={() => { }}
+                onClick={clickHandler}
+            />
+        );
+
+        // Click should be called with correct arguments
+        const cell = container.querySelector('[data-cell="8"]');
+        fireEvent.click(cell!);
+        expect(clickHandler).toHaveBeenCalledWith(expect.any(Object), 8);
+
+        // Clean up
+        cleanup();
+
+        // Test without click handler
+        const { container: container2 } = render(
+            <Cell
+                idx={8 as CellIndex}
+                stack={pile}
+                hidden={0}
+                dragSrc={null}
+                isDragging={false}
+                onDown={() => { }}
+            />
+        );
+
+        // Click should not throw error when no handler provided
+        const cellWithoutHandler = container2.querySelector('[data-cell="8"]');
+        expect(() => {
+            fireEvent.click(cellWithoutHandler!);
+        }).not.toThrow();
+    });
 });
 
 /*───────────────────────────────────────────────────────────────────────────*/
@@ -659,6 +704,10 @@ describe('canDrop', () => {
         ${31}     | ${28}      | ${new Set([31])}                     | ${true}      | ${27}         | ${false}
         ${31}     | ${28}      | ${new Set([31])}                     | ${false}     | ${27}         | ${true}
         ${31}     | ${15}      | ${new Set([31])}                     | ${false}     | ${27}         | ${true}
+        ${27}     | ${31}      | ${new Set([31])}                     | ${true}      | ${27}         | ${true}
+        ${27}     | ${32}      | ${new Set([31])}                     | ${true}      | ${27}         | ${false}
+        ${27}     | ${31}      | ${new Set([31])}                     | ${false}     | ${27}         | ${true}
+        ${27}     | ${32}      | ${new Set([31])}                     | ${false}     | ${27}         | ${true}
     `('canDrop from $from to $to with redHand $redHand and firstRedMove=$firstRedMove', ({ from, to, redHand, firstRedMove, redHomeCenter, expected }) => {
         expect(canDrop(
             from as CellIndex,
@@ -697,9 +746,24 @@ describe('getAllowedMoves', () => {
 /*  useHandleDown                                                           */
 /*───────────────────────────────────────────────────────────────────────────*/
 describe('useHandleDown', () => {
+    it('prevents interaction with red home center after first move', () => {
+        const { firstRedMove, redHomeCenter, boardReveal, setHighlightCells, startDrag, drag, handleDown } = setupHandleDownTest();
+
+        // Set firstRedMove to false to simulate after first move
+        firstRedMove.current = false;
+
+        // Try to interact with red home center
+        handleDown!({} as React.PointerEvent<HTMLElement>, redHomeCenter);
+
+        // Verify no actions were taken
+        expect(boardReveal).not.toHaveBeenCalled();
+        expect(setHighlightCells).not.toHaveBeenCalled();
+        expect(startDrag).not.toHaveBeenCalled();
+        expect(drag.down).not.toHaveBeenCalled();
+    });
+
     it.each`
         cellIndex        | shouldReveal | shouldHighlight | shouldStartDrag | shouldDragDown
-        ${27}           | ${true}      | ${true}         | ${false}        | ${false}
         ${RED_SRC}      | ${false}     | ${false}        | ${false}        | ${false}
         ${BLK_SRC}      | ${false}     | ${false}        | ${false}        | ${false}
         ${31}           | ${false}     | ${true}         | ${true}         | ${true}
@@ -915,5 +979,94 @@ describe('useBoard reveal function', () => {
 
         // Verify drag source is cleared
         expect(result.current.dragSrc).toBeNull();
+    });
+});
+
+/*───────────────────────────────────────────────────────────────────────────*/
+/*  useHandleClick                                                           */
+/*───────────────────────────────────────────────────────────────────────────*/
+describe('useHandleClick', () => {
+    it('reveals cards and updates state on first move', () => {
+        const firstRedMove = { current: true };
+        const redHomeCenter = 27 as CellIndex;
+        const blackHomeCenter = 7 as CellIndex;
+        const boardReveal = jest.fn();
+        const setHighlightCells = jest.fn();
+
+        const { result } = renderHook(() =>
+            useHandleClick(
+                firstRedMove as React.RefObject<boolean>,
+                redHomeCenter,
+                blackHomeCenter,
+                boardReveal,
+                setHighlightCells,
+            ),
+        );
+
+        // Click on red home center during first move
+        act(() => {
+            result.current({} as MouseEvent<HTMLElement>, redHomeCenter);
+        });
+
+        // Verify actions were taken
+        expect(boardReveal).toHaveBeenCalledWith([redHomeCenter, blackHomeCenter]);
+        expect(firstRedMove.current).toBe(false);
+        expect(setHighlightCells).toHaveBeenCalledWith(new Set());
+    });
+
+    it('does nothing when not first move', () => {
+        const firstRedMove = { current: false };
+        const redHomeCenter = 27 as CellIndex;
+        const blackHomeCenter = 7 as CellIndex;
+        const boardReveal = jest.fn();
+        const setHighlightCells = jest.fn();
+
+        const { result } = renderHook(() =>
+            useHandleClick(
+                firstRedMove as React.RefObject<boolean>,
+                redHomeCenter,
+                blackHomeCenter,
+                boardReveal,
+                setHighlightCells,
+            ),
+        );
+
+        // Click on red home center after first move
+        act(() => {
+            result.current({} as MouseEvent<HTMLElement>, redHomeCenter);
+        });
+
+        // Verify no actions were taken
+        expect(boardReveal).not.toHaveBeenCalled();
+        expect(firstRedMove.current).toBe(false);
+        expect(setHighlightCells).not.toHaveBeenCalled();
+    });
+
+    it('does nothing when clicking non-home center cell', () => {
+        const firstRedMove = { current: true };
+        const redHomeCenter = 27 as CellIndex;
+        const blackHomeCenter = 7 as CellIndex;
+        const boardReveal = jest.fn();
+        const setHighlightCells = jest.fn();
+
+        const { result } = renderHook(() =>
+            useHandleClick(
+                firstRedMove as React.RefObject<boolean>,
+                redHomeCenter,
+                blackHomeCenter,
+                boardReveal,
+                setHighlightCells,
+            ),
+        );
+
+        // Click on a different cell during first move
+        act(() => {
+            result.current({} as MouseEvent<HTMLElement>, 31 as CellIndex);
+        });
+
+        // Verify no actions were taken
+        expect(boardReveal).not.toHaveBeenCalled();
+        expect(firstRedMove.current).toBe(true);
+        expect(setHighlightCells).not.toHaveBeenCalled();
     });
 });

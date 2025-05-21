@@ -27,6 +27,7 @@ import {
   makeBotMove,
   canDrop as canDropCard,
   useHandleDown,
+  useHandleClick,
 } from './lib';
 
 function IntroScreen({ onPlay }: { onPlay: () => void }) {
@@ -45,22 +46,18 @@ function IntroScreen({ onPlay }: { onPlay: () => void }) {
           <div key={i} className={`${styles.logoCell} ${cellClass(i)}`} />
         ))}
       </div>
-
       <h1 className={styles.introTitle}>
         <span className={styles.katakana}>テ</span>
         <span className={styles.latin}>ECHU</span>
       </h1>
-
       <p className={styles.introSub}>
         Red&nbsp;vs&nbsp;black.
         <br />
         Most covered spaces wins.
       </p>
-
       <button className={styles.playBtn} onClick={onPlay}>
         Begin
       </button>
-
       <p className={styles.meta}>
         May&nbsp;18&nbsp;2025
         <br />
@@ -85,11 +82,11 @@ function GameBoard() {
 
   const RED_HOME_ROW = BOARD_ROWS - 2;
   const RED_HOME_CENTER =
-    RED_HOME_ROW * BOARD_COLS + Math.floor(BOARD_COLS / 2) as CellIndex;
+    (RED_HOME_ROW * BOARD_COLS + Math.floor(BOARD_COLS / 2)) as CellIndex;
 
   const BLK_HOME_ROW = 1;
   const BLK_HOME_CENTER =
-    BLK_HOME_ROW * BOARD_COLS + Math.floor(BOARD_COLS / 2) as CellIndex;
+    (BLK_HOME_ROW * BOARD_COLS + Math.floor(BOARD_COLS / 2)) as CellIndex;
 
   const redHand = useMemo(() => new Set<CellIndex>(RED_DST), []);
 
@@ -101,23 +98,19 @@ function GameBoard() {
     (from: CellIndex, to: CellIndex) => {
       const fromInRedHand = redHand.has(from);
       const toInRedHand = redHand.has(to);
-
       if (fromInRedHand && toInRedHand) {
         boardSwap(from, to);
-        setHighlightCells(new Set());
-        return;
+      } else {
+        boardMove(from, to);
       }
-
-      boardMove(from, to);
       setHighlightCells(new Set());
     },
     [boardMove, boardSwap, redHand],
   );
 
   const canDrop = useCallback(
-    (from: CellIndex, to: CellIndex) => {
-      return canDropCard(from, to, redHand, firstRedMove.current, RED_HOME_CENTER as CellIndex);
-    },
+    (from: CellIndex, to: CellIndex) =>
+      canDropCard(from, to, redHand, firstRedMove.current, RED_HOME_CENTER),
     [redHand, RED_HOME_CENTER],
   );
 
@@ -129,47 +122,54 @@ function GameBoard() {
     moveCard,
   );
 
+  // pure pointer-down → highlight/drag
   const handleDown = useHandleDown(
     firstRedMove,
     redHand,
-    RED_HOME_CENTER as CellIndex,
-    BLK_HOME_CENTER as CellIndex,
+    RED_HOME_CENTER,
+    BLK_HOME_CENTER,
     boardReveal,
     setHighlightCells,
     startDrag,
     drag
   );
 
-  // ─── initial deal ─────────────────────────────────
+  // pure click → reveal on first move
+  const handleClickCell = useHandleClick(
+    firstRedMove,
+    RED_HOME_CENTER,
+    BLK_HOME_CENTER,
+    boardReveal,
+    setHighlightCells
+  );
+
+  // initial deal
   const dealtRef = useRef(false);
   useEffect(() => {
     if (dealtRef.current) return;
     dealtRef.current = true;
-
     const queue = (src: CellIndex, dsts: CellIndex[]) =>
       dsts.forEach((d, i) =>
         setTimeout(() => addFlight(src, d), i * DEAL_DELAY_MS),
       );
-
     queue(RED_SRC, RED_DST);
     queue(BLK_SRC, BLK_DST);
   }, [addFlight]);
 
-  // ─── bot play ─────────────────────────────────────
+  // bot play
   const botPlayedRef = useRef(false);
   useEffect(() => {
     if (botPlayedRef.current) return;
-    const handReady = BLK_DST.every(idx => cells[idx].length > 0);
-    if (!handReady) return;
-
+    const ready = BLK_DST.every(idx => cells[idx].length > 0);
+    if (!ready) return;
     botPlayedRef.current = true;
     const id = setTimeout(() => {
-      makeBotMove(cells, addFlight, BLK_DST, BLK_HOME_CENTER as CellIndex);
+      makeBotMove(cells, addFlight, BLK_DST, BLK_HOME_CENTER);
     }, DEAL_DELAY_MS);
     return () => clearTimeout(id);
   }, [cells, addFlight, BLK_HOME_CENTER]);
 
-  // ─── pointer-up cleanup ────────────────────────────
+  // cleanup pointer-up
   useEffect(() => {
     document.addEventListener('pointerup', endDrag);
     return () => document.removeEventListener('pointerup', endDrag);
@@ -185,14 +185,11 @@ function GameBoard() {
         <span>Player&nbsp;1&nbsp;Score:&nbsp;0</span>
         <span>Player&nbsp;2&nbsp;Score:&nbsp;0</span>
       </div>
-
       <div className={styles.board}>
         {cells.map((stack, idx) => (
           <Cell
             key={idx}
-            ref={el => {
-              cellRefs.current[idx] = el;
-            }}
+            ref={el => { cellRefs.current[idx] = el }}
             idx={idx as CellIndex}
             stack={stack}
             hidden={hiddenByCell(idx as CellIndex)}
@@ -200,10 +197,10 @@ function GameBoard() {
             isDragging={dragSrc !== null}
             highlight={highlightCells.has(idx as CellIndex)}
             onDown={handleDown}
+            onClick={handleClickCell}
           />
         ))}
       </div>
-
       {flights.map((f: Flight) => (
         <FlyingCard
           key={f.id}

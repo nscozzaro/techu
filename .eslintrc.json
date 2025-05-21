@@ -1,10 +1,15 @@
 {
     "extends": "next/core-web-vitals",
+    "plugins": [
+        "react-hooks"
+    ],
     "rules": {
         "@typescript-eslint/no-unused-vars": "error",
         "@typescript-eslint/no-require-imports": "error",
         "@typescript-eslint/no-var-requires": "error",
-        "@typescript-eslint/no-require-import": "error"
+        "@typescript-eslint/no-require-import": "error",
+        "react-hooks/rules-of-hooks": "error",
+        "react-hooks/exhaustive-deps": "warn"
     },
     "parserOptions": {
         "project": "./tsconfig.json"
