@@ -28,6 +28,7 @@ import {
   canDrop as canDropCard,
   useHandleDown,
   useHandleClick,
+  handleCardMove,
 } from './lib';
 
 function IntroScreen({ onPlay }: { onPlay: () => void }) {
@@ -96,16 +97,10 @@ function GameBoard() {
 
   const moveCard = useCallback(
     (from: CellIndex, to: CellIndex) => {
-      const fromInRedHand = redHand.has(from);
-      const toInRedHand = redHand.has(to);
-      if (fromInRedHand && toInRedHand) {
-        boardSwap(from, to);
-      } else {
-        boardMove(from, to);
-      }
+      handleCardMove(from, to, cells, redHand, boardMove, boardSwap);
       setHighlightCells(new Set());
     },
-    [boardMove, boardSwap, redHand],
+    [boardMove, boardSwap, redHand, cells],
   );
 
   const canDrop = useCallback(

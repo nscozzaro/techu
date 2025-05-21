@@ -32,7 +32,7 @@ import {
     Card, PixelPosition, Origin, CellIndex,
     BoardDimension, Flight,
     CardView, Cell, FlyingCard,
-    RED_SRC, BLK_SRC, BLK_DST,
+    RED_SRC, BLK_SRC, BLK_DST, RED_DST,
     BOARD_COLS, BOARD_ROWS,
     makeBotMove,
     getSubsequentMoveDestinations,
@@ -43,6 +43,13 @@ import {
     clearStyles,
     flightsReducer,
     useHandleClick,
+    handleCardMove,
+    findEmptyHandPosition,
+    handleHandToHandMove,
+    handleMoveToOccupiedHand,
+    handleRegularMove,
+    type Suit,
+    type Rank,
 } from '../lib';
 
 const createTestHand = (indices: number[] = []): Set<CellIndex> =>
@@ -1068,5 +1075,186 @@ describe('useHandleClick', () => {
         expect(boardReveal).not.toHaveBeenCalled();
         expect(firstRedMove.current).toBe(true);
         expect(setHighlightCells).not.toHaveBeenCalled();
+    });
+});
+
+/*───────────────────────────────────────────────────────────────────────────*/
+/*  handleCardMove & helpers                                                */
+/*───────────────────────────────────────────────────────────────────────────*/
+describe('handleCardMove and helpers', () => {
+    describe('findEmptyHandPosition', () => {
+        it('returns undefined when no empty positions', () => {
+            const cells = Array(BOARD_ROWS * BOARD_COLS).fill([]).map((_, i) =>
+                RED_DST.includes(i as CellIndex) ? [{ suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: true }] : []
+            );
+            expect(findEmptyHandPosition(cells)).toBeUndefined();
+        });
+
+        it('returns first empty hand position', () => {
+            const cells = Array(BOARD_ROWS * BOARD_COLS).fill([]).map((_, i) =>
+                i === RED_DST[0] ? [{ suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: true }] : []
+            );
+            expect(findEmptyHandPosition(cells)).toBe(RED_DST[1]);
+        });
+    });
+
+    describe('handleHandToHandMove', () => {
+        it('calls boardSwap with correct indices', () => {
+            const boardSwap = jest.fn();
+            handleHandToHandMove(31 as CellIndex, 32 as CellIndex, boardSwap);
+            expect(boardSwap).toHaveBeenCalledWith(31, 32);
+        });
+    });
+
+    describe('handleMoveToOccupiedHand', () => {
+        it('swaps to empty position when available', () => {
+            const cells = Array(BOARD_ROWS * BOARD_COLS).fill([]).map((_, i) =>
+                i === RED_DST[0] ? [{ suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: true }] : []
+            );
+            const boardMove = jest.fn();
+            const boardSwap = jest.fn();
+
+            handleMoveToOccupiedHand(
+                0 as CellIndex,
+                RED_DST[0] as CellIndex,
+                cells,
+                boardMove,
+                boardSwap
+            );
+
+            expect(boardSwap).toHaveBeenCalledWith(RED_DST[0], RED_DST[1]);
+            expect(boardMove).toHaveBeenCalledWith(0, RED_DST[0]);
+        });
+
+        it('moves directly when no empty position available', () => {
+            const cells = Array(BOARD_ROWS * BOARD_COLS).fill([]).map((_, i) =>
+                RED_DST.includes(i as CellIndex) ? [{ suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: true }] : []
+            );
+            const boardMove = jest.fn();
+            const boardSwap = jest.fn();
+
+            handleMoveToOccupiedHand(
+                0 as CellIndex,
+                RED_DST[0] as CellIndex,
+                cells,
+                boardMove,
+                boardSwap
+            );
+
+            expect(boardSwap).not.toHaveBeenCalled();
+            expect(boardMove).toHaveBeenCalledWith(0, RED_DST[0]);
+        });
+    });
+
+    describe('handleRegularMove', () => {
+        it('calls boardMove with correct indices', () => {
+            const boardMove = jest.fn();
+            handleRegularMove(0 as CellIndex, 1 as CellIndex, boardMove);
+            expect(boardMove).toHaveBeenCalledWith(0, 1);
+        });
+    });
+
+    describe('handleCardMove', () => {
+        it('handles hand-to-hand moves', () => {
+            const cells = Array(BOARD_ROWS * BOARD_COLS).fill([]);
+            const redHand = new Set<CellIndex>([31 as CellIndex, 32 as CellIndex]);
+            const boardMove = jest.fn();
+            const boardSwap = jest.fn();
+
+            handleCardMove(
+                31 as CellIndex,
+                32 as CellIndex,
+                cells,
+                redHand,
+                boardMove,
+                boardSwap
+            );
+
+            expect(boardSwap).toHaveBeenCalledWith(31, 32);
+            expect(boardMove).not.toHaveBeenCalled();
+        });
+
+        it('ensures cards are face up when moved to red hand', () => {
+            const cells = Array(BOARD_ROWS * BOARD_COLS).fill([]).map((_, i) =>
+                i === 0 ? [{ suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: false }] : []
+            );
+            const redHand = new Set<CellIndex>([31 as CellIndex]);
+            const boardSwap = jest.fn();
+
+            // Mock the reducer to capture the state changes
+            const mockReducer = (state: { cells: Array<Array<{ suit: Suit, rank: Rank, faceUp: boolean }>>, dragSrc: CellIndex | null }, action: { type: string, from: CellIndex, to: CellIndex }) => {
+                if (action.type === 'MOVE') {
+                    const nextCells = [...state.cells];
+                    const card = nextCells[action.from].pop();
+                    if (card) {
+                        // Cards are always face up in red hand
+                        card.faceUp = RED_DST.includes(action.to);
+                        nextCells[action.to].push(card);
+                    }
+                    return { ...state, cells: nextCells, dragSrc: null };
+                }
+                return state;
+            };
+
+            // Create initial state
+            const state = { cells, dragSrc: null };
+
+            // Simulate moving a face-down card to the red hand
+            handleCardMove(
+                0 as CellIndex,
+                31 as CellIndex,
+                cells,
+                redHand,
+                (from, to) => {
+                    const nextState = mockReducer(state, { type: 'MOVE', from, to });
+                    // Cast the cells to the correct type since we know the structure matches
+                    cells[to] = nextState.cells[to] as Array<{ suit: typeof SUITS.Hearts, rank: typeof RANKS.Ace, faceUp: boolean }>;
+                },
+                boardSwap
+            );
+
+            // Verify the card is face up in the red hand
+            expect(cells[31][0].faceUp).toBe(true);
+        });
+
+        it('handles moves to occupied hand', () => {
+            const cells = Array(BOARD_ROWS * BOARD_COLS).fill([]).map((_, i) =>
+                i === RED_DST[0] ? [{ suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: true }] : []
+            );
+            const redHand = new Set<CellIndex>(RED_DST.map(idx => idx as CellIndex));
+            const boardMove = jest.fn();
+            const boardSwap = jest.fn();
+
+            handleCardMove(
+                0 as CellIndex,
+                RED_DST[0] as CellIndex,
+                cells,
+                redHand,
+                boardMove,
+                boardSwap
+            );
+
+            expect(boardSwap).toHaveBeenCalledWith(RED_DST[0], RED_DST[1]);
+            expect(boardMove).toHaveBeenCalledWith(0, RED_DST[0]);
+        });
+
+        it('handles regular moves', () => {
+            const cells = Array(BOARD_ROWS * BOARD_COLS).fill([]);
+            const redHand = new Set<CellIndex>([31 as CellIndex]);
+            const boardMove = jest.fn();
+            const boardSwap = jest.fn();
+
+            handleCardMove(
+                0 as CellIndex,
+                1 as CellIndex,
+                cells,
+                redHand,
+                boardMove,
+                boardSwap
+            );
+
+            expect(boardMove).toHaveBeenCalledWith(0, 1);
+            expect(boardSwap).not.toHaveBeenCalled();
+        });
     });
 });

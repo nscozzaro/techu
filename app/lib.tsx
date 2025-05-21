@@ -112,7 +112,7 @@ const moveCardInCells = (cells: Cards[], from: CellIndex, to: CellIndex) => {
     const card = next[from].pop();
     if (card) {
         const dstRow = Math.floor(to / BOARD_COLS);
-        card.faceUp = !shouldKeepFaceDown(from, dstRow);
+        card.faceUp = RED_DST.includes(to) ? true : !shouldKeepFaceDown(from, dstRow);
         next[to].push(card);
     }
     return next;
@@ -523,6 +523,61 @@ export function useBoard() {
         reveal: (indices: CellIndex[]) =>
             dispatch({ type: 'REVEAL', indices }),
     };
+}
+
+export function findEmptyHandPosition(cells: Cards[]): CellIndex | undefined {
+    return RED_DST.find(idx => cells[idx].length === 0);
+}
+
+export function handleHandToHandMove(
+    from: CellIndex,
+    to: CellIndex,
+    boardSwap: (a: CellIndex, b: CellIndex) => void,
+) {
+    boardSwap(from, to);
+}
+
+export function handleMoveToOccupiedHand(
+    from: CellIndex,
+    to: CellIndex,
+    cells: Cards[],
+    boardMove: (from: CellIndex, to: CellIndex) => void,
+    boardSwap: (a: CellIndex, b: CellIndex) => void,
+) {
+    const emptyHandPos = findEmptyHandPosition(cells);
+    if (emptyHandPos !== undefined) {
+        boardSwap(to, emptyHandPos);
+    }
+    boardMove(from, to);
+}
+
+export function handleRegularMove(
+    from: CellIndex,
+    to: CellIndex,
+    boardMove: (from: CellIndex, to: CellIndex) => void,
+) {
+    boardMove(from, to);
+}
+
+export function handleCardMove(
+    from: CellIndex,
+    to: CellIndex,
+    cells: Cards[],
+    redHand: Set<CellIndex>,
+    boardMove: (from: CellIndex, to: CellIndex) => void,
+    boardSwap: (a: CellIndex, b: CellIndex) => void,
+) {
+    const fromInRedHand = redHand.has(from);
+    const toInRedHand = redHand.has(to);
+    const isOccupiedHand = toInRedHand && cells[to].length > 0;
+
+    if (fromInRedHand && toInRedHand) {
+        handleHandToHandMove(from, to, boardSwap);
+    } else if (isOccupiedHand) {
+        handleMoveToOccupiedHand(from, to, cells, boardMove, boardSwap);
+    } else {
+        handleRegularMove(from, to, boardMove);
+    }
 }
 
 export function useHandleDown(
