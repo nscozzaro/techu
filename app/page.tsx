@@ -99,10 +99,22 @@ function GameBoard() {
 
   const moveCard = useCallback(
     (from: CellIndex, to: CellIndex) => {
-      handleCardMove(from, to, cells, redHand, boardMove, boardSwap);
+      handleCardMove(
+        from,
+        to,
+        {
+          cells,
+          redHand,
+          isFirstRedMove: firstRedMove.current,
+          redHomeCenter: RED_HOME_CENTER,
+          blackHomeCenter: BLK_HOME_CENTER,
+        },
+        boardMove,
+        boardSwap
+      );
       setHighlightCells(new Set());
     },
-    [boardMove, boardSwap, redHand, cells],
+    [boardMove, boardSwap, redHand, cells, firstRedMove, RED_HOME_CENTER, BLK_HOME_CENTER],
   );
 
   const canDrop = useCallback(

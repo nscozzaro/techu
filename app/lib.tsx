@@ -30,9 +30,70 @@ export const BLK_SRC = (BOARD_COLS - 1) as CellIndex;
 export const BLK_DST = [3, 2, 1] as CellIndex[];
 export const DEAL_DELAY_MS = 1_000;
 
+/* Cell type definitions */
+export enum CellType {
+    DECK = 'DECK',
+    HAND = 'HAND',
+    BOARD = 'BOARD'
+}
+
+export interface CellConfig {
+    type: CellType;
+    color?: 'red' | 'black';
+    indices: CellIndex[];
+}
+
+export const CELL_CONFIGS: Record<string, CellConfig> = {
+    RED_DECK: { type: CellType.DECK, color: 'red', indices: [RED_SRC] },
+    BLACK_DECK: { type: CellType.DECK, color: 'black', indices: [BLK_SRC] },
+    RED_HAND: { type: CellType.HAND, color: 'red', indices: RED_DST },
+    BLACK_HAND: { type: CellType.HAND, color: 'black', indices: BLK_DST }
+};
+
 /* handy helpers */
 export const DECK_CELLS = [RED_SRC, BLK_SRC] as const;
 const HAND_CELLS: CellIndex[] = [...RED_DST, ...BLK_DST];
+
+export function getCellType(idx: CellIndex): CellType {
+    if (DECK_CELLS.includes(idx)) return CellType.DECK;
+    if (HAND_CELLS.includes(idx)) return CellType.HAND;
+    return CellType.BOARD;
+}
+
+export function getCellConfig(idx: CellIndex): CellConfig | undefined {
+    return Object.values(CELL_CONFIGS).find(config =>
+        config.indices.includes(idx)
+    );
+}
+
+export function isDeckCell(idx: CellIndex): boolean {
+    return getCellType(idx) === CellType.DECK;
+}
+
+export function isHandCell(idx: CellIndex): boolean {
+    return getCellType(idx) === CellType.HAND;
+}
+
+export function isRedCell(idx: CellIndex): boolean {
+    const config = getCellConfig(idx);
+    return config?.color === 'red';
+}
+
+export function isBlackCell(idx: CellIndex): boolean {
+    const config = getCellConfig(idx);
+    return config?.color === 'black';
+}
+
+/** Utility function to check if a cell is of a specific type */
+export function isCellType(idx: CellIndex, type: CellType): boolean {
+    return getCellType(idx) === type;
+}
+
+/** Utility function to check if a cell is of a specific color */
+export function isCellColor(idx: CellIndex, color: 'red' | 'black'): boolean {
+    const config = getCellConfig(idx);
+    return config?.color === color;
+}
 
 /* ──────────────────────────
    Card domain
@@ -104,8 +165,7 @@ export type BoardAction =
     | { type: 'DEAL'; from: CellIndex; to: CellIndex };
 
 const shouldKeepFaceDown = (from: CellIndex, dstRow: number): boolean =>
-    HAND_CELLS.includes(from) ||
-    (from === BLK_SRC && dstRow === 0);
+    isHandCell(from) || (isDeckCell(from) && isBlackCell(from) && dstRow === 0);
 
 const moveCardInCells = (cells: Cards[], from: CellIndex, to: CellIndex) => {
     if (from === to) return cells;
@@ -420,6 +480,180 @@ export function FlyingCard({
 }
 
 /* ──────────────────────────
+   Game Rules & Movement Systems
+   ────────────────────────── */
+export interface GameState {
+    /** Array of card stacks, where each stack is an array of cards */
+    cells: Cards[];
+    /** Set of cell indices that represent the red player's hand positions */
+    redHand: Set<CellIndex>;
+    /** Whether this is the first move of the red player */
+    isFirstRedMove: boolean;
+    /** The center cell index of the red player's home row */
+    redHomeCenter: CellIndex;
+    /** The center cell index of the black player's home row */
+    blackHomeCenter: CellIndex;
+}
+
+export interface GameRules {
+    /** Determines if a card can be moved from one cell to another */
+    canMoveCard(from: CellIndex, to: CellIndex, state: GameState): boolean;
+    /** Determines if a card should remain face down after being moved */
+    shouldKeepFaceDown(from: CellIndex, to: CellIndex, state: GameState): boolean;
+    /** Returns a set of valid destination cells for a given source cell */
+    getValidDestinations(from: CellIndex, state: GameState): Set<CellIndex>;
+}
+
+export interface CardMovement {
+    /** Moves a card from one cell to another */
+    move(from: CellIndex, to: CellIndex, state: GameState): void;
+    /** Deals a card from one cell to another */
+    deal(from: CellIndex, to: CellIndex, state: GameState): void;
+    /** Swaps cards between two cells */
+    swap(a: CellIndex, b: CellIndex, state: GameState): void;
+}
+
+/* Default game rules implementation */
+export const defaultGameRules: GameRules = {
+    canMoveCard(from, to, state) {
+        return canDrop(
+            from,
+            to,
+            state.redHand,
+            state.isFirstRedMove,
+            state.redHomeCenter
+        );
+    },
+    shouldKeepFaceDown(from, to) {
+        const dstRow = Math.floor(to / BOARD_COLS);
+        const isFromHand = HAND_CELLS.includes(from);
+        const isBlackDeckToFirstRow = from === BLK_SRC && dstRow === 0;
+        return isFromHand || isBlackDeckToFirstRow;
+    },
+    getValidDestinations(from, state) {
+        const { redHand, isFirstRedMove, redHomeCenter } = state;
+        if (!redHand.has(from)) {
+            return new Set();
+        }
+        if (isFirstRedMove) {
+            return new Set([redHomeCenter]);
+        }
+        return getSubsequentMoveDestinations(redHand);
+    }
+};
+
+/* Default card movement implementation */
+export const defaultCardMovement: CardMovement = {
+    move(from, to, state) {
+        if (from === to) return;
+        const card = state.cells[from].pop();
+        if (card) {
+            card.faceUp = RED_DST.includes(to) ? true :
+                !defaultGameRules.shouldKeepFaceDown(from, to, state);
+            state.cells[to].push(card);
+        }
+    },
+
+    deal(from, to, state) {
+        defaultCardMovement.move(from, to, state);
+    },
+
+    swap(a, b, state) {
+        if (a === b) return;
+        const cardA = state.cells[a].pop();
+        const cardB = state.cells[b].pop();
+        if (cardA) state.cells[b].push(cardA);
+        if (cardB) state.cells[a].push(cardB);
+    }
+};
+
+/* ──────────────────────────
+   Move Validation
+   ────────────────────────── */
+export function canDropFirstMove(
+    from: CellIndex,
+    to: CellIndex,
+    redHand: Set<CellIndex>,
+    redHomeCenter: CellIndex,
+): boolean {
+    // Handle home center moves
+    if (from === redHomeCenter) {
+        return redHand.has(to);
+    }
+    // Handle hand position moves
+    if (redHand.has(from)) {
+        return to === redHomeCenter;
+    }
+    // Allow all other moves
+    return true;
+}
+
+export function canDrop(
+    from: CellIndex,
+    to: CellIndex,
+    redHand: Set<CellIndex>,
+    isFirstRedMove: boolean,
+    redHomeCenter: CellIndex,
+): boolean {
+    // Always allow hand-to-hand moves
+    if (redHand.has(from) && redHand.has(to)) return true;
+    // Use canDropFirstMove for all moves during first red move
+    if (isFirstRedMove) {
+        return canDropFirstMove(from, to, redHand, redHomeCenter);
+    }
+    // All other moves are allowed
+    return true;
+}
+
+/* ──────────────────────────
+   Card Movement Handlers
+   ────────────────────────── */
+export function handleCardMove(
+    from: CellIndex,
+    to: CellIndex,
+    state: GameState,
+    boardMove: (from: CellIndex, to: CellIndex) => void,
+    boardSwap: (from: CellIndex, to: CellIndex) => void
+): void {
+    const isOccupiedHand = state.redHand.has(to) && state.cells[to].length > 0;
+
+    // Handle hand-to-hand moves
+    if (state.redHand.has(from) && state.redHand.has(to)) {
+        boardSwap(from, to);
+        return;
+    }
+
+    // Handle moves to occupied hand positions
+    if (isOccupiedHand) {
+        // Find an empty hand position
+        const emptyHandPos = Array.from(state.redHand).find(idx => state.cells[idx].length === 0);
+        if (emptyHandPos !== undefined) {
+            // Swap the card in the occupied position to the empty position
+            boardSwap(to, emptyHandPos);
+            // Then move the card from source to the now-empty position
+            boardMove(from, to);
+            return;
+        }
+    }
+
+    // Handle regular moves
+    boardMove(from, to);
+}
+
+export function handleFlightComplete(
+    from: CellIndex,
+    to: CellIndex,
+    boardDeal: (from: CellIndex, to: CellIndex) => void,
+    moveCard: (from: CellIndex, to: CellIndex) => void,
+) {
+    if (DECK_CELLS.includes(from) || BLK_DST.includes(from)) {
+        boardDeal(from, to);
+    } else {
+        moveCard(from, to);
+    }
+}
+
+/* ──────────────────────────
    Bot play, validation, hooks
    ────────────────────────── */
 export function makeBotMove(
@@ -443,7 +677,18 @@ const getFirstMoveDestination = (redHomeCenter: CellIndex): Set<CellIndex> => {
     return out;
 };
 
-export const getSubsequentMoveDestinations = (redHand: Set<CellIndex>): Set<CellIndex> => {
+// Cache for subsequent move destinations
+const subsequentMoveDestinationsCache = new Map<string, Set<CellIndex>>();
+
+export function getSubsequentMoveDestinations(redHand: Set<CellIndex>): Set<CellIndex> {
+    // Create a cache key from the red hand indices
+    const cacheKey = Array.from(redHand).sort().join(',');
+
+    // Check if we have a cached result
+    const cached = subsequentMoveDestinationsCache.get(cacheKey);
+    if (cached) return cached;
+
+    // Calculate the result
     const allowed = new Set<CellIndex>();
     for (let i = 0; i < BOARD_ROWS * BOARD_COLS; i++) {
         const id = i as CellIndex;
@@ -451,8 +696,11 @@ export const getSubsequentMoveDestinations = (redHand: Set<CellIndex>): Set<Cell
             allowed.add(id);
         }
     }
+
+    // Cache the result
+    subsequentMoveDestinationsCache.set(cacheKey, allowed);
     return allowed;
-};
+}
 
 export function getAllowedMoves(
     idx: CellIndex,
@@ -466,19 +714,62 @@ export function getAllowedMoves(
         : getSubsequentMoveDestinations(redHand);
 }
 
-export const canDrop = (
-    from: CellIndex,
-    to: CellIndex,
+export function useHandleDown(
+    firstRedMove: React.RefObject<boolean>,
     redHand: Set<CellIndex>,
-    isFirstRedMove: boolean,
     redHomeCenter: CellIndex,
-): boolean => {
-    if (isFirstRedMove && from === redHomeCenter) {
-        return redHand.has(to);
-    }
-    if (redHand.has(from) && redHand.has(to)) return true;
-    return isFirstRedMove ? to === redHomeCenter : true;
-};
+    blackHomeCenter: CellIndex,
+    boardReveal: (indices: CellIndex[]) => void,
+    setHighlightCells: (cells: Set<CellIndex>) => void,
+    startDrag: (idx: CellIndex) => void,
+    drag: { down: (e: React.PointerEvent<HTMLElement>, idx: CellIndex) => void }
+) {
+    return useCallback((e: React.PointerEvent<HTMLElement>, idx: CellIndex) => {
+        // Early return if trying to interact with red home center after first move
+        if (!firstRedMove.current && idx === redHomeCenter) {
+            return;
+        }
+
+        // Handle cells in the red hand or the red home center during first move
+        if (redHand.has(idx) || (firstRedMove.current && idx === redHomeCenter)) {
+            const allowedMoves = getAllowedMoves(
+                idx,
+                redHand,
+                firstRedMove.current,
+                redHomeCenter
+            );
+            setHighlightCells(allowedMoves);
+            startDrag(idx);
+            drag.down(e, idx);
+        }
+    }, [
+        firstRedMove,
+        redHand,
+        redHomeCenter,
+        setHighlightCells,
+        startDrag,
+        drag,
+    ]);
+}
+
+export function useHandleClick(
+    firstRedMove: React.RefObject<boolean>,
+    redHomeCenter: CellIndex,
+    blackHomeCenter: CellIndex,
+    boardReveal: (indices: CellIndex[]) => void,
+    setHighlightCells: (cells: Set<CellIndex>) => void,
+) {
+    return useCallback(
+        (e: MouseEvent<HTMLElement>, idx: CellIndex) => {
+            if (firstRedMove.current && idx === redHomeCenter) {
+                boardReveal([redHomeCenter, blackHomeCenter]);
+                firstRedMove.current = false;
+                setHighlightCells(new Set());
+            }
+        },
+        [firstRedMove, redHomeCenter, blackHomeCenter, boardReveal, setHighlightCells],
+    );
+}
 
 export function useFlights(
     cellRefs: React.RefObject<(HTMLDivElement | null)[]>,
@@ -533,121 +824,4 @@ export function useBoard() {
         deal: (from: CellIndex, to: CellIndex) =>
             dispatch({ type: 'DEAL', from, to }),
     };
-}
-
-export function findEmptyHandPosition(cells: Cards[]): CellIndex | undefined {
-    return RED_DST.find(idx => cells[idx].length === 0);
-}
-
-export function handleHandToHandMove(
-    from: CellIndex,
-    to: CellIndex,
-    boardSwap: (a: CellIndex, b: CellIndex) => void,
-) {
-    boardSwap(from, to);
-}
-
-export function handleMoveToOccupiedHand(
-    from: CellIndex,
-    to: CellIndex,
-    cells: Cards[],
-    boardMove: (from: CellIndex, to: CellIndex) => void,
-    boardSwap: (a: CellIndex, b: CellIndex) => void,
-) {
-    const emptyHandPos = findEmptyHandPosition(cells);
-    if (emptyHandPos !== undefined) {
-        boardSwap(to, emptyHandPos);
-    }
-    boardMove(from, to);
-}
-
-export function handleRegularMove(
-    from: CellIndex,
-    to: CellIndex,
-    boardMove: (from: CellIndex, to: CellIndex) => void,
-) {
-    boardMove(from, to);
-}
-
-export function handleCardMove(
-    from: CellIndex,
-    to: CellIndex,
-    cells: Cards[],
-    redHand: Set<CellIndex>,
-    boardMove: (from: CellIndex, to: CellIndex) => void,
-    boardSwap: (a: CellIndex, b: CellIndex) => void,
-) {
-    const fromInRedHand = redHand.has(from);
-    const toInRedHand = redHand.has(to);
-    const isOccupiedHand = toInRedHand && cells[to].length > 0;
-
-    if (fromInRedHand && toInRedHand) {
-        handleHandToHandMove(from, to, boardSwap);
-    } else if (isOccupiedHand) {
-        handleMoveToOccupiedHand(from, to, cells, boardMove, boardSwap);
-    } else {
-        handleRegularMove(from, to, boardMove);
-    }
-}
-
-export function handleFlightComplete(
-    from: CellIndex,
-    to: CellIndex,
-    boardDeal: (from: CellIndex, to: CellIndex) => void,
-    moveCard: (from: CellIndex, to: CellIndex) => void,
-) {
-    if (DECK_CELLS.includes(from) || BLK_DST.includes(from)) {
-        boardDeal(from, to);
-    } else {
-        moveCard(from, to);
-    }
-}
-
-export function useHandleDown(
-    firstRedMove: React.RefObject<boolean>,
-    redHand: Set<CellIndex>,
-    redHomeCenter: CellIndex,
-    blackHomeCenter: CellIndex,
-    boardReveal: (indices: CellIndex[]) => void,
-    setHighlightCells: (cells: Set<CellIndex>) => void,
-    startDrag: (idx: CellIndex) => void,
-    drag: { down: (e: React.PointerEvent<HTMLElement>, idx: CellIndex) => void }
-) {
-    return useCallback((e: React.PointerEvent<HTMLElement>, idx: CellIndex) => {
-        if (!firstRedMove.current && idx === redHomeCenter) return;
-        if (idx === RED_SRC || idx === BLK_SRC) return;
-        if (redHand.has(idx)) {
-            setHighlightCells(
-                getAllowedMoves(idx, redHand, firstRedMove.current, redHomeCenter)
-            );
-        }
-        startDrag(idx);
-        drag.down(e, idx);
-    }, [
-        firstRedMove,
-        redHand,
-        redHomeCenter,
-        setHighlightCells,
-        startDrag,
-        drag,
-    ]);
-}
-
-export function useHandleClick(
-    firstRedMove: React.RefObject<boolean>,
-    redHomeCenter: CellIndex,
-    blackHomeCenter: CellIndex,
-    boardReveal: (indices: CellIndex[]) => void,
-    setHighlightCells: (cells: Set<CellIndex>) => void,
-) {
-    return useCallback(
-        (e: MouseEvent<HTMLElement>, idx: CellIndex) => {
-            if (firstRedMove.current && idx === redHomeCenter) {
-                boardReveal([redHomeCenter, blackHomeCenter]);
-                firstRedMove.current = false;
-                setHighlightCells(new Set());
-            }
-        },
-        [firstRedMove, redHomeCenter, blackHomeCenter, boardReveal, setHighlightCells],
-    );
 }
