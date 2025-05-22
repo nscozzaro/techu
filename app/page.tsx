@@ -158,7 +158,9 @@ function GameBoard() {
     RED_HOME_CENTER,
     BLK_HOME_CENTER,
     boardReveal,
-    setHighlightCells
+    setHighlightCells,
+    cells,
+    addFlight
   );
 
   // initial deal

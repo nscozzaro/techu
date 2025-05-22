@@ -756,12 +756,108 @@ export function useHandleDown(
     ]);
 }
 
+// Add rank comparison utilities
+export type RankComparisonResult = 'tie' | 'red-wins' | 'black-wins';
+
+/** Ordered rank values for comparison (Two is lowest, Ace is highest) */
+export const RANK_VALUES: Record<Rank, number> = {
+    Two: 2, Three: 3, Four: 4, Five: 5, Six: 6, Seven: 7, Eight: 8,
+    Nine: 9, Ten: 10, Jack: 11, Queen: 12, King: 13, Ace: 14
+};
+
+/**
+ * Compare the ranks of two cards and return the winner
+ * @param redCard The red player's card
+ * @param blackCard The black player's card
+ * @returns The result of the comparison
+ */
+export function compareCardRanks(redCard: Card, blackCard: Card): RankComparisonResult {
+    const redRankValue = RANK_VALUES[redCard.rank];
+    const blackRankValue = RANK_VALUES[blackCard.rank];
+
+    if (redRankValue === blackRankValue) {
+        return 'tie';
+    }
+
+    // Lower rank wins in this game
+    return redRankValue < blackRankValue ? 'red-wins' : 'black-wins';
+}
+
+/**
+ * Finds the first empty position in a hand
+ * @param handIndices Array of cell indices representing a player's hand
+ * @param cells The current game cells
+ * @returns The first empty cell index or undefined if no empty cells
+ */
+export function findEmptyHandPosition(
+    handIndices: CellIndex[],
+    cells: Cards[]
+): CellIndex | undefined {
+    return handIndices.find(idx => cells[idx].length === 0) as CellIndex | undefined;
+}
+
+/**
+ * Handle the rank comparison after the first move and deal cards accordingly
+ * @param cells The current game cells
+ * @param redHomeCenter The red player's home center index
+ * @param blackHomeCenter The black player's home center index
+ * @param addFlight Function to add a flight animation
+ */
+export function handleRankComparison(
+    cells: Cards[],
+    redHomeCenter: CellIndex,
+    blackHomeCenter: CellIndex,
+    addFlight: (src: CellIndex, dst: CellIndex) => void
+): void {
+    const redCard = cells[redHomeCenter][cells[redHomeCenter].length - 1];
+    const blackCard = cells[blackHomeCenter][cells[blackHomeCenter].length - 1];
+
+    if (!redCard || !blackCard) return;
+
+    const result = compareCardRanks(redCard, blackCard);
+
+    switch (result) {
+        case 'tie': {
+            // Both players get a card
+            const emptyRedHand = findEmptyHandPosition(RED_DST, cells);
+            const emptyBlackHand = findEmptyHandPosition(BLK_DST, cells);
+
+            if (emptyRedHand) {
+                setTimeout(() => addFlight(RED_SRC, emptyRedHand), DEAL_DELAY_MS);
+            }
+
+            if (emptyBlackHand) {
+                setTimeout(() => addFlight(BLK_SRC, emptyBlackHand), DEAL_DELAY_MS);
+            }
+            break;
+        }
+        case 'red-wins': {
+            // Red player gets a card
+            const emptyRedHand = findEmptyHandPosition(RED_DST, cells);
+            if (emptyRedHand) {
+                setTimeout(() => addFlight(RED_SRC, emptyRedHand), DEAL_DELAY_MS);
+            }
+            break;
+        }
+        case 'black-wins': {
+            // Black player gets a card
+            const emptyBlackHand = findEmptyHandPosition(BLK_DST, cells);
+            if (emptyBlackHand) {
+                setTimeout(() => addFlight(BLK_SRC, emptyBlackHand), DEAL_DELAY_MS);
+            }
+            break;
+        }
+    }
+}
+
 export function useHandleClick(
     firstRedMove: React.RefObject<boolean>,
     redHomeCenter: CellIndex,
     blackHomeCenter: CellIndex,
     boardReveal: (indices: CellIndex[]) => void,
     setHighlightCells: (cells: Set<CellIndex>) => void,
+    cells: Cards[],
+    addFlight: (src: CellIndex, dst: CellIndex) => void,
 ) {
     return useCallback(
         (e: MouseEvent<HTMLElement>, idx: CellIndex) => {
@@ -769,9 +865,10 @@ export function useHandleClick(
                 boardReveal([redHomeCenter, blackHomeCenter]);
                 firstRedMove.current = false;
                 setHighlightCells(new Set());
+                handleRankComparison(cells, redHomeCenter, blackHomeCenter, addFlight);
             }
         },
-        [firstRedMove, redHomeCenter, blackHomeCenter, boardReveal, setHighlightCells],
+        [firstRedMove, redHomeCenter, blackHomeCenter, boardReveal, setHighlightCells, cells, addFlight],
     );
 }
 
