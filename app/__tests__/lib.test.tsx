@@ -88,7 +88,8 @@ const TestComponent: React.FC<TestComponentProps> = (props) => {
         props.boardReveal,
         props.setHighlightCells,
         props.startDrag,
-        props.drag
+        props.drag,
+        Array.from({ length: BOARD_ROWS * BOARD_COLS }, () => [])
     );
     props.onHandleDown(handleDown);
     return null;
@@ -789,12 +790,14 @@ describe('canDrop', () => {
         ${27}     | ${31}      | ${new Set([31].map(i => i as CellIndex))}     | ${false}     | ${27}         | ${true}
         ${27}     | ${32}      | ${new Set([31].map(i => i as CellIndex))}     | ${false}     | ${27}         | ${true}
     `('canDrop from $from to $to with redHand $redHand and firstRedMove=$firstRedMove', ({ from, to, redHand, firstRedMove, redHomeCenter, expected }) => {
+        const cells: Cards[] = Array.from({ length: BOARD_ROWS * BOARD_COLS }, () => []);
         expect(canDrop(
             from as CellIndex,
             to as CellIndex,
             redHand,
             firstRedMove,
-            redHomeCenter as CellIndex
+            redHomeCenter as CellIndex,
+            cells
         )).toBe(expected);
     });
 
@@ -802,6 +805,7 @@ describe('canDrop', () => {
         const redHand = new Set<CellIndex>([31, 32, 33].map(i => i as CellIndex));
         const redHomeCenter = 27 as CellIndex;
         const isFirstRedMove = true;
+        const cells: Cards[] = Array.from({ length: BOARD_ROWS * BOARD_COLS }, () => []);
 
         // Moving from home center to a hand position during first move should be allowed
         expect(canDrop(
@@ -809,7 +813,8 @@ describe('canDrop', () => {
             31 as CellIndex,
             redHand,
             isFirstRedMove,
-            redHomeCenter
+            redHomeCenter,
+            cells
         )).toBe(true);
 
         // Moving from home center to another hand position
@@ -818,7 +823,8 @@ describe('canDrop', () => {
             32 as CellIndex,
             redHand,
             isFirstRedMove,
-            redHomeCenter
+            redHomeCenter,
+            cells
         )).toBe(true);
 
         // Moving from home center to any non-hand position during first move should not be allowed
@@ -827,7 +833,8 @@ describe('canDrop', () => {
             15 as CellIndex, // Non-hand position
             redHand,
             isFirstRedMove,
-            redHomeCenter
+            redHomeCenter,
+            cells
         )).toBe(false);
 
         // Moving from home center to a board position
@@ -836,32 +843,37 @@ describe('canDrop', () => {
             5 as CellIndex,
             redHand,
             isFirstRedMove,
-            redHomeCenter
+            redHomeCenter,
+            cells
         )).toBe(false);
     });
 
     it('allows moving from hand to home center during first move', () => {
         const redHand = new Set<CellIndex>([31].map(i => i as CellIndex));
         const redHomeCenter = 27 as CellIndex;
+        const cells: Cards[] = Array.from({ length: BOARD_ROWS * BOARD_COLS }, () => []);
 
         expect(canDrop(
             31 as CellIndex,
             redHomeCenter,
             redHand,
             true,
-            redHomeCenter
+            redHomeCenter,
+            cells
         )).toBe(true);
     });
 
     it('allows hand-to-hand moves', () => {
         const redHand = new Set<CellIndex>([31, 32].map(i => i as CellIndex));
+        const cells: Cards[] = Array.from({ length: BOARD_ROWS * BOARD_COLS }, () => []);
 
         expect(canDrop(
             31 as CellIndex,
             32 as CellIndex,
             redHand,
             true,
-            27 as CellIndex
+            27 as CellIndex,
+            cells
         )).toBe(true);
     });
 });
@@ -876,16 +888,58 @@ describe('getAllowedMoves', () => {
         ${31}     | ${new Set([31])}                     | ${true}      | ${27}         | ${1}         | ${[27]}
         ${31}     | ${new Set([31])}                     | ${false}     | ${27}         | ${BOARD_ROWS * BOARD_COLS - 3} | ${[]}
     `('getAllowedMoves from $from with redHand $redHand and firstRedMove=$firstRedMove', ({ from, redHand, firstRedMove, redHomeCenter, expectedSize, expectedHas }) => {
+        const cells: Cards[] = Array.from({ length: BOARD_ROWS * BOARD_COLS }, () => []);
         const result = getAllowedMoves(
             from as CellIndex,
             redHand,
             firstRedMove,
-            redHomeCenter as CellIndex
+            redHomeCenter as CellIndex,
+            cells
         );
         expect(result.size).toBe(expectedSize);
         expectedHas.forEach((cell: number) => {
             expect(result.has(cell as CellIndex)).toBe(true);
         });
+    });
+
+    it('returns empty set when redHomeCenter is occupied during first move', () => {
+        const cells: Cards[] = Array.from({ length: BOARD_ROWS * BOARD_COLS }, () => []);
+        const redHomeCenter = 27 as CellIndex;
+        const redHand = new Set<CellIndex>([31 as CellIndex]);
+
+        // Place a card in the redHomeCenter
+        cells[redHomeCenter] = [{ suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: true }];
+
+        const result = getAllowedMoves(
+            31 as CellIndex,
+            redHand,
+            true,
+            redHomeCenter,
+            cells
+        );
+
+        expect(result.size).toBe(0);
+        expect(result.has(redHomeCenter)).toBe(false);
+    });
+
+    it('returns set with redHomeCenter when empty during first move', () => {
+        const cells: Cards[] = Array.from({ length: BOARD_ROWS * BOARD_COLS }, () => []);
+        const redHomeCenter = 27 as CellIndex;
+        const redHand = new Set<CellIndex>([31 as CellIndex]);
+
+        // Ensure redHomeCenter is empty
+        cells[redHomeCenter] = [];
+
+        const result = getAllowedMoves(
+            31 as CellIndex,
+            redHand,
+            true,
+            redHomeCenter,
+            cells
+        );
+
+        expect(result.size).toBe(1);
+        expect(result.has(redHomeCenter)).toBe(true);
     });
 });
 
@@ -945,6 +999,22 @@ describe('useHandleDown', () => {
         } else {
             expect(drag.down).not.toHaveBeenCalled();
         }
+    });
+
+    it('useHandleDown returns a function', () => {
+        const boardReveal = jest.fn();
+        const { result } = renderHook(() => useHandleDown(
+            { current: false },
+            new Set(),
+            27 as CellIndex,
+            28 as CellIndex,
+            boardReveal,
+            () => { },
+            () => { },
+            { down: () => { } },
+            Array.from({ length: BOARD_ROWS * BOARD_COLS }, () => [])
+        ));
+        expect(typeof result.current).toBe('function');
     });
 });
 
@@ -2030,13 +2100,15 @@ describe('handleCardMove', () => {
 describe('canDropFirstMove', () => {
     const redHand = new Set<CellIndex>([31, 32, 33].map(i => i as CellIndex));
     const redHomeCenter = 27 as CellIndex;
+    const cells: Cards[] = Array.from({ length: BOARD_ROWS * BOARD_COLS }, () => []);
 
     it('returns true when moving from home center to hand position', () => {
         expect(canDropFirstMove(
             redHomeCenter,
             31 as CellIndex,
             redHand,
-            redHomeCenter
+            redHomeCenter,
+            cells
         )).toBe(true);
     });
 
@@ -2045,17 +2117,31 @@ describe('canDropFirstMove', () => {
             redHomeCenter,
             0 as CellIndex,
             redHand,
-            redHomeCenter
+            redHomeCenter,
+            cells
         )).toBe(false);
     });
 
-    it('returns true when moving from hand to home center', () => {
+    it('returns true when moving from hand to empty home center', () => {
         expect(canDropFirstMove(
             31 as CellIndex,
             redHomeCenter,
             redHand,
-            redHomeCenter
+            redHomeCenter,
+            cells
         )).toBe(true);
+    });
+
+    it('returns false when moving from hand to occupied home center', () => {
+        const cellsWithCard: Cards[] = [...cells];
+        cellsWithCard[redHomeCenter] = [{ suit: SUITS.Hearts, rank: RANKS.Two, faceUp: true }];
+        expect(canDropFirstMove(
+            31 as CellIndex,
+            redHomeCenter,
+            redHand,
+            redHomeCenter,
+            cellsWithCard
+        )).toBe(false);
     });
 
     it('returns false when moving from hand to non-home center', () => {
@@ -2063,7 +2149,8 @@ describe('canDropFirstMove', () => {
             31 as CellIndex,
             0 as CellIndex,
             redHand,
-            redHomeCenter
+            redHomeCenter,
+            cells
         )).toBe(false);
     });
 
@@ -2072,7 +2159,8 @@ describe('canDropFirstMove', () => {
             0 as CellIndex,
             31 as CellIndex,
             redHand,
-            redHomeCenter
+            redHomeCenter,
+            cells
         )).toBe(true);
     });
 });

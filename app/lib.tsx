@@ -521,12 +521,13 @@ export const defaultGameRules: GameRules = {
             to,
             state.redHand,
             state.isFirstRedMove,
-            state.redHomeCenter
+            state.redHomeCenter,
+            state.cells
         );
     },
-    shouldKeepFaceDown(from, to) {
+    shouldKeepFaceDown(from, to, state) {
         const dstRow = Math.floor(to / BOARD_COLS);
-        const isFromHand = HAND_CELLS.includes(from);
+        const isFromHand = state.redHand.has(from);
         const isBlackDeckToFirstRow = from === BLK_SRC && dstRow === 0;
         return isFromHand || isBlackDeckToFirstRow;
     },
@@ -575,6 +576,7 @@ export function canDropFirstMove(
     to: CellIndex,
     redHand: Set<CellIndex>,
     redHomeCenter: CellIndex,
+    cells: Cards[],
 ): boolean {
     // Handle home center moves
     if (from === redHomeCenter) {
@@ -582,7 +584,8 @@ export function canDropFirstMove(
     }
     // Handle hand position moves
     if (redHand.has(from)) {
-        return to === redHomeCenter;
+        // Only allow moving to home center if it's empty
+        return to === redHomeCenter && cells[redHomeCenter].length === 0;
     }
     // Allow all other moves
     return true;
@@ -594,12 +597,13 @@ export function canDrop(
     redHand: Set<CellIndex>,
     isFirstRedMove: boolean,
     redHomeCenter: CellIndex,
+    cells: Cards[],
 ): boolean {
     // Always allow hand-to-hand moves
     if (redHand.has(from) && redHand.has(to)) return true;
     // Use canDropFirstMove for all moves during first red move
     if (isFirstRedMove) {
-        return canDropFirstMove(from, to, redHand, redHomeCenter);
+        return canDropFirstMove(from, to, redHand, redHomeCenter, cells);
     }
     // All other moves are allowed
     return true;
@@ -671,12 +675,6 @@ export function makeBotMove(
 const isValidSource = (idx: CellIndex, redHand: Set<CellIndex>): boolean =>
     redHand.has(idx);
 
-const getFirstMoveDestination = (redHomeCenter: CellIndex): Set<CellIndex> => {
-    const out = new Set<CellIndex>();
-    out.add(redHomeCenter);
-    return out;
-};
-
 // Cache for subsequent move destinations
 const subsequentMoveDestinationsCache = new Map<string, Set<CellIndex>>();
 
@@ -707,11 +705,14 @@ export function getAllowedMoves(
     redHand: Set<CellIndex>,
     firstRedMove: boolean,
     redHomeCenter: CellIndex,
+    cells: Cards[],
 ): Set<CellIndex> {
     if (!isValidSource(idx, redHand)) return new Set();
-    return firstRedMove
-        ? getFirstMoveDestination(redHomeCenter)
-        : getSubsequentMoveDestinations(redHand);
+    if (firstRedMove) {
+        // Only allow moving to home center if it's empty
+        return cells[redHomeCenter].length === 0 ? new Set([redHomeCenter]) : new Set();
+    }
+    return getSubsequentMoveDestinations(redHand);
 }
 
 export function useHandleDown(
@@ -722,7 +723,8 @@ export function useHandleDown(
     boardReveal: (indices: CellIndex[]) => void,
     setHighlightCells: (cells: Set<CellIndex>) => void,
     startDrag: (idx: CellIndex) => void,
-    drag: { down: (e: React.PointerEvent<HTMLElement>, idx: CellIndex) => void }
+    drag: { down: (e: React.PointerEvent<HTMLElement>, idx: CellIndex) => void },
+    cells: Cards[]
 ) {
     return useCallback((e: React.PointerEvent<HTMLElement>, idx: CellIndex) => {
         // Early return if trying to interact with red home center after first move
@@ -736,7 +738,8 @@ export function useHandleDown(
                 idx,
                 redHand,
                 firstRedMove.current,
-                redHomeCenter
+                redHomeCenter,
+                cells
             );
             setHighlightCells(allowedMoves);
             startDrag(idx);
@@ -749,6 +752,7 @@ export function useHandleDown(
         setHighlightCells,
         startDrag,
         drag,
+        cells
     ]);
 }
 

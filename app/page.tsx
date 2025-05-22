@@ -119,8 +119,8 @@ function GameBoard() {
 
   const canDrop = useCallback(
     (from: CellIndex, to: CellIndex) =>
-      canDropCard(from, to, redHand, firstRedMove.current, RED_HOME_CENTER),
-    [redHand, RED_HOME_CENTER],
+      canDropCard(from, to, redHand, firstRedMove.current, RED_HOME_CENTER, cells),
+    [redHand, RED_HOME_CENTER, cells],
   );
 
   const drag = useSnapDrag(moveCard, canDrop);
@@ -148,7 +148,8 @@ function GameBoard() {
     boardReveal,
     setHighlightCells,
     startDrag,
-    drag
+    drag,
+    cells
   );
 
   // pure click → reveal on first move
