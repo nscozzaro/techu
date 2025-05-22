@@ -62,6 +62,7 @@ import {
     isCellType,
     isCellColor,
     canDropFirstMove,
+    moveCardInCells,
 } from '../lib';
 
 const createTestHand = (indices: number[] = []): Set<CellIndex> =>
@@ -89,7 +90,7 @@ const TestComponent: React.FC<TestComponentProps> = (props) => {
         props.setHighlightCells,
         props.startDrag,
         props.drag,
-        Array.from({ length: BOARD_ROWS * BOARD_COLS }, () => [])
+        makeStartingCells() // Add missing cells argument
     );
     props.onHandleDown(handleDown);
     return null;
@@ -142,6 +143,7 @@ const setupHandleDownTest = () => {
     const setHighlightCells = jest.fn();
     const startDrag = jest.fn();
     const drag = { down: jest.fn() };
+    const cells = makeStartingCells();
     let handleDown: ((e: React.PointerEvent<HTMLElement>, idx: CellIndex) => void) | undefined;
 
     render(
@@ -168,6 +170,7 @@ const setupHandleDownTest = () => {
         startDrag,
         drag,
         handleDown,
+        cells
     };
 };
 
@@ -888,13 +891,12 @@ describe('getAllowedMoves', () => {
         ${31}     | ${new Set([31])}                     | ${true}      | ${27}         | ${1}         | ${[27]}
         ${31}     | ${new Set([31])}                     | ${false}     | ${27}         | ${BOARD_ROWS * BOARD_COLS - 3} | ${[]}
     `('getAllowedMoves from $from with redHand $redHand and firstRedMove=$firstRedMove', ({ from, redHand, firstRedMove, redHomeCenter, expectedSize, expectedHas }) => {
-        const cells: Cards[] = Array.from({ length: BOARD_ROWS * BOARD_COLS }, () => []);
         const result = getAllowedMoves(
             from as CellIndex,
             redHand,
             firstRedMove,
             redHomeCenter as CellIndex,
-            cells
+            makeStartingCells()
         );
         expect(result.size).toBe(expectedSize);
         expectedHas.forEach((cell: number) => {
@@ -902,12 +904,12 @@ describe('getAllowedMoves', () => {
         });
     });
 
-    it('returns empty set when redHomeCenter is occupied during first move', () => {
-        const cells: Cards[] = Array.from({ length: BOARD_ROWS * BOARD_COLS }, () => []);
-        const redHomeCenter = 27 as CellIndex;
+    it('returns empty set when home center is occupied during first move', () => {
+        const cells = makeStartingCells();
         const redHand = new Set<CellIndex>([31 as CellIndex]);
+        const redHomeCenter = 27 as CellIndex;
 
-        // Place a card in the redHomeCenter
+        // Place a card in the home center
         cells[redHomeCenter] = [{ suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: true }];
 
         const result = getAllowedMoves(
@@ -922,12 +924,12 @@ describe('getAllowedMoves', () => {
         expect(result.has(redHomeCenter)).toBe(false);
     });
 
-    it('returns set with redHomeCenter when empty during first move', () => {
-        const cells: Cards[] = Array.from({ length: BOARD_ROWS * BOARD_COLS }, () => []);
-        const redHomeCenter = 27 as CellIndex;
+    it('returns home center when it is empty during first move', () => {
+        const cells = makeStartingCells();
         const redHand = new Set<CellIndex>([31 as CellIndex]);
+        const redHomeCenter = 27 as CellIndex;
 
-        // Ensure redHomeCenter is empty
+        // Ensure home center is empty
         cells[redHomeCenter] = [];
 
         const result = getAllowedMoves(
@@ -999,22 +1001,6 @@ describe('useHandleDown', () => {
         } else {
             expect(drag.down).not.toHaveBeenCalled();
         }
-    });
-
-    it('useHandleDown returns a function', () => {
-        const boardReveal = jest.fn();
-        const { result } = renderHook(() => useHandleDown(
-            { current: false },
-            new Set(),
-            27 as CellIndex,
-            28 as CellIndex,
-            boardReveal,
-            () => { },
-            () => { },
-            { down: () => { } },
-            Array.from({ length: BOARD_ROWS * BOARD_COLS }, () => [])
-        ));
-        expect(typeof result.current).toBe('function');
     });
 });
 
@@ -2162,5 +2148,40 @@ describe('canDropFirstMove', () => {
             redHomeCenter,
             cells
         )).toBe(true);
+    });
+});
+
+describe('moveCardInCells', () => {
+    it.each`
+        from          | to            | expectedFaceUp | description
+        ${RED_SRC}    | ${RED_DST[0]} | ${true}        | ${'moving to red hand position'}
+        ${BLK_SRC}    | ${RED_DST[0]} | ${true}        | ${'moving to red hand position'}
+        ${RED_DST[0]} | ${0}          | ${false}       | ${'moving from hand to board'}
+        ${BLK_SRC}    | ${0}          | ${false}       | ${'moving from black deck to first row'}
+        ${RED_SRC}    | ${BOARD_COLS} | ${true}        | ${'moving from red deck to non-first row'}
+    `('sets faceUp=$expectedFaceUp when $description', ({ from, to, expectedFaceUp }) => {
+        const cells = makeStartingCells();
+        const card = { suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: false };
+        cells[from] = [card];
+
+        const result = moveCardInCells(cells, from as CellIndex, to as CellIndex);
+
+        expect(result[to][0].faceUp).toBe(expectedFaceUp);
+    });
+
+    it('preserves faceUp state when moving to same cell', () => {
+        const cells = makeStartingCells();
+        const card = { suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: true };
+        cells[0] = [card];
+
+        const result = moveCardInCells(cells, 0 as CellIndex, 0 as CellIndex);
+
+        expect(result[0][0].faceUp).toBe(true);
+    });
+
+    it('handles empty source cell', () => {
+        const cells = makeStartingCells();
+        const result = moveCardInCells(cells, 0 as CellIndex, 1 as CellIndex);
+        expect(result[1]).toHaveLength(0);
     });
 });

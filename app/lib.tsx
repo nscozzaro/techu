@@ -167,7 +167,7 @@ export type BoardAction =
 const shouldKeepFaceDown = (from: CellIndex, dstRow: number): boolean =>
     isHandCell(from) || (isDeckCell(from) && isBlackCell(from) && dstRow === 0);
 
-const moveCardInCells = (cells: Cards[], from: CellIndex, to: CellIndex) => {
+export const moveCardInCells = (cells: Cards[], from: CellIndex, to: CellIndex) => {
     if (from === to) return cells;
     const next = cells.map(s => [...s]) as Cards[];
     const card = next[from].pop();
