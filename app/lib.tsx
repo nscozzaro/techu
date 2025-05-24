@@ -1003,114 +1003,47 @@ export function canPlayOnTop(topCard: Card, newCard: Card): boolean {
 }
 
 /**
- * Get valid destinations for a card in the current player's hand
+ * Get adjacent destinations when there are no connected cells but there is a card in the home row
  * @param from Source cell index
- * @param state Current game state
- * @returns Set of valid destination cell indices
+ * @param homeRow Home row index
+ * @param cells Current cells state
+ * @returns Set of valid adjacent destination cell indices
  */
-export function getPostFirstMoveDestinations(
-    from: CellIndex,
-    state: GameState
-): Set<CellIndex> {
-    const {
-        cells,
-        redHand,
-        redHomeCenter,
-        blackHomeCenter,
-        currentPlayer,
-        isTiebreaker
-    } = state;
-
-    // During tiebreaker, both players can make moves
-    if (isTiebreaker) {
-        const isRedHand = redHand.has(from);
-        const isBlackHand = BLK_DST.includes(from);
-
-        if (!isRedHand && !isBlackHand) {
-            return new Set();
-        }
-
-        const homeRow = isRedHand
-            ? Math.floor(redHomeCenter / BOARD_COLS)
-            : Math.floor(blackHomeCenter / BOARD_COLS);
-
-        const allowed = getTiebreakerDestinations(from, homeRow, cells);
-
-        // Add hand cells as valid destinations for red player
-        if (isRedHand) {
-            redHand.forEach(idx => {
-                if (cells[idx].length === 0) {
-                    allowed.add(idx);
-                }
-            });
-        }
-
-        return allowed;
-    }
-
-    // Only allow moves from the current player's hand
-    if (!currentPlayer) {
-        return new Set();  // No moves allowed if no current player
-    }
-
-    const isRedPlayer = currentPlayer === 'red';
-    const playerHand = isRedPlayer ? redHand : new Set<CellIndex>(BLK_DST);
-    if (!playerHand.has(from)) {
-        return new Set();
-    }
-
-    const homeRow = isRedPlayer
-        ? Math.floor(redHomeCenter / BOARD_COLS)
-        : Math.floor(blackHomeCenter / BOARD_COLS);
-    const allowed = new Set<CellIndex>();
-
-    // Get home row destinations
-    const homeRowDests = getHomeRowDestinations(from, homeRow, cells);
-    for (const dest of homeRowDests) {
-        allowed.add(dest);
-    }
-
-    // Find all cells that are part of chains connected to the home row
-    const connected = findConnectedCells(cells, homeRow, isRedPlayer);
-
-    // Add valid adjacent cells to connected cells
-    const connectedDests = getConnectedCellDestinations(from, connected, cells);
-    for (const dest of connectedDests) {
-        allowed.add(dest);
-    }
-
-    // Special case for initial game state: if there are no connected cells yet
-    // but there is at least one card in the home row, include cells adjacent to home row
-    if (connected.size === 0) {
-        const hasCardInHomeRow = checkForCardInHomeRow(homeRow, cells);
-        if (hasCardInHomeRow) {
-            const adjacentDests = getAdjacentHomeRowDestinations(from, homeRow, cells);
-            for (const dest of adjacentDests) {
-                allowed.add(dest);
-            }
-        }
-    }
-
-    // Add hand cells as valid destinations for red player
-    if (isRedPlayer) {
-        redHand.forEach(idx => {
-            if (cells[idx].length === 0) {
-                allowed.add(idx);
-            }
-        });
-    }
-
-    return allowed;
-}
-
-/**
- * Get valid destinations during tiebreaker phase
- */
-export function getTiebreakerDestinations(
+export function getAdjacentDestinationsWhenNoConnected(
     from: CellIndex,
     homeRow: number,
     cells: Cards[]
 ): Set<CellIndex> {
+    const allowed = new Set<CellIndex>();
+    const hasCardInHomeRow = checkForCardInHomeRow(homeRow, cells);
+    if (hasCardInHomeRow) {
+        const adjacentDests = getAdjacentHomeRowDestinations(from, homeRow, cells);
+        for (const dest of adjacentDests) {
+            allowed.add(dest);
+        }
+    }
+    return allowed;
+}
+
+/**
+ * Gets valid destinations during tiebreaker phase
+ */
+export function getTiebreakerDestinationsForCell(
+    from: CellIndex,
+    state: GameState
+): Set<CellIndex> {
+    const { cells, redHand, redHomeCenter, blackHomeCenter } = state;
+    const isRedHand = redHand.has(from);
+    const isBlackHand = BLK_DST.includes(from);
+
+    if (!isRedHand && !isBlackHand) {
+        return new Set();
+    }
+
+    const homeRow = isRedHand
+        ? Math.floor(redHomeCenter / BOARD_COLS)
+        : Math.floor(blackHomeCenter / BOARD_COLS);
+
     const allowed = new Set<CellIndex>();
     for (let col = 0; col < BOARD_COLS; col++) {
         const idx = getCellIndex(homeRow, col);
@@ -1129,7 +1062,141 @@ export function getTiebreakerDestinations(
             allowed.add(idx);
         }
     }
+
+    // Add hand cells as valid destinations for red player
+    if (isRedHand) {
+        addEmptyHandCells(allowed, redHand, cells);
+    }
+
     return allowed;
+}
+
+/**
+ * Get player-specific information based on current player
+ */
+export function getPlayerInfo(state: GameState): {
+    isRedPlayer: boolean;
+    playerHand: Set<CellIndex>;
+    homeRow: number;
+} {
+    const { redHand, redHomeCenter, blackHomeCenter, currentPlayer } = state;
+
+    if (!currentPlayer) {
+        throw new Error('No current player in game state');
+    }
+
+    const isRedPlayer = currentPlayer === 'red';
+    const playerHand = isRedPlayer ? redHand : new Set<CellIndex>(BLK_DST);
+    const homeRow = isRedPlayer
+        ? Math.floor(redHomeCenter / BOARD_COLS)
+        : Math.floor(blackHomeCenter / BOARD_COLS);
+
+    return { isRedPlayer, playerHand, homeRow };
+}
+
+/**
+ * Adds destinations from the home row to the allowed set.
+ */
+function populateHomeRowDestinations(from: CellIndex, homeRow: number, cells: Cards[], allowed: Set<CellIndex>): void {
+    const homeRowDests = getHomeRowDestinations(from, homeRow, cells);
+    for (const dest of homeRowDests) {
+        allowed.add(dest);
+    }
+}
+
+/**
+ * Adds destinations from cells connected to the home row to the allowed set.
+ */
+function populateConnectedCellDestinations(from: CellIndex, connected: Set<CellIndex>, cells: Cards[], allowed: Set<CellIndex>): void {
+    const connectedDests = getConnectedCellDestinations(from, connected, cells);
+    for (const dest of connectedDests) {
+        allowed.add(dest);
+    }
+}
+
+/**
+ * Adds destinations adjacent to home row when no player-owned cards are connected in the home row.
+ */
+function populateAdjacentDestinationsWhenNoPlayerConnected(from: CellIndex, homeRow: number, cells: Cards[], allowed: Set<CellIndex>): void {
+    const adjacentDests = getAdjacentDestinationsWhenNoConnected(from, homeRow, cells);
+    for (const dest of adjacentDests) {
+        allowed.add(dest);
+    }
+}
+
+/**
+ * Get all valid destinations for a player's move
+ */
+export function getAllValidDestinations(
+    from: CellIndex,
+    state: GameState,
+    playerInfo: { isRedPlayer: boolean; playerHand: Set<CellIndex>; homeRow: number }
+): Set<CellIndex> {
+    const { cells } = state;
+    const { isRedPlayer, playerHand, homeRow } = playerInfo;
+    const allowed = new Set<CellIndex>();
+
+    if (!playerHand.has(from)) {
+        return allowed;
+    }
+
+    populateHomeRowDestinations(from, homeRow, cells, allowed);
+
+    const connected = findConnectedCells(cells, homeRow, isRedPlayer);
+    populateConnectedCellDestinations(from, connected, cells, allowed);
+
+    if (connected.size === 0) {
+        populateAdjacentDestinationsWhenNoPlayerConnected(from, homeRow, cells, allowed);
+    }
+
+    if (isRedPlayer) {
+        addEmptyHandCells(allowed, playerHand, cells); // playerHand is state.redHand for red player
+    }
+    return allowed;
+}
+
+/**
+ * Get valid destinations for normal play
+ */
+export function getNormalPlayDestinations(
+    from: CellIndex,
+    state: GameState
+): Set<CellIndex> {
+    try {
+        const playerInfo = getPlayerInfo(state);
+        return getAllValidDestinations(from, state, playerInfo);
+    } catch {
+        // Return empty set if there's no current player or other error
+        return new Set();
+    }
+}
+
+/**
+ * Adds empty hand cells to the allowed destinations set
+ */
+export function addEmptyHandCells(
+    allowed: Set<CellIndex>,
+    handCells: Set<CellIndex>,
+    cells: Cards[]
+): void {
+    handCells.forEach(idx => {
+        if (cells[idx].length === 0) {
+            allowed.add(idx);
+        }
+    });
+}
+
+export function getPostFirstMoveDestinations(
+    from: CellIndex,
+    state: GameState
+): Set<CellIndex> {
+    const { isTiebreaker } = state;
+
+    if (isTiebreaker) {
+        return getTiebreakerDestinationsForCell(from, state);
+    }
+
+    return getNormalPlayDestinations(from, state);
 }
 
 /**
@@ -1141,6 +1208,9 @@ export function getHomeRowDestinations(
     cells: Cards[]
 ): Set<CellIndex> {
     const allowed = new Set<CellIndex>();
+    const newCard = cells[from][cells[from].length - 1];
+    if (!newCard) return allowed;
+
     for (let col = 0; col < BOARD_COLS; col++) {
         const idx = getCellIndex(homeRow, col);
 
@@ -1168,6 +1238,9 @@ export function getConnectedCellDestinations(
     cells: Cards[]
 ): Set<CellIndex> {
     const allowed = new Set<CellIndex>();
+    const newCard = cells[from][cells[from].length - 1];
+    if (!newCard) return allowed;
+
     for (const cellIdx of connected) {
         const adjacentCells = getAdjacentCells(cellIdx);
 
@@ -1278,41 +1351,69 @@ export function getAdjacentCells(cellIdx: CellIndex): CellIndex[] {
 }
 
 /**
- * Find all cells that are part of chains connected to the home row
- * This uses a breadth-first search to find all connected cells
- * @param cells Current cells state
- * @param homeRow Home row index
- * @param isRedPlayer Whether this is for the red player
- * @returns Set of connected cell indices
+ * Checks if a card belongs to a player based on its suit color
  */
-export function findConnectedCells(
+export function isCardOwnedByPlayer(card: Card, isRedPlayer: boolean): boolean {
+    const isCardRed = SUIT_COLOR[card.suit] === 'red';
+    return (isRedPlayer && isCardRed) || (!isRedPlayer && !isCardRed);
+}
+
+/**
+ * Gets the initial connected cells from the home row
+ */
+export function getInitialConnectedCells(
     cells: Cards[],
     homeRow: number,
     isRedPlayer: boolean
-): Set<CellIndex> {
+): { connected: Set<CellIndex>; queue: CellIndex[]; visited: Set<CellIndex> } {
     const connected = new Set<CellIndex>();
     const queue: CellIndex[] = [];
     const visited = new Set<CellIndex>();
 
-    // Start with cards in the home row
     for (let col = 0; col < BOARD_COLS; col++) {
         const idx = getCellIndex(homeRow, col);
-
-        // Skip if no card or not owned by the player
         if (cells[idx].length === 0) continue;
 
-        // Check if this is a player's card by suit color
-        // We need to do this because isRedCell/isBlackCell only check positions, not cards
         const topCard = cells[idx][cells[idx].length - 1];
-        const cardSuit = topCard.suit;
-        const isCardRed = SUIT_COLOR[cardSuit] === 'red';
-
-        if ((isRedPlayer && isCardRed) || (!isRedPlayer && !isCardRed)) {
+        if (isCardOwnedByPlayer(topCard, isRedPlayer)) {
             connected.add(idx);
             queue.push(idx);
             visited.add(idx);
         }
     }
+
+    return { connected, queue, visited };
+}
+
+/**
+ * Processes an adjacent cell during BFS traversal
+ */
+export function processAdjacentCell(
+    adjIdx: CellIndex,
+    cells: Cards[],
+    isRedPlayer: boolean,
+    connected: Set<CellIndex>,
+    queue: CellIndex[],
+    visited: Set<CellIndex>
+): void {
+    if (visited.has(adjIdx)) return;
+    if (isDeckCell(adjIdx) || isHandCell(adjIdx)) return;
+    if (cells[adjIdx].length === 0) return;
+
+    const topCard = cells[adjIdx][cells[adjIdx].length - 1];
+    if (isCardOwnedByPlayer(topCard, isRedPlayer)) {
+        connected.add(adjIdx);
+        queue.push(adjIdx);
+    }
+    visited.add(adjIdx);
+}
+
+export function findConnectedCells(
+    cells: Cards[],
+    homeRow: number,
+    isRedPlayer: boolean
+): Set<CellIndex> {
+    const { connected, queue, visited } = getInitialConnectedCells(cells, homeRow, isRedPlayer);
 
     // BFS to find all connected cells
     while (queue.length > 0) {
@@ -1320,27 +1421,7 @@ export function findConnectedCells(
         const adjacentCells = getAdjacentCells(current);
 
         for (const adjIdx of adjacentCells) {
-            // Skip if already visited
-            if (visited.has(adjIdx)) continue;
-
-            // Skip invalid cell types
-            if (isDeckCell(adjIdx) || isHandCell(adjIdx)) continue;
-
-            // Skip if no card
-            if (cells[adjIdx].length === 0) continue;
-
-            // Check if this is a player's card by suit color
-            const topCard = cells[adjIdx][cells[adjIdx].length - 1];
-            const cardSuit = topCard.suit;
-            const isCardRed = SUIT_COLOR[cardSuit] === 'red';
-
-            if ((isRedPlayer && isCardRed) || (!isRedPlayer && !isCardRed)) {
-                connected.add(adjIdx);
-                queue.push(adjIdx);
-            }
-
-            // Mark as visited
-            visited.add(adjIdx);
+            processAdjacentCell(adjIdx, cells, isRedPlayer, connected, queue, visited);
         }
     }
 
@@ -1388,14 +1469,24 @@ export function makeBlackTiebreakerMove(
     blackHomeCenter: CellIndex,
     addFlight: (src: CellIndex, dst: CellIndex) => void
 ): void {
+    // Find a black hand cell with a card
     const blackHand = BLK_DST.find(idx => cells[idx].length > 0);
-    if (blackHand) {
+    if (blackHand !== undefined) {
+        // Create a minimal game state for getTiebreakerDestinationsForCell
+        const state: GameState = {
+            cells,
+            redHand: new Set(),
+            redHomeCenter: 0 as CellIndex, // Not used for black player
+            blackHomeCenter,
+            isTiebreaker: true,
+            isFirstRedMove: false // Not relevant for black player's move
+        };
+
         // Get valid destinations for black player during tiebreaker
-        const blackHomeRow = Math.floor(blackHomeCenter / BOARD_COLS);
-        const validDestinations = getTiebreakerDestinations(blackHand, blackHomeRow, cells);
+        const validDestinations = getTiebreakerDestinationsForCell(blackHand, state);
         const destinations = Array.from(validDestinations);
         if (destinations.length > 0) {
-            const randomDest = destinations[Math.floor(Math.random() * destinations.length)];
+            const randomDest = destinations[Math.floor(Math.random() * destinations.length)] as CellIndex;
             addFlight(blackHand, randomDest);
         }
     }

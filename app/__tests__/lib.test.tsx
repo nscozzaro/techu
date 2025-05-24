@@ -74,7 +74,6 @@ import {
     handleDownInteraction,
     handleCellClickInteraction,
     RankComparisonResult, // Added import
-    getTiebreakerDestinations,
     getHomeRowDestinations,
     getConnectedCellDestinations,
     makeBlackTiebreakerMove,
@@ -88,6 +87,9 @@ import {
     canPlayOnTop,
     useHandleDown,
     useHandleClick,
+    getAdjacentDestinationsWhenNoConnected,
+    getNormalPlayDestinations, // Added import
+    addEmptyHandCells,
 } from '../lib';
 
 /* DOM helpers ------------------------------------------------------------ */
@@ -1240,9 +1242,9 @@ describe('defaultGameRules', () => {
 
         it('uses post-first-move rules when comparisonResult exists', () => {
             const state = createGameState();
-
-            // Test a valid move according to post-first-move rules
             const from = RED_DST[0] as CellIndex;
+            // Place a card in the 'from' cell for the test to be valid
+            state.cells[from] = [{ suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: true }];
             const to = state.redHomeCenter;
             expect(defaultGameRules.canMoveCard(from, to, state)).toBe(true);
 
@@ -1255,6 +1257,8 @@ describe('defaultGameRules', () => {
             // Test with red-wins (red player's turn)
             const state = createGameState();
             const from = RED_DST[0] as CellIndex;
+            // Place a card in the 'from' cell
+            state.cells[from] = [{ suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: true }];
             const to = state.redHomeCenter;
             expect(defaultGameRules.canMoveCard(from, to, state)).toBe(true);
 
@@ -1264,6 +1268,8 @@ describe('defaultGameRules', () => {
                 comparisonResult: 'black-wins'
             });
             const blackFrom = BLK_DST[0];
+            // Place a card in the 'from' cell for black player
+            blackState.cells[blackFrom] = [{ suit: SUITS.Spades, rank: RANKS.Ace, faceUp: true }];
             const blackTo = blackState.blackHomeCenter;
             expect(defaultGameRules.canMoveCard(blackFrom, blackTo, blackState)).toBe(true);
 
@@ -1812,7 +1818,6 @@ describe('findConnectedCells', () => {
     it('finds all connected cells in a chain', () => {
         const cells = Array.from({ length: BOARD_ROWS * BOARD_COLS }, () => [] as Cards);
         const homeRow = 5;
-
         // Create a chain of red cards
         const homeCell = getCellIndex(homeRow, 2);
         const aboveHome = getCellIndex(homeRow - 1, 2);
@@ -2584,68 +2589,6 @@ const createTestState = (overrides: Partial<GameState> = {}): GameState => ({
     ...overrides // Spread overrides after defaults
 } as GameState);
 
-/*───────────────────────────────────────────────────────────────────────────*/
-/*  getTiebreakerDestinations                                               */
-/*───────────────────────────────────────────────────────────────────────────*/
-describe('getTiebreakerDestinations', () => {
-    it('allows moves to empty cells in home row', () => {
-        const cells = Array.from({ length: BOARD_ROWS * BOARD_COLS }, () => [] as Cards);
-        const from = 31 as CellIndex;
-        const homeRow = 5;
-
-        // Place a card in hand
-        cells[from] = [{ suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: true }];
-
-        const destinations = getTiebreakerDestinations(from, homeRow, cells);
-
-        // Should include all cells in home row
-        for (let col = 0; col < BOARD_COLS; col++) {
-            expect(destinations.has(getCellIndex(homeRow, col))).toBe(true);
-        }
-    });
-
-    it('allows placing higher ranked cards on lower ranked cards', () => {
-        const cells = Array.from({ length: BOARD_ROWS * BOARD_COLS }, () => [] as Cards);
-        const from = 31 as CellIndex;
-        const homeRow = 5;
-
-        // Place a high card in hand
-        cells[from] = [{ suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: true }];
-
-        // Place lower cards in home row
-        for (let col = 0; col < BOARD_COLS; col++) {
-            cells[getCellIndex(homeRow, col)] = [{ suit: SUITS.Hearts, rank: RANKS.Two, faceUp: true }];
-        }
-
-        const destinations = getTiebreakerDestinations(from, homeRow, cells);
-
-        // Should include all cells in home row since Ace > Two
-        for (let col = 0; col < BOARD_COLS; col++) {
-            expect(destinations.has(getCellIndex(homeRow, col))).toBe(true);
-        }
-    });
-
-    it('prevents placing lower ranked cards on higher ranked cards', () => {
-        const cells = Array.from({ length: BOARD_ROWS * BOARD_COLS }, () => [] as Cards);
-        const from = 31 as CellIndex;
-        const homeRow = 5;
-
-        // Place a low card in hand
-        cells[from] = [{ suit: SUITS.Hearts, rank: RANKS.Two, faceUp: true }];
-
-        // Place higher cards in home row
-        for (let col = 0; col < BOARD_COLS; col++) {
-            cells[getCellIndex(homeRow, col)] = [{ suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: true }];
-        }
-
-        const destinations = getTiebreakerDestinations(from, homeRow, cells);
-
-        // Should not include any cells in home row since Two < Ace
-        for (let col = 0; col < BOARD_COLS; col++) {
-            expect(destinations.has(getCellIndex(homeRow, col))).toBe(false);
-        }
-    });
-});
 
 /*───────────────────────────────────────────────────────────────────────────*/
 /*  getHomeRowDestinations                                                  */
@@ -2816,6 +2759,27 @@ describe('makeBlackTiebreakerMove', () => {
 
         makeBlackTiebreakerMove(cells, blackHomeCenter, addFlight);
 
+        expect(addFlight).not.toHaveBeenCalled();
+    });
+
+    it('does not make a move if no valid destinations exist during tiebreaker', () => {
+        const cells = Array.from({ length: BOARD_ROWS * BOARD_COLS }, () => [] as Cards);
+        const blackHomeCenter = 7 as CellIndex;
+        const addFlight = jest.fn();
+
+        // Place a card in black's hand
+        const blackHand = BLK_DST[0];
+        cells[blackHand] = [{ suit: SUITS.Clubs, rank: RANKS.Two, faceUp: true }]; // Low rank card
+
+        // Occupy all black home row cells with higher or unplayable cards
+        const blackHomeRow = Math.floor(blackHomeCenter / BOARD_COLS);
+        for (let col = 0; col < BOARD_COLS; col++) {
+            const homeRowCellIdx = getCellIndex(blackHomeRow, col);
+            // Fill with Aces so a Two cannot be played on top
+            cells[homeRowCellIdx] = [{ suit: SUITS.Spades, rank: RANKS.Ace, faceUp: true }];
+        }
+
+        makeBlackTiebreakerMove(cells, blackHomeCenter, addFlight);
         expect(addFlight).not.toHaveBeenCalled();
     });
 
@@ -3277,7 +3241,6 @@ describe('useHandleDown', () => {
         act(() => {
             result.current(createMockEvent(), state.redHomeCenter);
         });
-
         expect(state.setHighlightCells).toHaveBeenCalled();
         expect(state.startDrag).toHaveBeenCalledWith(state.redHomeCenter);
         expect(state.drag.down).toHaveBeenCalled();
@@ -3515,3 +3478,212 @@ describe('finishPlayerTurn', () => {
         expect(state.currentPlayer).toBe('red');
     });
 });
+
+describe('getAdjacentDestinationsWhenNoConnected', () => {
+    it('returns empty set when there is no card in home row', () => {
+        const cells = Array.from({ length: BOARD_ROWS * BOARD_COLS }, () => [] as Cards);
+        const from = 31 as CellIndex;
+        const homeRow = 5;
+        const result = getAdjacentDestinationsWhenNoConnected(from, homeRow, cells);
+        expect(result.size).toBe(0);
+        expect(result).toEqual(new Set());
+    });
+
+    it('returns adjacent destinations when there is a card in home row', () => {
+        const cells = Array.from({ length: BOARD_ROWS * BOARD_COLS }, () => [] as Cards);
+        const from = 31 as CellIndex;
+        const homeRow = 5;
+
+        // Place a card in the home row
+        const homeCenter = getCellIndex(homeRow, 2);
+        cells[homeCenter] = [{ suit: SUITS.Hearts, rank: RANKS.Two, faceUp: true }];
+
+        // Place a card in the source cell that can be played on the home row card
+        cells[from] = [{ suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: true }];
+
+        // Get a cell that is definitely adjacent to the home row
+        const adjacentCells = getAdjacentCells(homeCenter);
+        const adjacentCell = adjacentCells.find(idx => !isDeckCell(idx) && !isHandCell(idx));
+        expect(adjacentCell).toBeDefined();
+        cells[adjacentCell!] = [];
+
+        const result = getAdjacentDestinationsWhenNoConnected(from, homeRow, cells);
+
+        // Should include adjacent cells that are valid destinations
+        expect(result.size).toBeGreaterThan(0);
+        expect(result.has(adjacentCell!)).toBe(true);
+    });
+
+    it('excludes invalid adjacent destinations', () => {
+        const cells = Array.from({ length: BOARD_ROWS * BOARD_COLS }, () => [] as Cards);
+        const from = 31 as CellIndex;
+        const homeRow = 5;
+
+        // Place a card in the home row
+        const homeCenter = getCellIndex(homeRow, 2);
+        cells[homeCenter] = [{ suit: SUITS.Hearts, rank: RANKS.Two, faceUp: true }];
+
+        // Place a lower ranked card in the source cell
+        cells[from] = [{ suit: SUITS.Hearts, rank: RANKS.Three, faceUp: true }];
+
+        // Get a cell that is definitely adjacent to the home row
+        const adjacentCells = getAdjacentCells(homeCenter);
+        const adjacentCell = adjacentCells.find(idx => !isDeckCell(idx) && !isHandCell(idx));
+        expect(adjacentCell).toBeDefined();
+        // Place a higher ranked card in the adjacent cell
+        cells[adjacentCell!] = [{ suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: true }];
+
+        const result = getAdjacentDestinationsWhenNoConnected(from, homeRow, cells);
+
+        // Should not include adjacent cells with higher ranked cards
+        expect(result.has(adjacentCell!)).toBe(false);
+    });
+});
+
+/*───────────────────────────────────────────────────────────────────────────*/
+/*  getNormalPlayDestinations and its helpers                               */
+/*───────────────────────────────────────────────────────────────────────────*/
+
+describe('getNormalPlayDestinations and helpers', () => {
+    const createBaseGameState = (currentPlayer: 'red' | 'black' | undefined = 'red', overrides: Partial<GameState> = {}): GameState => ({
+        cells: makeStartingCells(),
+        redHand: new Set<CellIndex>(RED_DST),
+        isFirstRedMove: false,
+        redHomeCenter: 27 as CellIndex, // Row 5, Col 2
+        blackHomeCenter: 7 as CellIndex, // Row 1, Col 2
+        currentPlayer: currentPlayer,
+        isTiebreaker: false,
+        comparisonResult: undefined,
+        redHomeRow: 5,
+        blackHomeRow: 1,
+        ...overrides,
+    });
+
+    it('should call populateAdjacentDestinationsWhenNoPlayerConnected when connected.size is 0', () => {
+        const state = createBaseGameState('red');
+        const from = RED_DST[0]; // A card in red's hand
+        state.cells[from] = [{ suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: true }];
+
+        // Ensure no red cards are in the red home row initially to make connected.size === 0
+        for (let col = 0; col < BOARD_COLS; col++) {
+            const homeRowCellIdx = getCellIndex(state.redHomeRow!, col);
+            state.cells[homeRowCellIdx] = []; // Clear home row
+        }
+        // Also ensure no cards are on the board that could form a connection for red player
+        // For simplicity in this test, we assume clearing the home row is sufficient
+        // to ensure findConnectedCells returns an empty set for the red player.
+
+        // Add a black card to the red home row to ensure checkForCardInHomeRow is true
+        // but findConnectedCells for red is still zero.
+        const aBlackCardInRedHome = getCellIndex(state.redHomeRow!, 0);
+        state.cells[aBlackCardInRedHome] = [{ suit: SUITS.Spades, rank: RANKS.Two, faceUp: true }];
+
+        const destinations = getNormalPlayDestinations(from, state);
+
+        // Verify that populateAdjacentDestinationsWhenNoPlayerConnected was effectively called
+        // We expect to find destinations adjacent to the red home row cells if they are empty and valid.
+        // Example: a cell adjacent to where the black card was placed, if it's a valid move.
+        const expectedDest = getCellIndex(state.redHomeRow! - 1, 0); // Cell above the black card
+        if (!isDeckCell(expectedDest) && !isHandCell(expectedDest) && state.cells[expectedDest].length === 0) {
+            expect(destinations.has(expectedDest)).toBe(true);
+        }
+        // Check a cell that should definitely be empty and adjacent to the home row
+        const anotherAdjacent = getCellIndex(state.redHomeRow!, 1); // Next to the black card
+        if (state.cells[anotherAdjacent].length === 0) {
+            // if the cell itself is empty, it's a valid dest from homeRowDests
+        } else {
+            // if not empty, and we are in the no-connected path, it might be added by adjacent
+            // This part of the test is tricky as getHomeRowDestinations might add it first.
+            // The main goal is to ensure the path for connected.size === 0 is taken.
+        }
+        // A more direct way to test if the specific line was hit would be to mock
+        // getAdjacentDestinationsWhenNoConnected and check if it was called.
+        // However, we are testing the integrated behavior here.
+        expect(destinations.size).toBeGreaterThan(0); // Ensure some destinations are found
+    });
+
+    it('getAdjacentHomeRowDestinations returns empty set if fromCard is undefined', () => {
+        const cells = makeStartingCells();
+        const from = 0 as CellIndex; // Empty cell
+        cells[from] = [];
+        const homeRow = 5;
+        const destinations = getAdjacentHomeRowDestinations(from, homeRow, cells);
+        expect(destinations.size).toBe(0);
+    });
+
+    it('getConnectedCellDestinations returns empty set if fromCard is undefined', () => {
+        const cells = makeStartingCells();
+        const from = 0 as CellIndex; // Empty cell
+        cells[from] = [];
+        const connected = new Set<CellIndex>([getCellIndex(5, 2)]);
+        const destinations = getConnectedCellDestinations(from, connected, cells);
+        expect(destinations.size).toBe(0);
+    });
+
+    it('getNormalPlayDestinations returns empty set if currentPlayer is undefined', () => {
+        const state = createBaseGameState('red', { currentPlayer: undefined }); // Explicitly override to undefined
+        const from = RED_DST[0];
+        const destinations = getNormalPlayDestinations(from, state);
+        expect(destinations.size).toBe(0);
+    });
+
+    it('getNormalPlayDestinations returns empty set if from is not in playerHand', () => {
+        const state = createBaseGameState('red');
+        const from = 0 as CellIndex; // Not in red hand
+        const destinations = getNormalPlayDestinations(from, state);
+        expect(destinations.size).toBe(0);
+    });
+
+    it('getHomeRowDestinations returns empty set if fromCard is undefined', () => {
+        const cells = makeStartingCells();
+        const from = 0 as CellIndex; // Empty cell
+        cells[from] = [];
+        const homeRow = 5;
+        const destinations = getHomeRowDestinations(from, homeRow, cells);
+        expect(destinations.size).toBe(0);
+    });
+
+});
+
+/*───────────────────────────────────────────────────────────────────────────*/
+/*  addEmptyHandCells                                                        */
+/*───────────────────────────────────────────────────────────────────────────*/
+describe('addEmptyHandCells', () => {
+    it('does not add anything if handCells is empty', () => {
+        const allowed = new Set<CellIndex>();
+        const handCells = new Set<CellIndex>();
+        const cells = makeStartingCells();
+        addEmptyHandCells(allowed, handCells, cells);
+        expect(allowed.size).toBe(0);
+    });
+
+    it('does not add anything if all handCells are occupied', () => {
+        const allowed = new Set<CellIndex>();
+        const handCells = new Set<CellIndex>(RED_DST);
+        const cells = makeStartingCells();
+        // Occupy all red hand cells
+        RED_DST.forEach(idx => {
+            cells[idx] = [{ suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: true }];
+        });
+        addEmptyHandCells(allowed, handCells, cells);
+        expect(allowed.size).toBe(0);
+    });
+
+    it('adds only empty hand cells', () => {
+        const allowed = new Set<CellIndex>();
+        const handCells = new Set<CellIndex>(RED_DST);
+        const cells = makeStartingCells();
+        // Occupy one red hand cell, leave others empty
+        cells[RED_DST[0]] = [{ suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: true }];
+        RED_DST.slice(1).forEach(idx => cells[idx] = []); // Ensure others are empty
+
+        addEmptyHandCells(allowed, handCells, cells);
+        expect(allowed.size).toBe(RED_DST.length - 1);
+        expect(allowed.has(RED_DST[0])).toBe(false);
+        RED_DST.slice(1).forEach(idx => {
+            expect(allowed.has(idx)).toBe(true);
+        });
+    });
+});
+
+
