@@ -7,6 +7,7 @@ import React, {
   useRef,
   useCallback,
   useMemo,
+  MouseEvent,
 } from 'react';
 import styles from './page.module.css';
 import {
@@ -25,11 +26,14 @@ import {
   BOARD_ROWS,
   BOARD_COLS,
   makeBotMove,
-  canDrop as canDropCard,
-  useHandleDown,
-  useHandleClick,
+  GameState,
   handleCardMove,
+  handleDownInteraction,
+  HandleDownArgs,
+  handleCellClickInteraction,
+  HandleClickCellArgs,
   handleFlightComplete,
+  defaultGameRules,
 } from './lib';
 
 function IntroScreen({ onPlay }: { onPlay: () => void }) {
@@ -82,6 +86,13 @@ function GameBoard() {
   } = useBoard();
 
   const firstRedMove = useRef(true);
+  const gameState = useRef<GameState>({
+    cells,
+    redHand: new Set<CellIndex>(RED_DST),
+    isFirstRedMove: true,
+    redHomeCenter: 0 as CellIndex,
+    blackHomeCenter: 0 as CellIndex,
+  });
 
   const RED_HOME_ROW = BOARD_ROWS - 2;
   const RED_HOME_CENTER =
@@ -91,6 +102,11 @@ function GameBoard() {
   const BLK_HOME_CENTER =
     (BLK_HOME_ROW * BOARD_COLS + Math.floor(BOARD_COLS / 2)) as CellIndex;
 
+  useEffect(() => {
+    gameState.current.redHomeCenter = RED_HOME_CENTER;
+    gameState.current.blackHomeCenter = BLK_HOME_CENTER;
+  }, [RED_HOME_CENTER, BLK_HOME_CENTER, cells]);
+
   const redHand = useMemo(() => new Set<CellIndex>(RED_DST), []);
 
   const [highlightCells, setHighlightCells] = useState<Set<CellIndex>>(
@@ -99,28 +115,28 @@ function GameBoard() {
 
   const moveCard = useCallback(
     (from: CellIndex, to: CellIndex) => {
+      gameState.current.cells = cells;
+      gameState.current.isFirstRedMove = firstRedMove.current;
+
       handleCardMove(
         from,
         to,
-        {
-          cells,
-          redHand,
-          isFirstRedMove: firstRedMove.current,
-          redHomeCenter: RED_HOME_CENTER,
-          blackHomeCenter: BLK_HOME_CENTER,
-        },
+        gameState.current,
         boardMove,
-        boardSwap
+        boardSwap,
+        setHighlightCells
       );
-      setHighlightCells(new Set());
     },
-    [boardMove, boardSwap, redHand, cells, firstRedMove, RED_HOME_CENTER, BLK_HOME_CENTER],
+    [boardMove, boardSwap, cells, setHighlightCells]
   );
 
   const canDrop = useCallback(
-    (from: CellIndex, to: CellIndex) =>
-      canDropCard(from, to, redHand, firstRedMove.current, RED_HOME_CENTER, cells),
-    [redHand, RED_HOME_CENTER, cells],
+    (from: CellIndex, to: CellIndex) => {
+      gameState.current.cells = cells;
+      gameState.current.isFirstRedMove = firstRedMove.current;
+      return defaultGameRules.canMoveCard(from, to, gameState.current);
+    },
+    [cells]
   );
 
   const drag = useSnapDrag(moveCard, canDrop);
@@ -139,28 +155,44 @@ function GameBoard() {
     onFlightComplete,
   );
 
-  // pure pointer-down → highlight/drag
-  const handleDown = useHandleDown(
-    firstRedMove,
-    redHand,
-    RED_HOME_CENTER,
-    BLK_HOME_CENTER,
-    boardReveal,
-    setHighlightCells,
-    startDrag,
-    drag,
-    cells
+  const handleDown = useCallback(
+    (e: React.PointerEvent<HTMLElement>, idx: CellIndex) => {
+      gameState.current.cells = cells;
+
+      const args: HandleDownArgs = {
+        e,
+        idx,
+        gameState: gameState.current,
+        cells,
+        firstRedMove: firstRedMove.current,
+        redHand,
+        RED_HOME_CENTER,
+        BLK_DST,
+        setHighlightCells,
+        startDrag,
+        drag,
+      };
+      handleDownInteraction(args);
+    },
+    [cells, redHand, RED_HOME_CENTER, BLK_DST, setHighlightCells, startDrag, drag]
   );
 
-  // pure click → reveal on first move
-  const handleClickCell = useHandleClick(
-    firstRedMove,
-    RED_HOME_CENTER,
-    BLK_HOME_CENTER,
-    boardReveal,
-    setHighlightCells,
-    cells,
-    addFlight
+  const handleClickCell = useCallback(
+    (e: MouseEvent<HTMLElement>, idx: CellIndex) => {
+      const args: HandleClickCellArgs = {
+        idx,
+        gameState: gameState.current,
+        cells,
+        firstRedMoveRef: firstRedMove,
+        RED_HOME_CENTER,
+        BLK_HOME_CENTER,
+        boardReveal,
+        setHighlightCells,
+        addFlight,
+      };
+      handleCellClickInteraction(args);
+    },
+    [RED_HOME_CENTER, BLK_HOME_CENTER, boardReveal, setHighlightCells, cells, addFlight]
   );
 
   // initial deal

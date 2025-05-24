@@ -16,37 +16,55 @@ import '@testing-library/jest-dom';
 /*  MOCK: replace Cell so it *always* forwards onDown                 */
 /* ------------------------------------------------------------------ */
 jest.mock('../lib', () => {
-    const actual = jest.requireActual('../lib');
+    const actualLib = jest.requireActual('../lib');
 
-    const FakeCell = React.forwardRef(function FakeCell(
-        props: {
-            idx: number;
-            stack: Array<{ suit: string; rank: string; faceUp: boolean }>;
-            onDown: (e: React.PointerEvent<HTMLElement>, idx: number) => void;
-            highlight?: boolean;
-        },
-        ref: React.Ref<HTMLDivElement>,
+    const FakeCell = React.forwardRef<HTMLDivElement, {
+        idx: import('../lib').CellIndex;
+        stack: import('../lib').Cards;
+        hidden: number;
+        dragSrc: import('../lib').CellIndex | null;
+        isDragging: boolean;
+        highlight?: boolean;
+        onDown: (e: React.PointerEvent<HTMLElement>, idx: import('../lib').CellIndex) => void;
+        onClick?: (e: React.MouseEvent<HTMLElement>, idx: import('../lib').CellIndex) => void;
+    }>(function FakeCell(
+        props,
+        ref
     ) {
-        const { idx, stack, onDown, highlight } = props;
-        const top = stack[stack.length - 1];
+        const { idx, stack, onDown, onClick, highlight, hidden } = props;
+        const top = stack[stack.length - 1 - hidden];
+        const isDeck = idx === actualLib.RED_SRC || idx === actualLib.BLK_SRC;
+        const isBlackTop = top && actualLib.cardColor(top.suit) === 'black';
+        const inactive = isDeck || isBlackTop;
+
         return (
             <div
                 ref={ref}
                 data-cell={idx}
                 role="generic"
                 className={`cell ${highlight ? 'highlight' : ''}`}
+                onClick={inactive || !onClick ? undefined : (e) => {
+                    // Ensure the event is treated as a React.MouseEvent<HTMLElement>
+                    // and idx is correctly passed.
+                    onClick(e as unknown as React.MouseEvent<HTMLElement>, idx);
+                }}
+                style={inactive ? { pointerEvents: 'none' } : undefined}
             >
                 {top && (
                     <div
                         data-testid={`card-${idx}`}
-                        onPointerDown={e => onDown(e, idx)}
+                        onPointerDown={(e) => {
+                            // Ensure the event is treated as a React.PointerEvent<HTMLElement>
+                            // and idx is correctly passed.
+                            onDown(e as unknown as React.PointerEvent<HTMLElement>, idx);
+                        }}
                     />
                 )}
             </div>
         );
-    }) as unknown as typeof actual.Cell;
+    }) as unknown as typeof actualLib.Cell;
 
-    return { ...actual, Cell: FakeCell };
+    return { __esModule: true, ...actualLib, Cell: FakeCell };
 });
 
 /* ── import AFTER the mock ────────────────────────────────────────── */
@@ -445,4 +463,199 @@ describe('Bot play functionality', () => {
         // Clean up mock
         mockUseBoard.mockRestore();
     });
+});
+
+/* ------------------------------------------------------------------ */
+/*  7. Additional coverage for page.tsx                                */
+/* ------------------------------------------------------------------ */
+describe('Additional page.tsx coverage', () => {
+    it('handles pointer down on red home center after first move', () => {
+        renderAndDeal();
+
+        // First make a move to complete first move phase
+        const srcIdx = 31;
+        const dstIdx = 27;
+        const srcEl = cellEls()[srcIdx];
+        const dstEl = cellEls()[dstIdx];
+
+        const spy = jest
+            .spyOn(document, 'elementFromPoint')
+            .mockReturnValue(dstEl);
+
+        const top = srcEl.querySelector('[data-testid^="card-"]')!;
+        act(() => {
+            fireEvent.pointerDown(top, { clientX: 5, clientY: 5 });
+            fireEvent.pointerMove(dstEl, { clientX: 40, clientY: 40 });
+            fireEvent.pointerUp(dstEl, { clientX: 40, clientY: 40 });
+        });
+
+        // Wait for animations to complete
+        act(() => {
+            jest.runAllTimers();
+        });
+
+        // Now try to interact with red home center
+        const redHomeCenter = 27;
+        const redHomeCenterEl = cellEls()[redHomeCenter];
+        const redHomeCenterCard = redHomeCenterEl.querySelector('[data-testid^="card-"]')!;
+
+        act(() => {
+            fireEvent.pointerDown(redHomeCenterCard, { clientX: 5, clientY: 5 });
+        });
+
+        // Verify no drag started
+        expect(document.querySelector('.flying')).toBeNull();
+
+        spy.mockRestore();
+    });
+
+    it('handles pointer down during tiebreaker phase', () => {
+        renderAndDeal();
+
+        // First make a move to complete first move phase
+        const srcIdx = 31;
+        const dstIdx = 27;
+        const srcEl = cellEls()[srcIdx];
+        const dstEl = cellEls()[dstIdx];
+
+        const spy = jest
+            .spyOn(document, 'elementFromPoint')
+            .mockReturnValue(dstEl);
+
+        const top = srcEl.querySelector('[data-testid^="card-"]')!;
+        act(() => {
+            fireEvent.pointerDown(top, { clientX: 5, clientY: 5 });
+            fireEvent.pointerMove(dstEl, { clientX: 40, clientY: 40 });
+            fireEvent.pointerUp(dstEl, { clientX: 40, clientY: 40 });
+        });
+
+        // Wait for animations to complete
+        act(() => {
+            jest.runAllTimers();
+        });
+
+        // Click on red home center to trigger tiebreaker
+        const redHomeCenter = 27;
+        const redHomeCenterEl = cellEls()[redHomeCenter];
+        fireEvent.click(redHomeCenterEl);
+
+        // Wait for animations to complete
+        act(() => {
+            jest.runAllTimers();
+        });
+
+        // Complete any flights
+        act(() => {
+            document
+                .querySelectorAll('.flying')
+                .forEach(el => fireEvent.transitionEnd(el));
+        });
+
+        // Try to interact with black hand during tiebreaker
+        const blackHandIdx = 3;
+        const blackHandEl = cellEls()[blackHandIdx];
+        const blackHandCard = blackHandEl.querySelector('[data-testid^="card-"]')!;
+        act(() => {
+            fireEvent.pointerDown(blackHandCard, { clientX: 5, clientY: 5 });
+            fireEvent.pointerMove(dstEl, { clientX: 40, clientY: 40 });
+        });
+        // Correct assertion: no drag started
+        expect(document.querySelector('.flying')).toBeNull();
+        spy.mockRestore();
+    });
+
+    it('handles pointer down for current player turn', () => {
+        renderAndDeal();
+
+        // First make a move to complete first move phase
+        const srcIdx = 31;
+        const dstIdx = 27;
+        const srcEl = cellEls()[srcIdx];
+        const dstEl = cellEls()[dstIdx];
+
+        const spy = jest
+            .spyOn(document, 'elementFromPoint')
+            .mockReturnValue(dstEl);
+
+        const top = srcEl.querySelector('[data-testid^="card-"]')!;
+        act(() => {
+            fireEvent.pointerDown(top, { clientX: 5, clientY: 5 });
+            fireEvent.pointerMove(dstEl, { clientX: 40, clientY: 40 });
+            fireEvent.pointerUp(dstEl, { clientX: 40, clientY: 40 });
+        });
+
+        // Wait for animations to complete
+        act(() => {
+            jest.runAllTimers();
+        });
+
+        // Click on red home center to trigger black's turn
+        const redHomeCenter = 27;
+        const redHomeCenterEl = cellEls()[redHomeCenter];
+        fireEvent.click(redHomeCenterEl);
+
+        // Wait for animations to complete
+        act(() => {
+            jest.runAllTimers();
+        });
+
+        // Complete any flights
+        act(() => {
+            document
+                .querySelectorAll('.flying')
+                .forEach(el => fireEvent.transitionEnd(el));
+        });
+
+        // Try to interact with black hand during black's turn
+        const blackHandIdx = 3;
+        const blackHandEl = cellEls()[blackHandIdx];
+        const blackHandCard = blackHandEl.querySelector('[data-testid^="card-"]')!;
+        act(() => {
+            fireEvent.pointerDown(blackHandCard, { clientX: 5, clientY: 5 });
+            fireEvent.pointerMove(dstEl, { clientX: 40, clientY: 40 });
+        });
+        // Correct assertion: no drag started
+        expect(document.querySelector('.flying')).toBeNull();
+        spy.mockRestore();
+    });
+
+    it('handles flight completion', () => {
+        renderAndDeal();
+
+        // First make a move to complete first move phase
+        const srcIdx = 31;
+        const dstIdx = 27;
+        const srcEl = cellEls()[srcIdx];
+        const dstEl = cellEls()[dstIdx];
+
+        const spy = jest
+            .spyOn(document, 'elementFromPoint')
+            .mockReturnValue(dstEl);
+
+        const top = srcEl.querySelector('[data-testid^="card-"]')!;
+        act(() => {
+            fireEvent.pointerDown(top, { clientX: 5, clientY: 5 });
+            fireEvent.pointerMove(dstEl, { clientX: 40, clientY: 40 });
+            fireEvent.pointerUp(dstEl, { clientX: 40, clientY: 40 });
+        });
+
+        // Wait for animations to complete
+        act(() => {
+            jest.runAllTimers();
+        });
+
+        // Complete any flights
+        act(() => {
+            document
+                .querySelectorAll('.flying')
+                .forEach(el => fireEvent.transitionEnd(el));
+        });
+
+        // Verify card was moved
+        expect(cardCount(cellEls()[dstIdx])).toBe(1);
+        expect(cardCount(cellEls()[srcIdx])).toBe(0);
+
+        spy.mockRestore();
+    });
+
 });
