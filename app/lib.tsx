@@ -517,9 +517,6 @@ export interface GameRules {
     shouldKeepFaceDown(from: CellIndex, to: CellIndex, state: GameState): boolean;
     /** Returns a set of valid destination cells for a given source cell */
     getValidDestinations(from: CellIndex, state: GameState): Set<CellIndex>;
-}
-
-export interface CardMovement {
     /** Moves a card from one cell to another */
     move(from: CellIndex, to: CellIndex, state: GameState): void;
     /** Deals a card from one cell to another */
@@ -587,8 +584,6 @@ export const defaultGameRules: GameRules = {
             return new Set([redHomeCenter]);
         }
 
-        // --- Post-first-move logic (isFirstRedMove is false if we reach here) ---
-
         // Case 3: comparisonResult exists, use post-first-move specific destinations
         if (comparisonResult) {
             return getPostFirstMoveDestinations(from, state);
@@ -601,23 +596,20 @@ export const defaultGameRules: GameRules = {
 
         // Case 5: Fallback, source is in red hand
         return getSubsequentMoveDestinations(redHand);
-    }
-};
+    },
 
-/* Default card movement implementation */
-export const defaultCardMovement: CardMovement = {
     move(from, to, state) {
         if (from === to) return;
         const card = state.cells[from].pop();
         if (card) {
             card.faceUp = RED_DST.includes(to) ? true :
-                !defaultGameRules.shouldKeepFaceDown(from, to, state);
+                !this.shouldKeepFaceDown(from, to, state);
             state.cells[to].push(card);
         }
     },
 
     deal(from, to, state) {
-        defaultCardMovement.move(from, to, state);
+        this.move(from, to, state);
     },
 
     swap(a, b, state) {

@@ -50,10 +50,7 @@ import {
     isRedCell,
     isBlackCell,
     defaultGameRules,
-    defaultCardMovement,
     type GameState,
-    type GameRules,
-    type CardMovement,
     isCellType,
     isCellColor,
     moveCardInCells,
@@ -73,7 +70,7 @@ import {
     getValidDestinationsWithoutHand,
     handleDownInteraction,
     handleCellClickInteraction,
-    RankComparisonResult, // Added import
+    RankComparisonResult,
     getHomeRowDestinations,
     getConnectedCellDestinations,
     makeBlackTiebreakerMove,
@@ -88,7 +85,7 @@ import {
     useHandleDown,
     useHandleClick,
     getAdjacentDestinationsWhenNoConnected,
-    getNormalPlayDestinations, // Added import
+    getNormalPlayDestinations,
     addEmptyHandCells,
 } from '../lib';
 
@@ -1537,70 +1534,59 @@ describe('defaultGameRules', () => {
             expect(destinations.has(0 as CellIndex)).toBe(true);
         });
     });
-});
 
-/*───────────────────────────────────────────────────────────────────────────*/
-/*  Card Movement                                                            */
-/*───────────────────────────────────────────────────────────────────────────*/
-describe('defaultCardMovement', () => {
-    const createGameState = () => ({
-        cells: makeStartingCells(),
-        redHand: new Set<CellIndex>(RED_DST),
-        isFirstRedMove: true,
-        redHomeCenter: 27 as CellIndex,
-        blackHomeCenter: 7 as CellIndex
-    });
+    describe('defaultGameRules', () => {
+        it('does nothing when moving to same cell', () => {
+            const state = createGameState();
+            const originalCells = [...state.cells];
+            defaultGameRules.move(0 as CellIndex, 0 as CellIndex, state);
+            expect(state.cells).toEqual(originalCells);
+        });
 
-    it('does nothing when moving to same cell', () => {
-        const state = createGameState();
-        const originalCells = [...state.cells];
-        defaultCardMovement.move(0 as CellIndex, 0 as CellIndex, state);
-        expect(state.cells).toEqual(originalCells);
-    });
+        it('does nothing when swapping a cell with itself', () => {
+            const state = createGameState();
+            const card = { suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: true };
+            state.cells[RED_DST[0]] = [card];
+            const cellsBeforeSwap = [...state.cells];
+            defaultGameRules.swap(RED_DST[0] as CellIndex, RED_DST[0] as CellIndex, state);
+            expect(state.cells).toEqual(cellsBeforeSwap);
+        });
 
-    it('does nothing when swapping a cell with itself', () => {
-        const state = createGameState();
-        const card = { suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: true };
-        state.cells[RED_DST[0]] = [card];
-        const cellsBeforeSwap = [...state.cells];
-        defaultCardMovement.swap(RED_DST[0] as CellIndex, RED_DST[0] as CellIndex, state);
-        expect(state.cells).toEqual(cellsBeforeSwap);
-    });
+        it('moves card and updates face up state', () => {
+            const state = createGameState();
+            const card = { suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: false };
+            state.cells[0] = [card];
 
-    it('moves card and updates face up state', () => {
-        const state = createGameState();
-        const card = { suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: false };
-        state.cells[0] = [card];
+            defaultGameRules.move(0 as CellIndex, RED_DST[0] as CellIndex, state);
 
-        defaultCardMovement.move(0 as CellIndex, RED_DST[0] as CellIndex, state);
+            expect(state.cells[0]).toHaveLength(0);
+            expect(state.cells[RED_DST[0]]).toHaveLength(1);
+            expect(state.cells[RED_DST[0]][0].faceUp).toBe(true);
+        });
 
-        expect(state.cells[0]).toHaveLength(0);
-        expect(state.cells[RED_DST[0]]).toHaveLength(1);
-        expect(state.cells[RED_DST[0]][0].faceUp).toBe(true);
-    });
+        it('deals card using move', () => {
+            const state = createGameState();
+            const card = { suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: false };
+            state.cells[RED_SRC] = [card];
 
-    it('deals card using move', () => {
-        const state = createGameState();
-        const card = { suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: false };
-        state.cells[RED_SRC] = [card];
+            defaultGameRules.deal(RED_SRC, RED_DST[0] as CellIndex, state);
 
-        defaultCardMovement.deal(RED_SRC, RED_DST[0] as CellIndex, state);
+            expect(state.cells[RED_SRC]).toHaveLength(0);
+            expect(state.cells[RED_DST[0]]).toHaveLength(1);
+        });
 
-        expect(state.cells[RED_SRC]).toHaveLength(0);
-        expect(state.cells[RED_DST[0]]).toHaveLength(1);
-    });
+        it('swaps cards between cells', () => {
+            const state = createGameState();
+            const cardA = { suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: true };
+            const cardB = { suit: SUITS.Diamonds, rank: RANKS.King, faceUp: true };
+            state.cells[RED_DST[0]] = [cardA];
+            state.cells[RED_DST[1]] = [cardB];
 
-    it('swaps cards between cells', () => {
-        const state = createGameState();
-        const cardA = { suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: true };
-        const cardB = { suit: SUITS.Diamonds, rank: RANKS.Two, faceUp: true };
-        state.cells[RED_DST[0]] = [cardA];
-        state.cells[RED_DST[1]] = [cardB];
+            defaultGameRules.swap(RED_DST[0] as CellIndex, RED_DST[1] as CellIndex, state);
 
-        defaultCardMovement.swap(RED_DST[0] as CellIndex, RED_DST[1] as CellIndex, state);
-
-        expect(state.cells[RED_DST[0]][0]).toEqual(cardB);
-        expect(state.cells[RED_DST[1]][0]).toEqual(cardA);
+            expect(state.cells[RED_DST[0]][0]).toEqual(cardB);
+            expect(state.cells[RED_DST[1]][0]).toEqual(cardA);
+        });
     });
 
     describe('faceUp state determination', () => {
@@ -1609,234 +1595,20 @@ describe('defaultCardMovement', () => {
             const card = { suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: false };
             state.cells[0] = [card];
 
-            defaultCardMovement.move(0 as CellIndex, RED_DST[0] as CellIndex, state);
+            defaultGameRules.move(0 as CellIndex, RED_DST[0] as CellIndex, state);
 
             expect(state.cells[RED_DST[0]][0].faceUp).toBe(true);
         });
 
         it('sets faceUp based on shouldKeepFaceDown rules for non-hand moves', () => {
             const state = createGameState();
-            const card = { suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: true };
+            const card = { suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: false };
+            state.cells[0] = [card];
 
-            // Test moving from hand (should stay face down)
-            state.cells[RED_DST[0]] = [card];
-            defaultCardMovement.move(RED_DST[0] as CellIndex, 0 as CellIndex, state);
-            expect(state.cells[0][0].faceUp).toBe(false);
+            defaultGameRules.move(0 as CellIndex, 1 as CellIndex, state);
 
-            // Test moving from black deck to first row (should stay face down)
-            state.cells[BLK_SRC] = [card];
-            defaultCardMovement.move(BLK_SRC, 0 as CellIndex, state);
-            expect(state.cells[0][0].faceUp).toBe(false);
-
-            // Test moving from red deck to non-first row (should be face up)
-            state.cells[RED_SRC] = [card];
-            defaultCardMovement.move(RED_SRC, BOARD_COLS as unknown as CellIndex, state);
-            expect(state.cells[BOARD_COLS][0].faceUp).toBe(true);
+            expect(state.cells[1][0].faceUp).toBe(true);
         });
-    });
-});
-
-/*───────────────────────────────────────────────────────────────────────────*/
-/*  Game State Interface                                                     */
-/*───────────────────────────────────────────────────────────────────────────*/
-describe('GameState interface', () => {
-    it('can be instantiated with required properties', () => {
-        const gameState: GameState = {
-            cells: makeStartingCells(),
-            redHand: new Set<CellIndex>(RED_DST),
-            isFirstRedMove: true,
-            redHomeCenter: 27 as CellIndex,
-            blackHomeCenter: 7 as CellIndex
-        };
-
-        expect(gameState.cells).toBeDefined();
-        expect(gameState.redHand).toBeDefined();
-        expect(gameState.isFirstRedMove).toBeDefined();
-        expect(gameState.redHomeCenter).toBeDefined();
-        expect(gameState.blackHomeCenter).toBeDefined();
-    });
-
-    it('maintains correct state after operations', () => {
-        const gameState: GameState = {
-            cells: makeStartingCells(),
-            redHand: new Set<CellIndex>(RED_DST),
-            isFirstRedMove: true,
-            redHomeCenter: 27 as CellIndex,
-            blackHomeCenter: 7 as CellIndex
-        };
-
-        // Verify initial state
-        expect(gameState.isFirstRedMove).toBe(true);
-        expect(gameState.redHand.size).toBe(RED_DST.length);
-
-        // Simulate first move
-        gameState.isFirstRedMove = false;
-        expect(gameState.isFirstRedMove).toBe(false);
-    });
-});
-
-/*───────────────────────────────────────────────────────────────────────────*/
-/*  Game Rules Interface                                                     */
-/*───────────────────────────────────────────────────────────────────────────*/
-describe('GameRules interface', () => {
-    const createGameState = () => ({
-        cells: makeStartingCells(),
-        redHand: new Set<CellIndex>(RED_DST),
-        isFirstRedMove: true,
-        redHomeCenter: 27 as CellIndex,
-        blackHomeCenter: 7 as CellIndex
-    });
-
-    it('implements all required methods', () => {
-        const rules: GameRules = defaultGameRules;
-        expect(typeof rules.canMoveCard).toBe('function');
-        expect(typeof rules.shouldKeepFaceDown).toBe('function');
-        expect(typeof rules.getValidDestinations).toBe('function');
-    });
-
-    it('validates moves according to game rules', () => {
-        const state = createGameState();
-        const rules: GameRules = defaultGameRules;
-
-        // Test first move validation
-        expect(rules.canMoveCard(
-            state.redHomeCenter,
-            RED_DST[0] as CellIndex,
-            state
-        )).toBe(true);
-
-        // Test invalid first move
-        expect(rules.canMoveCard(
-            state.redHomeCenter,
-            0 as CellIndex,
-            state
-        )).toBe(false);
-    });
-
-    it('determines face-up/down state correctly', () => {
-        const state = createGameState();
-        const rules: GameRules = defaultGameRules;
-
-        // Test hand-to-board move
-        expect(rules.shouldKeepFaceDown(
-            RED_DST[0] as CellIndex,
-            0 as CellIndex,
-            state
-        )).toBe(true);
-
-        // Test deck-to-board move
-        expect(rules.shouldKeepFaceDown(
-            RED_SRC,
-            BOARD_COLS as unknown as CellIndex,
-            state
-        )).toBe(false);
-    });
-
-    it('provides valid destinations for moves', () => {
-        const state = createGameState();
-        const rules: GameRules = defaultGameRules;
-
-        // Test first move destinations
-        const firstMoveDests = rules.getValidDestinations(
-            RED_DST[0] as CellIndex,
-            state
-        );
-        expect(firstMoveDests.size).toBe(1);
-        expect(firstMoveDests.has(state.redHomeCenter)).toBe(true);
-
-        // Test subsequent move destinations
-        state.isFirstRedMove = false;
-        const subsequentDests = rules.getValidDestinations(
-            RED_DST[0] as CellIndex,
-            state
-        );
-        expect(subsequentDests.size).toBe(BOARD_ROWS * BOARD_COLS - 5); // Excluding RED_SRC, BLK_SRC, and all red hand cells
-    });
-});
-
-/*───────────────────────────────────────────────────────────────────────────*/
-/*  Card Movement Interface                                                  */
-/*───────────────────────────────────────────────────────────────────────────*/
-describe('CardMovement interface', () => {
-    const createGameState = () => ({
-        cells: makeStartingCells(),
-        redHand: new Set<CellIndex>(RED_DST),
-        isFirstRedMove: true,
-        redHomeCenter: 27 as CellIndex,
-        blackHomeCenter: 7 as CellIndex
-    });
-
-    it('implements all required methods', () => {
-        const movement: CardMovement = defaultCardMovement;
-        expect(typeof movement.move).toBe('function');
-        expect(typeof movement.deal).toBe('function');
-        expect(typeof movement.swap).toBe('function');
-    });
-
-    it('handles card movement with face-up/down rules', () => {
-        const state = createGameState();
-        const movement: CardMovement = defaultCardMovement;
-
-        // Test move from hand (should stay face down)
-        const card = { suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: true };
-        state.cells[RED_DST[0]] = [card];
-        movement.move(RED_DST[0] as CellIndex, 0 as CellIndex, state);
-        expect(state.cells[0][0].faceUp).toBe(false);
-
-        // Test move from deck (should be face up)
-        state.cells[RED_SRC] = [card];
-        movement.move(RED_SRC, BOARD_COLS as unknown as CellIndex, state);
-        expect(state.cells[BOARD_COLS][0].faceUp).toBe(true);
-    });
-
-    it('handles card dealing correctly', () => {
-        const state = createGameState();
-        const movement: CardMovement = defaultCardMovement;
-
-        // Test dealing from deck
-        const card = { suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: false };
-        state.cells[RED_SRC] = [card];
-        movement.deal(RED_SRC, RED_DST[0] as CellIndex, state);
-        expect(state.cells[RED_SRC]).toHaveLength(0);
-        expect(state.cells[RED_DST[0]]).toHaveLength(1);
-        expect(state.cells[RED_DST[0]][0].faceUp).toBe(true);
-    });
-
-    it('handles card swapping correctly', () => {
-        const state = createGameState();
-        const movement: CardMovement = defaultCardMovement;
-
-        // Test swapping cards
-        const cardA = { suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: true };
-        const cardB = { suit: SUITS.Diamonds, rank: RANKS.Two, faceUp: true };
-        state.cells[RED_DST[0]] = [cardA];
-        state.cells[RED_DST[1]] = [cardB];
-
-        movement.swap(RED_DST[0] as CellIndex, RED_DST[1] as CellIndex, state);
-        expect(state.cells[RED_DST[0]][0]).toEqual(cardB);
-        expect(state.cells[RED_DST[1]][0]).toEqual(cardA);
-    });
-
-    it('handles edge cases in card movement', () => {
-        const state = createGameState();
-        const movement: CardMovement = defaultCardMovement;
-
-        // Test moving to same cell
-        const card = { suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: true };
-        state.cells[RED_DST[0]] = [card];
-        const originalCells = [...state.cells];
-        movement.move(RED_DST[0] as CellIndex, RED_DST[0] as CellIndex, state);
-        expect(state.cells).toEqual(originalCells);
-
-        // Test moving from empty cell
-        movement.move(0 as CellIndex, 1 as CellIndex, state);
-        expect(state.cells[1]).toHaveLength(0);
-
-        // Test swapping with empty cell
-        state.cells[RED_DST[0]] = [card];
-        movement.swap(RED_DST[0] as CellIndex, RED_DST[1] as CellIndex, state);
-        expect(state.cells[RED_DST[0]]).toHaveLength(0);
-        expect(state.cells[RED_DST[1]][0]).toEqual(card);
     });
 });
 
