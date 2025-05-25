@@ -905,25 +905,31 @@ describe('getAllowedMoves', () => {
 /*  handleCardMove function                                                  */
 /*───────────────────────────────────────────────────────────────────────────*/
 describe('handleCardMove', () => {
-    const createBaseGameState = (currentPlayer?: 'red' | 'black'): GameState => ({
+    const createTestState = (overrides: Partial<GameState> = {}): GameState => ({
         cells: makeStartingCells(),
         redHand: new Set<CellIndex>(RED_DST),
         isFirstRedMove: true,
         redHomeCenter: 27 as CellIndex,
         blackHomeCenter: 7 as CellIndex,
-        currentPlayer: currentPlayer,
+        currentPlayer: 'red',
         comparisonResult: undefined,
         isTiebreaker: false,
         redHomeRow: Math.floor((27 as CellIndex) / BOARD_COLS),
         blackHomeRow: Math.floor((7 as CellIndex) / BOARD_COLS),
+        ...overrides
     });
 
-    it('handles hand-to-hand moves with boardSwap and updates turn/highlights', () => {
-        const state = createBaseGameState('red');
-        state.isFirstRedMove = false;
+    it('performs a pure hand swap for red player and does not end turn', () => {
+        const state = createTestState({ currentPlayer: 'red', isFirstRedMove: false });
         const mockBoardSwap = jest.fn();
         const mockBoardMove = jest.fn();
         const mockSetHighlightCells = jest.fn();
+
+        // Set up cards in red hand
+        const card1 = { suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: true };
+        const card2 = { suit: SUITS.Diamonds, rank: RANKS.Two, faceUp: true };
+        state.cells[RED_DST[0]] = [card1];
+        state.cells[RED_DST[1]] = [card2];
 
         handleCardMove(
             RED_DST[0] as CellIndex,
@@ -933,14 +939,135 @@ describe('handleCardMove', () => {
             mockBoardSwap,
             mockSetHighlightCells
         );
+
         expect(mockBoardSwap).toHaveBeenCalledWith(RED_DST[0], RED_DST[1]);
         expect(mockBoardMove).not.toHaveBeenCalled();
-        expect(mockSetHighlightCells).toHaveBeenCalledWith(new Set());
-        expect(state.currentPlayer).toBe('black');
+        expect(state.currentPlayer).toBe('red'); // Turn should not end
+    });
+
+    it('performs a pure hand swap for black player and does not end turn', () => {
+        const state = createTestState({ currentPlayer: 'black', isFirstRedMove: false });
+        const mockBoardSwap = jest.fn();
+        const mockBoardMove = jest.fn();
+        const mockSetHighlightCells = jest.fn();
+
+        // Set up cards in black hand
+        const card1 = { suit: SUITS.Clubs, rank: RANKS.Ace, faceUp: true };
+        const card2 = { suit: SUITS.Spades, rank: RANKS.Two, faceUp: true };
+        state.cells[BLK_DST[0]] = [card1];
+        state.cells[BLK_DST[1]] = [card2];
+
+        handleCardMove(
+            BLK_DST[0] as CellIndex,
+            BLK_DST[1] as CellIndex,
+            state,
+            mockBoardMove,
+            mockBoardSwap,
+            mockSetHighlightCells
+        );
+
+        expect(mockBoardSwap).toHaveBeenCalledWith(BLK_DST[0], BLK_DST[1]);
+        expect(mockBoardMove).not.toHaveBeenCalled();
+        expect(state.currentPlayer).toBe('black'); // Turn should not end
+    });
+
+    it('allows multiple hand swaps in the same turn', () => {
+        const state = createTestState({ currentPlayer: 'red', isFirstRedMove: false });
+        const mockBoardSwap = jest.fn();
+        const mockBoardMove = jest.fn();
+        const mockSetHighlightCells = jest.fn();
+
+        // Set up cards in red hand
+        const card1 = { suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: true };
+        const card2 = { suit: SUITS.Diamonds, rank: RANKS.Two, faceUp: true };
+        const card3 = { suit: SUITS.Hearts, rank: RANKS.Three, faceUp: true };
+        state.cells[RED_DST[0]] = [card1];
+        state.cells[RED_DST[1]] = [card2];
+        state.cells[RED_DST[2]] = [card3];
+
+        // First swap
+        handleCardMove(
+            RED_DST[0] as CellIndex,
+            RED_DST[1] as CellIndex,
+            state,
+            mockBoardMove,
+            mockBoardSwap,
+            mockSetHighlightCells
+        );
+
+        // Second swap
+        handleCardMove(
+            RED_DST[1] as CellIndex,
+            RED_DST[2] as CellIndex,
+            state,
+            mockBoardMove,
+            mockBoardSwap,
+            mockSetHighlightCells
+        );
+
+        expect(mockBoardSwap).toHaveBeenCalledTimes(2);
+        expect(mockBoardMove).not.toHaveBeenCalled();
+        expect(state.currentPlayer).toBe('red'); // Turn should still be red's
+    });
+
+    it('handles hand swap during first red move', () => {
+        const state = createTestState({ currentPlayer: 'red', isFirstRedMove: true });
+        const mockBoardSwap = jest.fn();
+        const mockBoardMove = jest.fn();
+        const mockSetHighlightCells = jest.fn();
+
+        // Set up cards in red hand
+        const card1 = { suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: true };
+        const card2 = { suit: SUITS.Diamonds, rank: RANKS.Two, faceUp: true };
+        state.cells[RED_DST[0]] = [card1];
+        state.cells[RED_DST[1]] = [card2];
+
+        handleCardMove(
+            RED_DST[0] as CellIndex,
+            RED_DST[1] as CellIndex,
+            state,
+            mockBoardMove,
+            mockBoardSwap,
+            mockSetHighlightCells
+        );
+
+        expect(mockBoardSwap).toHaveBeenCalledWith(RED_DST[0], RED_DST[1]);
+        expect(mockBoardMove).not.toHaveBeenCalled();
+        expect(state.currentPlayer).toBe('red'); // Turn should not end
+    });
+
+    it('handles hand swap during tiebreaker', () => {
+        const state = createTestState({
+            currentPlayer: 'red',
+            isFirstRedMove: false,
+            isTiebreaker: true
+        });
+        const mockBoardSwap = jest.fn();
+        const mockBoardMove = jest.fn();
+        const mockSetHighlightCells = jest.fn();
+
+        // Set up cards in red hand
+        const card1 = { suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: true };
+        const card2 = { suit: SUITS.Diamonds, rank: RANKS.Two, faceUp: true };
+        state.cells[RED_DST[0]] = [card1];
+        state.cells[RED_DST[1]] = [card2];
+
+        handleCardMove(
+            RED_DST[0] as CellIndex,
+            RED_DST[1] as CellIndex,
+            state,
+            mockBoardMove,
+            mockBoardSwap,
+            mockSetHighlightCells
+        );
+
+        expect(mockBoardSwap).toHaveBeenCalledWith(RED_DST[0], RED_DST[1]);
+        expect(mockBoardMove).not.toHaveBeenCalled();
+        expect(state.currentPlayer).toBe('red'); // Turn should not end
     });
 
     it('handles moves to occupied hand positions by swapping to empty position, updates turn/highlights', () => {
-        const state = createBaseGameState('red');
+        const state = createTestState({ currentPlayer: 'red' });
         state.isFirstRedMove = false;
         const cardA = { suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: true };
         state.cells[0 as CellIndex] = [cardA];
@@ -967,66 +1094,67 @@ describe('handleCardMove', () => {
     });
 
     it('handles regular moves with boardMove, updates turn/highlights', () => {
-        const state = createBaseGameState('red');
+        const state = createTestState({ currentPlayer: 'red' });
         state.isFirstRedMove = false;
         const card = { suit: SUITS.Hearts, rank: RANKS.Ace, faceUp: true };
-        state.cells[RED_DST[0]] = [card];
+        state.cells[0 as CellIndex] = [card];
+
         const mockBoardSwap = jest.fn();
         const mockBoardMove = jest.fn();
         const mockSetHighlightCells = jest.fn();
 
         handleCardMove(
-            RED_DST[0] as CellIndex,
             0 as CellIndex,
+            1 as CellIndex,
             state,
             mockBoardMove,
             mockBoardSwap,
             mockSetHighlightCells
         );
+
+        expect(mockBoardMove).toHaveBeenCalledWith(0 as CellIndex, 1 as CellIndex);
         expect(mockBoardSwap).not.toHaveBeenCalled();
-        expect(mockBoardMove).toHaveBeenCalledWith(RED_DST[0], 0 as CellIndex);
         expect(mockSetHighlightCells).toHaveBeenCalledWith(new Set());
         expect(state.currentPlayer).toBe('black');
     });
 
     it('does not update highlights if setHighlightCells is not provided, but still finishes turn', () => {
-        const state = createBaseGameState('red');
+        const state = createTestState({ currentPlayer: 'red' });
         state.isFirstRedMove = false;
         const mockBoardSwap = jest.fn();
         const mockBoardMove = jest.fn();
 
         handleCardMove(
-            RED_DST[0] as CellIndex,
             0 as CellIndex,
+            1 as CellIndex,
             state,
             mockBoardMove,
             mockBoardSwap
         );
-        expect(mockBoardMove).toHaveBeenCalled();
+
+        expect(mockBoardMove).toHaveBeenCalledWith(0 as CellIndex, 1 as CellIndex);
         expect(state.currentPlayer).toBe('black');
     });
 
     it('does not finish turn if it is the first red move', () => {
-        const state = createBaseGameState('red');
+        const state = createTestState({ currentPlayer: 'red' });
         const mockBoardSwap = jest.fn();
         const mockBoardMove = jest.fn();
-        const mockSetHighlightCells = jest.fn();
 
         handleCardMove(
-            RED_DST[0] as CellIndex,
-            state.redHomeCenter,
+            0 as CellIndex,
+            1 as CellIndex,
             state,
             mockBoardMove,
-            mockBoardSwap,
-            mockSetHighlightCells
+            mockBoardSwap
         );
-        expect(mockBoardMove).toHaveBeenCalled();
-        expect(mockSetHighlightCells).toHaveBeenCalledWith(new Set());
+
+        expect(mockBoardMove).toHaveBeenCalledWith(0 as CellIndex, 1 as CellIndex);
         expect(state.currentPlayer).toBe('red');
     });
 
     it('handles moves to occupied hand positions when no empty hand position is available', () => {
-        const state = createBaseGameState('red');
+        const state = createTestState({ currentPlayer: 'red' });
         state.isFirstRedMove = false;
         const cardToMove = { suit: SUITS.Hearts, rank: RANKS.King, faceUp: true };
         state.cells[0 as CellIndex] = [cardToMove];
@@ -1279,6 +1407,75 @@ describe('defaultGameRules', () => {
                 comparisonResult: 'tie'
             });
             expect(defaultGameRules.canMoveCard(from, to, tieState)).toBe(false);
+        });
+
+        it('allows red player to swap cards within their hand during their turn', () => {
+            const state = createGameState({ currentPlayer: 'red' });
+            state.isFirstRedMove = false;
+
+            // Test swapping between two red hand positions
+            const from = RED_DST[0] as CellIndex;
+            const to = RED_DST[1] as CellIndex;
+
+            expect(defaultGameRules.canMoveCard(from, to, state)).toBe(true);
+        });
+
+        it('allows black player to swap cards within their hand during their turn', () => {
+            const state = createGameState({ currentPlayer: 'black' });
+            state.isFirstRedMove = false;
+
+            // Test swapping between two black hand positions
+            const from = BLK_DST[0] as CellIndex;
+            const to = BLK_DST[1] as CellIndex;
+
+            expect(defaultGameRules.canMoveCard(from, to, state)).toBe(true);
+        });
+
+        it('allows hand swaps even during first red move', () => {
+            const state = createGameState({ currentPlayer: 'red' });
+            state.isFirstRedMove = true;
+
+            // Test swapping between two red hand positions during first move
+            const from = RED_DST[0] as CellIndex;
+            const to = RED_DST[1] as CellIndex;
+
+            expect(defaultGameRules.canMoveCard(from, to, state)).toBe(true);
+        });
+
+        it('allows hand swaps during tiebreaker', () => {
+            const state = createGameState({
+                currentPlayer: 'red',
+                isTiebreaker: true
+            });
+            state.isFirstRedMove = false;
+
+            // Test swapping between two red hand positions during tiebreaker
+            const from = RED_DST[0] as CellIndex;
+            const to = RED_DST[1] as CellIndex;
+
+            expect(defaultGameRules.canMoveCard(from, to, state)).toBe(true);
+        });
+
+        it('prevents hand swaps when it is not the player\'s turn', () => {
+            const state = createGameState({ currentPlayer: 'black' }); // Black's turn
+            state.isFirstRedMove = false;
+
+            // Try to swap red hand cards during black's turn
+            const from = RED_DST[0] as CellIndex;
+            const to = RED_DST[1] as CellIndex;
+
+            expect(defaultGameRules.canMoveCard(from, to, state)).toBe(false);
+        });
+
+        it('prevents swapping between different players\' hands', () => {
+            const state = createGameState({ currentPlayer: 'red' });
+            state.isFirstRedMove = false;
+
+            // Try to swap between red and black hands
+            const from = RED_DST[0] as CellIndex;
+            const to = BLK_DST[0] as CellIndex;
+
+            expect(defaultGameRules.canMoveCard(from, to, state)).toBe(false);
         });
     });
 

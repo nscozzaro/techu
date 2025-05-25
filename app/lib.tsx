@@ -526,36 +526,41 @@ export interface CardMovement {
 /* Default game rules implementation */
 export const defaultGameRules: GameRules = {
     canMoveCard(from, to, state) {
-        const { isFirstRedMove, comparisonResult } = state;
+        const { cells, redHand, isFirstRedMove, redHomeCenter, currentPlayer } = state;
 
-        // First move has its own rules
+        // Rule 0: Current player can always swap cards within their own hand.
+        // This rule takes precedence for allowing the drop action.
+        let playerHandCells: Set<CellIndex>;
+        if (currentPlayer === 'red') {
+            playerHandCells = redHand;
+        } else if (currentPlayer === 'black') {
+            playerHandCells = new Set<CellIndex>(BLK_DST); // Define black player's hand
+        } else {
+            playerHandCells = new Set<CellIndex>(); // No current player
+        }
+
+        if (playerHandCells.has(from) && playerHandCells.has(to)) {
+            return true;
+        }
+
+        // Rule 1: First Red Move specific logic
         if (isFirstRedMove) {
-            return canDrop(
-                from,
-                to,
-                state.redHand,
-                true,
-                state.redHomeCenter,
-                state.cells
-            );
+            return canDrop(from, to, redHand, true, redHomeCenter, cells);
         }
 
-        // After first move, we use new rules based on comparison result
-        if (comparisonResult) {
-            // Get valid destinations based on post-first-move rules
-            const validDestinations = getPostFirstMoveDestinations(from, state);
-            return validDestinations.has(to);
+        // Rule 2: Post-First Move (isFirstRedMove is false)
+        // For moves other than hand-to-hand swaps (covered by Rule 0).
+        // These destinations are for moving cards *out* of hand to the board, or board-to-board.
+        // getPostFirstMoveDestinations also includes empty hand cells as valid targets if moving from hand.
+        if (playerHandCells.has(from) || !isHandCell(from)) { // If moving from player's hand or from board
+            const validBoardDestinations = getPostFirstMoveDestinations(from, state);
+            if (validBoardDestinations.has(to)) {
+                return true;
+            }
         }
 
-        // Fallback to basic rules
-        return canDrop(
-            from,
-            to,
-            state.redHand,
-            false,
-            state.redHomeCenter,
-            state.cells
-        );
+        // Fallback: if none of the above conditions met, the move is not allowed.
+        return false;
     },
 
     shouldKeepFaceDown(from, to, state) {
@@ -672,8 +677,10 @@ export function handleCardMove(
     setHighlightCells?: (cells: Set<CellIndex>) => void
 ): void {
     const isOccupiedHand = state.redHand.has(to) && state.cells[to].length > 0;
+    const isPureHandSwap = (state.redHand.has(from) && state.redHand.has(to)) ||
+        (BLK_DST.includes(from) && BLK_DST.includes(to));
 
-    if (state.redHand.has(from) && state.redHand.has(to)) {
+    if (isPureHandSwap) {
         boardSwap(from, to);
     } else if (isOccupiedHand) {
         const emptyHandPos = Array.from(state.redHand).find(idx => state.cells[idx].length === 0);
@@ -687,7 +694,8 @@ export function handleCardMove(
         boardMove(from, to);
     }
 
-    if (!state.isFirstRedMove && state.currentPlayer) {
+    // Only finish player turn if it's not a pure hand swap and certain conditions are met.
+    if (!isPureHandSwap && !state.isFirstRedMove && state.currentPlayer) {
         finishPlayerTurn(state);
     }
 
