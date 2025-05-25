@@ -90,14 +90,9 @@ function GameBoard() {
     cells,
     redHand: new Set<CellIndex>(RED_DST),
     isFirstRedMove: true,
-    redHomeCenter: 0 as CellIndex,
-    blackHomeCenter: 0 as CellIndex,
+    redHomeCenter: RED_HOME_CENTER,
+    blackHomeCenter: BLK_HOME_CENTER,
   });
-
-  useEffect(() => {
-    gameState.current.redHomeCenter = RED_HOME_CENTER;
-    gameState.current.blackHomeCenter = BLK_HOME_CENTER;
-  }, [cells]);
 
   const redHand = useMemo(() => new Set<CellIndex>(RED_DST), []);
 
