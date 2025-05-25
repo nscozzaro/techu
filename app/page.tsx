@@ -166,7 +166,7 @@ function GameBoard() {
       };
       handleDownInteraction(args);
     },
-    [cells, redHand, RED_HOME_CENTER, setHighlightCells, startDrag, drag]
+    [cells, redHand, setHighlightCells, startDrag, drag]
   );
 
   const handleClickCell = useCallback(
@@ -184,7 +184,7 @@ function GameBoard() {
       };
       handleCellClickInteraction(args);
     },
-    [RED_HOME_CENTER, BLK_HOME_CENTER, boardReveal, setHighlightCells, cells, addFlight]
+    [boardReveal, setHighlightCells, cells, addFlight]
   );
 
   // initial deal
@@ -211,7 +211,7 @@ function GameBoard() {
       makeBotMove(cells, addFlight, BLK_DST, BLK_HOME_CENTER);
     }, DEAL_DELAY_MS);
     return () => clearTimeout(id);
-  }, [cells, addFlight, BLK_HOME_CENTER]);
+  }, [cells, addFlight]);
 
   // cleanup pointer-up
   useEffect(() => {
