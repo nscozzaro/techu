@@ -20,6 +20,11 @@ import styles from './page.module.css';
 export type BoardDimension = number & { __brand: 'BoardDimension' };
 export const BOARD_ROWS = 7 as BoardDimension;
 export const BOARD_COLS = 5 as BoardDimension;
+export type BoardRow = number & { __brand: 'BoardRow' };
+export const RED_HOME_ROW = BOARD_ROWS - 2 as BoardRow;
+export const RED_HOME_CENTER = (RED_HOME_ROW * BOARD_COLS + Math.floor(BOARD_COLS / 2)) as CellIndex;
+export const BLK_HOME_ROW = 1 as BoardRow;
+export const BLK_HOME_CENTER = (BLK_HOME_ROW * BOARD_COLS + Math.floor(BOARD_COLS / 2)) as CellIndex;
 
 export type CellIndex = number & { __brand: 'CellIndex' };
 export type PixelPosition = number & { __brand: 'PixelPosition' };

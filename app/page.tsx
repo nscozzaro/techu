@@ -23,8 +23,8 @@ import {
   BLK_SRC,
   BLK_DST,
   DEAL_DELAY_MS,
-  BOARD_ROWS,
-  BOARD_COLS,
+  RED_HOME_CENTER,
+  BLK_HOME_CENTER,
   makeBotMove,
   GameState,
   handleCardMove,
@@ -94,18 +94,10 @@ function GameBoard() {
     blackHomeCenter: 0 as CellIndex,
   });
 
-  const RED_HOME_ROW = BOARD_ROWS - 2;
-  const RED_HOME_CENTER =
-    (RED_HOME_ROW * BOARD_COLS + Math.floor(BOARD_COLS / 2)) as CellIndex;
-
-  const BLK_HOME_ROW = 1;
-  const BLK_HOME_CENTER =
-    (BLK_HOME_ROW * BOARD_COLS + Math.floor(BOARD_COLS / 2)) as CellIndex;
-
   useEffect(() => {
     gameState.current.redHomeCenter = RED_HOME_CENTER;
     gameState.current.blackHomeCenter = BLK_HOME_CENTER;
-  }, [RED_HOME_CENTER, BLK_HOME_CENTER, cells]);
+  }, [cells]);
 
   const redHand = useMemo(() => new Set<CellIndex>(RED_DST), []);
 
