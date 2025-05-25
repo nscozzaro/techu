@@ -174,7 +174,7 @@ function GameBoard() {
       };
       handleDownInteraction(args);
     },
-    [cells, redHand, RED_HOME_CENTER, BLK_DST, setHighlightCells, startDrag, drag]
+    [cells, redHand, RED_HOME_CENTER, setHighlightCells, startDrag, drag]
   );
 
   const handleClickCell = useCallback(
