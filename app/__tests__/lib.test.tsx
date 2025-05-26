@@ -68,8 +68,7 @@ import {
     checkForCardInHomeRow,
     getAdjacentHomeRowDestinations,
     getValidDestinationsWithoutHand,
-    handleDownInteraction,
-    handleCellClickInteraction,
+    handleGameInteraction,
     RankComparisonResult,
     getHomeRowDestinations,
     getConnectedCellDestinations,
@@ -87,6 +86,8 @@ import {
     getAdjacentDestinationsWhenNoConnected,
     getNormalPlayDestinations,
     addEmptyHandCells,
+    RED_HOME_CENTER,
+    BLK_HOME_CENTER,
 } from '../lib';
 
 /* DOM helpers ------------------------------------------------------------ */
@@ -2377,13 +2378,67 @@ describe('handleDownInteraction', () => {
         const mockSetHighlightCells = jest.fn();
         const mockStartDrag = jest.fn();
         const mockDragDown = jest.fn();
-        const mockPointerEvent = {} as React.PointerEvent<HTMLElement>;
 
         const RHC = 27 as CellIndex;
 
         const callHandler = (idx: CellIndex, currentFirstRedMove: boolean) => {
-            handleDownInteraction({
-                e: mockPointerEvent,
+            const mockEvent = {
+                currentTarget: document.createElement('div'),
+                clientX: 10,
+                clientY: 20,
+                nativeEvent: new PointerEvent('pointerdown'),
+                isDefaultPrevented: () => false,
+                isPropagationStopped: () => false,
+                persist: () => { },
+                pointerId: 1,
+                pressure: 0,
+                tangentialPressure: 0,
+                tiltX: 0,
+                tiltY: 0,
+                twist: 0,
+                pointerType: 'mouse',
+                isPrimary: true,
+                button: 0,
+                buttons: 0,
+                relatedTarget: null,
+                screenX: 10,
+                screenY: 20,
+                movementX: 0,
+                movementY: 0,
+                offsetX: 0,
+                offsetY: 0,
+                x: 10,
+                y: 20,
+                getModifierState: () => false,
+                altKey: false,
+                ctrlKey: false,
+                metaKey: false,
+                shiftKey: false,
+                detail: 0,
+                view: window,
+                bubbles: true,
+                cancelable: true,
+                composed: true,
+                timeStamp: 0,
+                type: 'pointerdown',
+                target: document.createElement('div'),
+                eventPhase: 0,
+                defaultPrevented: false,
+                cancelBubble: false,
+                returnValue: true,
+                srcElement: document.createElement('div'),
+                composedPath: () => [],
+                initEvent: () => { },
+                preventDefault: () => { },
+                stopImmediatePropagation: () => { },
+                stopPropagation: () => { },
+                AT_TARGET: 0,
+                BUBBLING_PHASE: 0,
+                CAPTURING_PHASE: 0,
+            } as unknown as React.PointerEvent<HTMLElement>;
+
+            handleGameInteraction({
+                e: mockEvent,
                 idx,
                 gameState,
                 cells: gameState.cells,
@@ -2394,6 +2449,7 @@ describe('handleDownInteraction', () => {
                 setHighlightCells: mockSetHighlightCells,
                 startDrag: mockStartDrag,
                 drag: { down: mockDragDown },
+                BLK_HOME_CENTER: 7 as CellIndex
             });
         };
 
@@ -2504,7 +2560,7 @@ describe('handleCellClickInteraction', () => {
         baseGameState.cells[BHC] = [{ suit: SUITS.Spades, rank: RANKS.King, faceUp: false }];
 
         const callHandler = (idx: CellIndex) => {
-            handleCellClickInteraction({
+            handleGameInteraction({
                 idx,
                 gameState: baseGameState,
                 cells: baseGameState.cells,
@@ -2514,6 +2570,7 @@ describe('handleCellClickInteraction', () => {
                 boardReveal: mockBoardReveal,
                 setHighlightCells: mockSetHighlightCells,
                 addFlight: mockAddFlight,
+                BLK_DST: BLK_DST
             });
         };
         return { callHandler, firstRedMoveRef, mockBoardReveal, mockSetHighlightCells, mockAddFlight, RHC, BHC, baseGameState };
@@ -3651,6 +3708,161 @@ describe('addEmptyHandCells', () => {
         expect(allowed.has(RED_DST[0])).toBe(false);
         RED_DST.slice(1).forEach(idx => {
             expect(allowed.has(idx)).toBe(true);
+        });
+    });
+});
+
+describe('handleGameInteraction', () => {
+    describe('down interaction', () => {
+        const setupHandleDownInteractionTest = (initialGameStateOverrides: Partial<GameState> = {}) => {
+            const gameState = createTestState(initialGameStateOverrides);
+            const setHighlightCells = jest.fn();
+            const startDrag = jest.fn();
+            const drag = { down: jest.fn() };
+            const redHand = new Set<CellIndex>(RED_DST);
+            const cells = gameState.cells;
+
+            const callHandler = (idx: CellIndex, currentFirstRedMove: boolean) => {
+                const mockEvent = {
+                    currentTarget: document.createElement('div'),
+                    clientX: 10,
+                    clientY: 20,
+                    nativeEvent: new PointerEvent('pointerdown'),
+                    isDefaultPrevented: () => false,
+                    isPropagationStopped: () => false,
+                    persist: () => { },
+                    pointerId: 1,
+                    pressure: 0,
+                    tangentialPressure: 0,
+                    tiltX: 0,
+                    tiltY: 0,
+                    twist: 0,
+                    pointerType: 'mouse',
+                    isPrimary: true,
+                    button: 0,
+                    buttons: 0,
+                    relatedTarget: null,
+                    screenX: 10,
+                    screenY: 20,
+                    movementX: 0,
+                    movementY: 0,
+                    offsetX: 0,
+                    offsetY: 0,
+                    x: 10,
+                    y: 20,
+                    getModifierState: () => false,
+                    altKey: false,
+                    ctrlKey: false,
+                    metaKey: false,
+                    shiftKey: false,
+                    detail: 0,
+                    view: window,
+                    bubbles: true,
+                    cancelable: true,
+                    composed: true,
+                    timeStamp: 0,
+                    type: 'pointerdown',
+                    target: document.createElement('div'),
+                    eventPhase: 0,
+                    defaultPrevented: false,
+                    cancelBubble: false,
+                    returnValue: true,
+                    srcElement: document.createElement('div'),
+                    composedPath: () => [],
+                    initEvent: () => { },
+                    preventDefault: () => { },
+                    stopImmediatePropagation: () => { },
+                    stopPropagation: () => { },
+                    AT_TARGET: 0,
+                    BUBBLING_PHASE: 0,
+                    CAPTURING_PHASE: 0,
+                } as unknown as React.PointerEvent<HTMLElement>;
+
+                handleGameInteraction({
+                    e: mockEvent,
+                    idx,
+                    gameState,
+                    cells,
+                    firstRedMove: currentFirstRedMove,
+                    redHand,
+                    RED_HOME_CENTER,
+                    BLK_DST,
+                    setHighlightCells,
+                    startDrag,
+                    drag,
+                    BLK_HOME_CENTER
+                });
+            };
+
+            return {
+                gameState,
+                setHighlightCells,
+                startDrag,
+                drag,
+                redHand,
+                cells,
+                callHandler
+            };
+        };
+
+        it('handles tiebreaker', () => {
+            const { callHandler, setHighlightCells, startDrag, drag } = setupHandleDownInteractionTest({ isTiebreaker: true });
+            callHandler(RED_DST[0], false);
+            expect(setHighlightCells).toHaveBeenCalled();
+            expect(startDrag).toHaveBeenCalled();
+            expect(drag.down).toHaveBeenCalled();
+        });
+
+        it('handles normal player turn', () => {
+            const { callHandler, setHighlightCells, startDrag, drag } = setupHandleDownInteractionTest({ currentPlayer: 'red' });
+            callHandler(RED_DST[0], false);
+            expect(setHighlightCells).toHaveBeenCalled();
+            expect(startDrag).toHaveBeenCalled();
+            expect(drag.down).toHaveBeenCalled();
+        });
+    });
+
+    describe('click interaction', () => {
+        const setupHandleClickTest = (firstRedMoveInitial = true, gameStateOverrides: Partial<GameState> = {}) => {
+            const gameState = createTestState(gameStateOverrides);
+            const setHighlightCells = jest.fn();
+            const boardReveal = jest.fn();
+            const addFlight = jest.fn();
+            const firstRedMoveRef = { current: firstRedMoveInitial };
+            const cells = gameState.cells;
+
+            const callHandler = (idx: CellIndex) => {
+                handleGameInteraction({
+                    idx,
+                    gameState,
+                    cells,
+                    firstRedMoveRef,
+                    RED_HOME_CENTER: 27 as CellIndex,
+                    BLK_HOME_CENTER: 7 as CellIndex,
+                    boardReveal,
+                    setHighlightCells,
+                    addFlight
+                });
+            };
+
+            return {
+                gameState,
+                setHighlightCells,
+                boardReveal,
+                addFlight,
+                firstRedMoveRef,
+                cells,
+                callHandler
+            };
+        };
+
+
+        it('does nothing if not first move', () => {
+            const { callHandler, boardReveal, setHighlightCells, addFlight } = setupHandleClickTest(false);
+            callHandler(RED_HOME_CENTER);
+            expect(boardReveal).not.toHaveBeenCalled();
+            expect(setHighlightCells).not.toHaveBeenCalled();
+            expect(addFlight).not.toHaveBeenCalled();
         });
     });
 });

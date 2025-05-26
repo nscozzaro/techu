@@ -28,10 +28,7 @@ import {
   makeBotMove,
   GameState,
   handleCardMove,
-  handleDownInteraction,
-  HandleDownArgs,
-  handleCellClickInteraction,
-  HandleClickCellArgs,
+  handleGameInteraction,
   handleFlightComplete,
   defaultGameRules,
 } from './lib';
@@ -146,7 +143,7 @@ function GameBoard() {
     (e: React.PointerEvent<HTMLElement>, idx: CellIndex) => {
       gameState.current.cells = cells;
 
-      const args: HandleDownArgs = {
+      handleGameInteraction({
         e,
         idx,
         gameState: gameState.current,
@@ -158,15 +155,15 @@ function GameBoard() {
         setHighlightCells,
         startDrag,
         drag,
-      };
-      handleDownInteraction(args);
+        BLK_HOME_CENTER
+      });
     },
     [cells, redHand, setHighlightCells, startDrag, drag]
   );
 
   const handleClickCell = useCallback(
     (e: MouseEvent<HTMLElement>, idx: CellIndex) => {
-      const args: HandleClickCellArgs = {
+      handleGameInteraction({
         idx,
         gameState: gameState.current,
         cells,
@@ -175,9 +172,8 @@ function GameBoard() {
         BLK_HOME_CENTER,
         boardReveal,
         setHighlightCells,
-        addFlight,
-      };
-      handleCellClickInteraction(args);
+        addFlight
+      });
     },
     [boardReveal, setHighlightCells, cells, addFlight]
   );

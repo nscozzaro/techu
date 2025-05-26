@@ -1605,107 +1605,110 @@ export function getValidDestinationsWithoutHand(
     return new Set<CellIndex>(filteredDestinations);
 }
 
-// Interface for arguments to a consolidated handleDown function
-export interface HandleDownArgs {
-    e: React.PointerEvent<HTMLElement>;
+export interface GameInteractionArgs {
+    // Common args
     idx: CellIndex;
     gameState: GameState;
-    cells: Cards[]; // Current board cells state
-    firstRedMove: boolean; // Directly pass the boolean value
-    redHand: Set<CellIndex>;
-    RED_HOME_CENTER: CellIndex;
-    BLK_DST: CellIndex[]; // Black player's hand/destination cells
+    cells: Cards[];
     setHighlightCells: (cells: Set<CellIndex>) => void;
-    startDrag: (idx: CellIndex) => void;
-    drag: { down: (e: React.PointerEvent<HTMLElement>, idx: CellIndex) => void };
+    RED_HOME_CENTER: CellIndex;
+    BLK_HOME_CENTER: CellIndex;
+    // Down-specific args
+    e?: React.PointerEvent<HTMLElement>;
+    firstRedMove?: boolean;
+    redHand?: Set<CellIndex>;
+    BLK_DST?: CellIndex[];
+    startDrag?: (idx: CellIndex) => void;
+    drag?: { down: (e: React.PointerEvent<HTMLElement>, idx: CellIndex) => void };
+    // Click-specific args
+    firstRedMoveRef?: React.RefObject<boolean>;
+    boardReveal?: (indices: CellIndex[]) => void;
+    addFlight?: (src: CellIndex, dst: CellIndex) => void;
 }
 
-// Refactored handleDownLogic, to be named handlePointerDown (or similar) if preferred
-export function handleDownInteraction(args: HandleDownArgs): void {
-    const { e, idx, gameState, cells, firstRedMove, redHand, RED_HOME_CENTER, BLK_DST, setHighlightCells, startDrag, drag } = args;
+export function handleGameInteraction(args: GameInteractionArgs): void {
+    const {
+        idx,
+        gameState,
+        cells,
+        setHighlightCells,
+        RED_HOME_CENTER,
+        BLK_HOME_CENTER,
+        e,
+        firstRedMove,
+        redHand,
+        BLK_DST,
+        startDrag,
+        drag,
+        firstRedMoveRef,
+        boardReveal,
+        addFlight
+    } = args;
 
-    // Update gameState cells if this function is responsible for it, or ensure it's current via args.
-    // For now, assuming gameState.cells passed via args.gameState is current.
-    // gameState.cells = cells; // This line might be redundant if gameState always reflects current cells from useBoard
+    // Handle click interaction (first move completion)
+    if (firstRedMoveRef?.current && idx === RED_HOME_CENTER) {
+        boardReveal?.([RED_HOME_CENTER, BLK_HOME_CENTER]);
+        firstRedMoveRef.current = false;
+        setHighlightCells(new Set());
 
-    // Guard: Early return if trying to interact with red home center after first move
-    if (!firstRedMove && idx === RED_HOME_CENTER) {
+        gameState.cells = cells;
+        gameState.isFirstRedMove = false;
+
+        handleRankComparison(
+            cells,
+            RED_HOME_CENTER,
+            BLK_HOME_CENTER,
+            addFlight!,
+            gameState
+        );
         return;
     }
 
-    // Case 1: First Red Move
-    if (firstRedMove) {
-        if (redHand.has(idx) || idx === RED_HOME_CENTER) {
-            const allowedMoves = getAllowedMoves(
-                idx,
-                redHand,
-                true, // firstRedMove is true here
-                RED_HOME_CENTER,
-                cells
-            );
-            setHighlightCells(allowedMoves);
-            startDrag(idx);
-            drag.down(e, idx);
+    // Handle down interaction
+    if (e && startDrag && drag && firstRedMove !== undefined && redHand && BLK_DST) {
+        // Guard: Early return if trying to interact with red home center after first move
+        if (!firstRedMove && idx === RED_HOME_CENTER) {
+            return;
         }
-        return; // End processing for first move
-    }
 
-    // Case 2: Tiebreaker (firstRedMove is false if we reach here)
-    if (gameState.isTiebreaker) {
-        const isRedHand = redHand.has(idx);
-        const isBlackHand = BLK_DST.includes(idx);
-        if (isRedHand || isBlackHand) {
+        // Case 1: First Red Move
+        if (firstRedMove) {
+            if (redHand.has(idx) || idx === RED_HOME_CENTER) {
+                const allowedMoves = getAllowedMoves(
+                    idx,
+                    redHand,
+                    true,
+                    RED_HOME_CENTER,
+                    cells
+                );
+                setHighlightCells(allowedMoves);
+                startDrag(idx);
+                drag.down(e, idx);
+            }
+            return;
+        }
+
+        // Case 2: Tiebreaker
+        if (gameState.isTiebreaker) {
+            const isRedHand = redHand.has(idx);
+            const isBlackHand = BLK_DST.includes(idx);
+            if (isRedHand || isBlackHand) {
+                const validDestinations = getValidDestinationsWithoutHand(idx, gameState);
+                setHighlightCells(validDestinations);
+                startDrag(idx);
+                drag.down(e, idx);
+            }
+            return;
+        }
+
+        // Case 3: Normal Player Turn
+        const isRedPlayerTurn = gameState.currentPlayer === 'red';
+        const isPlayerHand = isRedPlayerTurn ? redHand.has(idx) : BLK_DST.includes(idx);
+        if (isPlayerHand) {
             const validDestinations = getValidDestinationsWithoutHand(idx, gameState);
             setHighlightCells(validDestinations);
             startDrag(idx);
             drag.down(e, idx);
         }
-        return; // End processing for tiebreaker
-    }
-
-    // Case 3: Normal Player Turn (firstRedMove is false and not a tiebreaker if we reach here)
-    const isRedPlayerTurn = gameState.currentPlayer === 'red';
-    const isPlayerHand = isRedPlayerTurn ? redHand.has(idx) : BLK_DST.includes(idx);
-    if (isPlayerHand) {
-        const validDestinations = getValidDestinationsWithoutHand(idx, gameState);
-        setHighlightCells(validDestinations);
-        startDrag(idx);
-        drag.down(e, idx);
-    }
-}
-
-// Interface for arguments to a consolidated handleClickCell function
-export interface HandleClickCellArgs {
-    idx: CellIndex;
-    gameState: GameState; // Pass the whole gameState
-    cells: Cards[]; // Current board cells state
-    firstRedMoveRef: React.RefObject<boolean>; // Pass the ref to modify it
-    RED_HOME_CENTER: CellIndex;
-    BLK_HOME_CENTER: CellIndex;
-    boardReveal: (indices: CellIndex[]) => void;
-    setHighlightCells: (cells: Set<CellIndex>) => void;
-    addFlight: (src: CellIndex, dst: CellIndex) => void;
-}
-
-// Refactored handleClickCellLogic, to be named handleCellClick (or similar)
-export function handleCellClickInteraction(args: HandleClickCellArgs): void {
-    const { idx, gameState, cells, firstRedMoveRef, RED_HOME_CENTER, BLK_HOME_CENTER, boardReveal, setHighlightCells, addFlight } = args;
-
-    if (firstRedMoveRef.current && idx === RED_HOME_CENTER) {
-        boardReveal([RED_HOME_CENTER, BLK_HOME_CENTER]);
-        firstRedMoveRef.current = false; // Modify the ref directly
-        setHighlightCells(new Set());
-
-        // Ensure gameState reflects the latest cell state and first move status before comparison
-        gameState.cells = cells; // Assuming `cells` passed are the most current from useBoard
-        gameState.isFirstRedMove = false;
-
-        handleRankComparison(
-            cells, // Pass current cells from useBoard directly
-            RED_HOME_CENTER,
-            BLK_HOME_CENTER,
-            addFlight,
-            gameState // Pass the mutated gameState
-        );
     }
 }
