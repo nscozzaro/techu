@@ -1,12 +1,23 @@
 // === CONSTANTS ===
 export type BoardDimension = number & { __brand: 'BoardDimension' };
+export type CellIndex = number & { __brand: 'CellIndex' };
+export type RowIndex = number & { __brand: 'RowIndex' };
+export type ColumnIndex = number & { __brand: 'ColumnIndex' };
+export type CellIndices = CellIndex[];
 
 export const BOARD_ROWS = 7 as BoardDimension;
 export const BOARD_COLS = 5 as BoardDimension;
-export const PLAYER_ROW_TOP = 0 as const;
-export const PLAYER_ROW_BOTTOM = BOARD_ROWS - 1;
-export const PLAYABLE_ROWS_START = 1 as const;
-export const PLAYABLE_ROWS_END = BOARD_ROWS - 2;
+export const PLAYER_ROW_1 = BOARD_ROWS - 1 as RowIndex;
+export const PLAYER_ROW_2 = 0 as RowIndex;
+export const DECK_CELL_INDEX_1 = BOARD_ROWS * BOARD_COLS - BOARD_COLS as CellIndex;
+export const DECK_CELL_INDEX_2 = 0 as CellIndex;
+export const NUM_HAND_CELLS = 3;
+export const HAND_CELLS_1 = Array.from({ length: NUM_HAND_CELLS }, (_, i) => DECK_CELL_INDEX_1 + i + 1) as CellIndices;
+export const HAND_CELLS_2 = Array.from({ length: NUM_HAND_CELLS }, (_, i) => DECK_CELL_INDEX_2 + i + 1) as CellIndices;
+export const DISCARD_CELL_INDEX_1 = BOARD_ROWS * BOARD_COLS - 1 as CellIndex;
+export const DISCARD_CELL_INDEX_2 = BOARD_COLS - 1 as CellIndex;
+export const PLAYABLE_CELLS = Array.from({ length: BOARD_ROWS * BOARD_COLS - 2 * BOARD_COLS }, (_, i) => i + BOARD_COLS) as CellIndices;
+
 
 // === SUITS ===
 export enum SuitEnum {
