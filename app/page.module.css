@@ -33,11 +33,6 @@
   height: 100%;
   cursor: pointer;
   user-select: none;
-  transition: transform 0.2s ease-in-out;
-}
-
-.base:hover {
-  transform: translateY(-2px);
 }
 
 /* ---------- card styles --------- */
@@ -54,12 +49,7 @@
   height: 100%;
   cursor: pointer;
   user-select: none;
-  transition: transform 0.2s ease-in-out;
   background: #fff;
-}
-
-.card:hover {
-  transform: translateY(-2px);
 }
 
 .cardContent {
@@ -82,12 +72,7 @@
   height: 100%;
   cursor: pointer;
   user-select: none;
-  transition: transform 0.2s ease-in-out;
   background: #222;
-}
-
-.cell:hover {
-  transform: translateY(-2px);
 }
 
 /* tiny phones: shrink score text */

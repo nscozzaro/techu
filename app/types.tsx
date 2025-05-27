@@ -1,3 +1,5 @@
+import styles from './page.module.css';
+
 // === CONSTANTS ===
 export type BoardDimension = number & { __brand: 'BoardDimension' };
 export type CellIndex = number & { __brand: 'CellIndex' };
@@ -18,8 +20,19 @@ export const DISCARD_CELL_INDEX_1 = BOARD_ROWS * BOARD_COLS - 1 as CellIndex;
 export const DISCARD_CELL_INDEX_2 = BOARD_COLS - 1 as CellIndex;
 export const PLAYABLE_CELLS = Array.from({ length: BOARD_ROWS * BOARD_COLS - 2 * BOARD_COLS }, (_, i) => i + BOARD_COLS) as CellIndices;
 
+export const SUIT_DATA = {
+    Clubs: { symbol: '♣', color: 'black' },
+    Diamonds: { symbol: '♦', color: 'red' },
+    Hearts: { symbol: '♥', color: 'red' },
+    Spades: { symbol: '♠', color: 'black' },
+} as const;
 
-// === SUITS ===
+export type Suit = keyof typeof SUIT_DATA;               // 'Clubs' | 'Diamonds' | 'Hearts' | 'Spades'
+export type SuitSymbol = typeof SUIT_DATA[Suit]['symbol'];     // '♣' | '♦' | '♥' | '♠'
+export type SuitColor = typeof SUIT_DATA[Suit]['color'];      // 'red' | 'black'
+
+export const SUITS = Object.keys(SUIT_DATA) as readonly Suit[];
+
 export enum SuitEnum {
     Clubs,
     Diamonds,
@@ -27,103 +40,55 @@ export enum SuitEnum {
     Spades,
 }
 
-export const SUITS = {
-    Clubs: 'Clubs',
-    Diamonds: 'Diamonds',
-    Hearts: 'Hearts',
-    Spades: 'Spades',
-} as const;
+export const RANKS = [
+    'Two', 'Three', 'Four', 'Five', 'Six',
+    'Seven', 'Eight', 'Nine', 'Ten',
+    'Jack', 'Queen', 'King', 'Ace',
+] as const;
 
-export type Suit = typeof SUITS[keyof typeof SUITS];
-
-// === SUIT COLORS ===
-export const SUIT_COLOR_RED = 'red' as const;
-export const SUIT_COLOR_BLACK = 'black' as const;
-
-export type PlayerColor = typeof SUIT_COLOR_RED | typeof SUIT_COLOR_BLACK;
-
-export const SUIT_COLORS: Record<Suit, PlayerColor> = {
-    [SUITS.Clubs]: SUIT_COLOR_BLACK,
-    [SUITS.Spades]: SUIT_COLOR_BLACK,
-    [SUITS.Hearts]: SUIT_COLOR_RED,
-    [SUITS.Diamonds]: SUIT_COLOR_RED,
-};
-
-// === RANKS ===
-export const RANKS = {
-    Two: 'Two',
-    Three: 'Three',
-    Four: 'Four',
-    Five: 'Five',
-    Six: 'Six',
-    Seven: 'Seven',
-    Eight: 'Eight',
-    Nine: 'Nine',
-    Ten: 'Ten',
-    Jack: 'Jack',
-    Queen: 'Queen',
-    King: 'King',
-    Ace: 'Ace',
-} as const;
-
-export type Rank = typeof RANKS[keyof typeof RANKS];
+export type Rank = typeof RANKS[number]; // 'Two' | ... | 'Ace'
 
 type Branded<T, B> = T & { __brand: B };
 export type RankValue = Branded<number, 'RankValue'>;
 
-// === CARD ===
-export interface Card {
-    suit: Suit;
-    rank: Rank;
-}
+export const RANK_VALUES: Record<Rank, RankValue> = RANKS.reduce(
+    (acc, rank, i) => ({ ...acc, [rank]: (i + 2) as RankValue }),
+    {} as Record<Rank, RankValue>
+);
 
+export type Card = `${Rank}Of${Suit}`;
 export type Cards = Card[];
 
-export const newCard = (suit: Suit | null, rank: Rank | null): Card | null => {
-    if (suit === null || rank === null) return null;
-    return { suit, rank };
-};
+export const CARD_MAP: Record<Card, { rank: Rank; suit: Suit }> = SUITS.reduce(
+    (map, suit) => {
+        RANKS.forEach(rank => {
+            const key = `${rank}Of${suit}` as Card;
+            map[key] = { rank, suit };
+        });
+        return map;
+    },
+    {} as Record<Card, { rank: Rank; suit: Suit }>
+);
 
-// === COMPONENTS ===
-import styles from './page.module.css';
-
-interface CardProps {
-    card: Card;
-}
-
-export function Card({ card }: CardProps) {
-    const { suit, rank } = card;
-
-    return (
-        <div className={styles.card}>
-            <div className={styles.cardContent} style={{ color: SUIT_COLORS[suit] }}>
-                <div>{rank}</div>
-                <div>{suit}</div>
-            </div>
-        </div>
-    );
-}
+export const CARDS = Object.keys(CARD_MAP) as readonly Card[];
 
 export interface Cell {
-    cards: Card[];
+    cards: Cards;
 }
 
-export function Cell({ cards }: Cell) {
-    const topCard = cards[cards.length - 1];
-
+export function Cell() {
     return (
         <div className={styles.cell}>
-            {topCard && <Card card={topCard} />}
         </div>
     );
 }
 
-interface BoardProps {
+interface Board {
     num_rows: BoardDimension;
     num_cols: BoardDimension;
 }
 
-export function Board({ num_rows, num_cols }: BoardProps) {
+export function Board({ num_rows, num_cols }: Board) {
     return (
         <>
             <div className={styles.scoreRow}>
@@ -132,7 +97,7 @@ export function Board({ num_rows, num_cols }: BoardProps) {
             </div>
             <div className={styles.board}>
                 {Array.from({ length: num_rows * num_cols }, (_, i) => (
-                    <Cell key={i} cards={[]} />
+                    <Cell key={i} />
                 ))}
             </div>
         </>
