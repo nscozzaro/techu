@@ -1,5 +1,6 @@
-import { Board, BOARD_ROWS, BOARD_COLS } from './types';
+import { Board, BoardComponent, BOARD_ROWS, BOARD_COLS } from './types';
 
 export default function Home() {
-  return <Board num_rows={BOARD_ROWS} num_cols={BOARD_COLS} />;
+  const board = new Board(BOARD_ROWS, BOARD_COLS);
+  return <BoardComponent board={board} />;
 }
