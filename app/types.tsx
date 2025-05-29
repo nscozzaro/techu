@@ -59,8 +59,22 @@ export const RANK_VALUES: Record<Rank, RankValue> = RANKS.reduce(
     {} as Record<Rank, RankValue>
 );
 
-export type CardFaceUp = boolean;
 export type CardID = `${Rank}Of${Suit}`;
+
+export const CARD_MAP: Record<CardID, { rank: Rank; suit: Suit }> = SUITS.reduce(
+    (map, suit) => {
+        RANKS.forEach(rank => {
+            const key = `${rank}Of${suit}` as CardID;
+            map[key] = { rank, suit };
+        });
+        return map;
+    },
+    {} as Record<CardID, { rank: Rank; suit: Suit }>
+);
+
+export const CARDS = Object.keys(CARD_MAP) as readonly CardID[];
+
+export type CardFaceUp = boolean;
 
 export class Card {
     constructor(
@@ -84,6 +98,8 @@ export class Card {
         return SUIT_DATA[this.suit].symbol;
     }
 }
+
+export type Cards = Card[];
 
 export function CardComponent({ card }: { card: Card }) {
     const [isFaceUp, setIsFaceUp] = useState(card.faceUp);
@@ -111,21 +127,6 @@ export function CardComponent({ card }: { card: Card }) {
         </div>
     );
 }
-
-export type Cards = Card[];
-
-export const CARD_MAP: Record<CardID, { rank: Rank; suit: Suit }> = SUITS.reduce(
-    (map, suit) => {
-        RANKS.forEach(rank => {
-            const key = `${rank}Of${suit}` as CardID;
-            map[key] = { rank, suit };
-        });
-        return map;
-    },
-    {} as Record<CardID, { rank: Rank; suit: Suit }>
-);
-
-export const CARDS = Object.keys(CARD_MAP) as readonly CardID[];
 
 export class Cell {
     constructor(
@@ -155,26 +156,19 @@ export function CellComponent({ cell }: { cell: Cell }) {
     return (
         <div className={styles.cell}>
             {cell.children}
-            {cell.cards.map((card, index) => (
-                <CardComponent key={`${card.id}-${index}`} card={card} />
+            {cell.cards.map(card => (
+                <CardComponent key={card.id} card={card} />
             ))}
         </div>
     );
 }
 
 export class Board {
-    private cells: Cell[];
-
     constructor(
         public readonly num_rows: BoardDimension,
-        public readonly num_cols: BoardDimension
-    ) {
-        this.cells = Array.from({ length: num_rows * num_cols }, () => new Cell());
-    }
-
-    getCells(): Cell[] {
-        return this.cells;
-    }
+        public readonly num_cols: BoardDimension,
+        public cells: Cell[] = Array.from({ length: num_rows * num_cols }, () => new Cell())
+    ) { }
 
     getCell(index: CellIndex): Cell {
         return this.cells[index];
@@ -189,7 +183,7 @@ export function BoardComponent({ board }: { board: Board }) {
                 <span>Player 2 Score: 0</span>
             </div>
             <div className={styles.board}>
-                {board.getCells().map((cell, index) => (
+                {board.cells.map((cell, index) => (
                     <CellComponent key={index} cell={cell} />
                 ))}
             </div>
