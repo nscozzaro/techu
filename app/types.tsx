@@ -127,6 +127,60 @@ export const CARD_MAP: Record<CardID, { rank: Rank; suit: Suit }> = SUITS.reduce
 
 export const CARDS = Object.keys(CARD_MAP) as readonly CardID[];
 
+export class Cell {
+    constructor(
+        public cards: Cards = [],
+        public children?: React.ReactNode
+    ) { }
+
+    addCard(card: Card) {
+        this.cards.push(card);
+    }
+
+    removeCard(card: Card) {
+        const index = this.cards.findIndex(c => c.id === card.id);
+        if (index !== -1) {
+            this.cards.splice(index, 1);
+        }
+    }
+
+    clearCards() {
+        this.cards = [];
+    }
+}
+
+export type Cells = Cell[];
+
+export function CellComponent({ cell }: { cell: Cell }) {
+    return (
+        <div className={styles.cell}>
+            {cell.children}
+            {cell.cards.map((card, index) => (
+                <CardComponent key={`${card.id}-${index}`} card={card} />
+            ))}
+        </div>
+    );
+}
+
+export class Board {
+    private cells: Cell[];
+
+    constructor(
+        public readonly num_rows: BoardDimension,
+        public readonly num_cols: BoardDimension
+    ) {
+        this.cells = Array.from({ length: num_rows * num_cols }, () => new Cell());
+    }
+
+    getCells(): Cell[] {
+        return this.cells;
+    }
+
+    getCell(index: CellIndex): Cell {
+        return this.cells[index];
+    }
+}
+
 export function BoardComponent({ board }: { board: Board }) {
     return (
         <>
@@ -135,44 +189,15 @@ export function BoardComponent({ board }: { board: Board }) {
                 <span>Player 2 Score: 0</span>
             </div>
             <div className={styles.board}>
-                {board.getCells().map((cellIndex) => (
-                    <Cell key={cellIndex}>
-                        {cellIndex === DECK_CELL_1 && <CardComponent card={card} />}
-                    </Cell>
+                {board.getCells().map((cell, index) => (
+                    <CellComponent key={index} cell={cell} />
                 ))}
             </div>
         </>
     );
 }
 
-export interface Cell {
-    cards: Cards;
-    children?: React.ReactNode;
-}
-
-export function Cell({ children }: { children?: React.ReactNode }) {
-    return (
-        <div className={styles.cell}>
-            {children}
-        </div>
-    );
-}
-
-export class Board {
-    private cells: CellIndex[];
-
-    constructor(
-        public readonly num_rows: BoardDimension,
-        public readonly num_cols: BoardDimension
-    ) {
-        this.cells = Array.from({ length: num_rows * num_cols }, (_, i) => i as CellIndex);
-    }
-
-    getCells(): CellIndex[] {
-        return this.cells;
-    }
-}
-
 export const board = new Board(BOARD_ROWS, BOARD_COLS);
-const card = new Card('AceOfSpades', true);
+// Initialize the deck cell with Ace of Spades
+board.getCell(DECK_CELL_1).addCard(new Card('AceOfSpades', true));
 
