@@ -131,7 +131,6 @@ export function CardComponent({ card }: { card: Card }) {
 export class Cell {
     constructor(
         public cards: Cards = [],
-        public children?: React.ReactNode
     ) { }
 
     addCard(card: Card) {
@@ -155,7 +154,6 @@ export type Cells = Cell[];
 export function CellComponent({ cell }: { cell: Cell }) {
     return (
         <div className={styles.cell}>
-            {cell.children}
             {cell.cards.map(card => (
                 <CardComponent key={card.id} card={card} />
             ))}
@@ -164,14 +162,17 @@ export function CellComponent({ cell }: { cell: Cell }) {
 }
 
 export class Board {
+    public cells: Cells;
+
     constructor(
         public readonly num_rows: BoardDimension,
         public readonly num_cols: BoardDimension,
-        public cells: Cell[] = Array.from({ length: num_rows * num_cols }, () => new Cell())
-    ) { }
+    ) {
+        this.cells = Array.from({ length: num_rows * num_cols }, () => new Cell());
+    }
 
-    getCell(index: CellIndex): Cell {
-        return this.cells[index];
+    getCell(cellIndex: CellIndex): Cell {
+        return this.cells[cellIndex];
     }
 }
 
