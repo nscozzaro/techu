@@ -1,4 +1,7 @@
+'use client';
+
 import styles from './page.module.css';
+import { useState } from 'react';
 
 // === CONSTANTS ===
 export type BoardDimension = number & { __brand: 'BoardDimension' };
@@ -82,6 +85,31 @@ export class Card {
     }
 }
 
+export function CardComponent({ card }: { card: Card }) {
+    const [isFaceUp, setIsFaceUp] = useState(card.faceUp);
+
+    return (
+        <div
+            className={`${styles.card} ${isFaceUp ? styles.faceUp : styles.faceDown}`}
+            onClick={() => setIsFaceUp(!isFaceUp)}
+            style={{ cursor: 'pointer' }}
+        >
+            {isFaceUp ? (
+                <div className={styles.cardContent} style={{ color: card.color }}>
+                    <div className={styles.cardRank}>{card.rank}</div>
+                    <div className={styles.cardSymbol}>{card.symbol}</div>
+                </div>
+            ) : (
+                <div className={styles.cardBack}>
+                    <div className={styles.cardRank}>{card.rank}</div>
+                    <div className={styles.cardSymbol}>{card.symbol}</div>
+                    <div className={styles.cardBackPattern}></div>
+                </div>
+            )}
+        </div>
+    );
+}
+
 export type Cards = Card[];
 
 export const CARD_MAP: Record<CardID, { rank: Rank; suit: Suit }> = SUITS.reduce(
@@ -97,22 +125,20 @@ export const CARD_MAP: Record<CardID, { rank: Rank; suit: Suit }> = SUITS.reduce
 
 export const CARDS = Object.keys(CARD_MAP) as readonly CardID[];
 
-export function CardComponent({ card }: { card: Card }) {
+export function BoardComponent({ board }: { board: Board }) {
     return (
-        <div className={`${styles.card} ${card.faceUp ? styles.faceUp : styles.faceDown}`}>
-            {card.faceUp ? (
-                <div className={styles.cardContent} style={{ color: card.color }}>
-                    <div className={styles.cardRank}>{card.rank}</div>
-                    <div className={styles.cardSymbol}>{card.symbol}</div>
-                </div>
-            ) : (
-                <div className={styles.cardBack}>
-                    <div className={styles.cardRank}>{card.rank}</div>
-                    <div className={styles.cardSymbol}>{card.symbol}</div>
-                    <div className={styles.cardBackPattern}></div>
-                </div>
-            )}
-        </div>
+        <>
+            <div className={styles.scoreRow}>
+                <span>Player 1 Score: 0</span>
+                <span>Player 2 Score: 0</span>
+            </div>
+            <div className={styles.board}>
+                {board.getCells().map((cellIndex) => (
+                    <Cell key={cellIndex} />
+                ))}
+                <CardComponent card={card} />
+            </div>
+        </>
     );
 }
 
@@ -142,19 +168,6 @@ export class Board {
     }
 }
 
-export function BoardComponent({ board }: { board: Board }) {
-    return (
-        <>
-            <div className={styles.scoreRow}>
-                <span>Player 1 Score: 0</span>
-                <span>Player 2 Score: 0</span>
-            </div>
-            <div className={styles.board}>
-                {board.getCells().map((cellIndex) => (
-                    <Cell key={cellIndex} />
-                ))}
-            </div>
-        </>
-    );
-}
+export const board = new Board(BOARD_ROWS, BOARD_COLS);
+const card = new Card('AceOfSpades', true);
 
