@@ -101,8 +101,10 @@ export function CardComponent({ card }: { card: Card }) {
                 </div>
             ) : (
                 <div className={styles.cardBack}>
-                    <div className={styles.cardRank}>{card.rank}</div>
-                    <div className={styles.cardSymbol}>{card.symbol}</div>
+                    <div className={styles.cardContent} style={{ color: 'rgba(255,255,255,0.7)' }}>
+                        <div className={styles.cardRank}>{card.rank}</div>
+                        <div className={styles.cardSymbol}>{card.symbol}</div>
+                    </div>
                     <div className={styles.cardBackPattern}></div>
                 </div>
             )}
