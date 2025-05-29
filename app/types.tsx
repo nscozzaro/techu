@@ -134,9 +134,10 @@ export function BoardComponent({ board }: { board: Board }) {
             </div>
             <div className={styles.board}>
                 {board.getCells().map((cellIndex) => (
-                    <Cell key={cellIndex} />
+                    <Cell key={cellIndex}>
+                        {cellIndex === DECK_CELL_1 && <CardComponent card={card} />}
+                    </Cell>
                 ))}
-                <CardComponent card={card} />
             </div>
         </>
     );
@@ -144,11 +145,13 @@ export function BoardComponent({ board }: { board: Board }) {
 
 export interface Cell {
     cards: Cards;
+    children?: React.ReactNode;
 }
 
-export function Cell() {
+export function Cell({ children }: { children?: React.ReactNode }) {
     return (
         <div className={styles.cell}>
+            {children}
         </div>
     );
 }
