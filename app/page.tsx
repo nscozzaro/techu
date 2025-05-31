@@ -1,5 +1,7 @@
-import { BoardComponent, board } from './types';
+'use client';
+
+import { BoardComponent, game } from './types';
 
 export default function Home() {
-  return <BoardComponent board={board} />;
+  return <BoardComponent board={game.board} />;
 }

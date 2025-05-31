@@ -192,7 +192,16 @@ export function BoardComponent({ board }: { board: Board }) {
     );
 }
 
-export const board = new Board(BOARD_ROWS, BOARD_COLS);
-// Initialize the deck cell with Ace of Spades
-board.getCell(DECK_CELL_1).addCard(new Card('AceOfSpades', true));
+
+export class Game {
+    public board: Board;
+
+    constructor(
+    ) {
+        this.board = new Board(BOARD_ROWS, BOARD_COLS);
+        this.board.getCell(DECK_CELL_1).addCard(new Card('AceOfSpades', true));
+    }
+}
+
+export const game = new Game();
 
