@@ -1,7 +1,13 @@
 'use client';
 
-import { BoardComponent, game } from './types';
+import dynamic from 'next/dynamic';
+
+const BoardComponent = dynamic(() => import('./types').then(mod => mod.BoardComponent), { ssr: false });
 
 export default function Home() {
-  return <BoardComponent board={game.board} />;
+  return (
+    <div>
+      <BoardComponent />
+    </div>
+  );
 }

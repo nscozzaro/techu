@@ -9,19 +9,58 @@ export type CellIndex = number & { __brand: 'CellIndex' };
 export type RowIndex = number & { __brand: 'RowIndex' };
 export type ColumnIndex = number & { __brand: 'ColumnIndex' };
 export type CellIndices = CellIndex[];
+export type NumCells = number & { __brand: 'NumCells' };
 
 export const BOARD_ROWS = 7 as BoardDimension;
 export const BOARD_COLS = 5 as BoardDimension;
+export const TOTAL_BOARD_CELLS = BOARD_ROWS * BOARD_COLS as NumCells;
 export const PLAYER_ROW_1 = BOARD_ROWS - 1 as RowIndex;
 export const PLAYER_ROW_2 = 0 as RowIndex;
 export const DECK_CELL_1 = BOARD_ROWS * BOARD_COLS - BOARD_COLS as CellIndex;
 export const DECK_CELL_2 = 0 as CellIndex;
-export const NUM_HAND_CELLS = 3;
+export const NUM_HAND_CELLS = 3 as NumCells;
 export const HAND_CELLS_1 = Array.from({ length: NUM_HAND_CELLS }, (_, i) => DECK_CELL_1 + i + 1) as CellIndices;
 export const HAND_CELLS_2 = Array.from({ length: NUM_HAND_CELLS }, (_, i) => DECK_CELL_2 + i + 1) as CellIndices;
 export const DISCARD_CELL_1 = BOARD_ROWS * BOARD_COLS - 1 as CellIndex;
 export const DISCARD_CELL_2 = BOARD_COLS - 1 as CellIndex;
 export const PLAYABLE_CELLS = Array.from({ length: BOARD_ROWS * BOARD_COLS - 2 * BOARD_COLS }, (_, i) => i + BOARD_COLS) as CellIndices;
+export const UNDEFINED = 'undefined';
+
+// Event Emitter System
+export enum EventType {
+    Save = 'save'
+}
+
+type EventCallback = () => void;
+class EventEmitter {
+    private static instance: EventEmitter;
+    private listeners: Map<EventType, EventCallback[]> = new Map();
+
+    private constructor() { }
+
+    static getInstance(): EventEmitter {
+        if (!EventEmitter.instance) {
+            EventEmitter.instance = new EventEmitter();
+        }
+        return EventEmitter.instance;
+    }
+
+    on(event: EventType, callback: EventCallback) {
+        if (!this.listeners.has(event)) {
+            this.listeners.set(event, []);
+        }
+        this.listeners.get(event)!.push(callback);
+    }
+
+    emit(event: EventType) {
+        const callbacks = this.listeners.get(event);
+        if (callbacks) {
+            callbacks.forEach(callback => callback());
+        }
+    }
+}
+
+export const eventEmitter = EventEmitter.getInstance();
 
 export const SUIT_DATA = {
     Clubs: { symbol: '♣', color: 'black' },
@@ -82,6 +121,12 @@ export class Card {
         public faceUp: CardFaceUp
     ) { }
 
+    flip() {
+        this.faceUp = !this.faceUp;
+        eventEmitter.emit(EventType.Save);
+        return this.faceUp;
+    }
+
     get suit(): Suit {
         return CARD_MAP[this.id].suit;
     }
@@ -107,7 +152,7 @@ export function CardComponent({ card }: { card: Card }) {
     return (
         <div
             className={`${styles.card} ${isFaceUp ? styles.faceUp : styles.faceDown}`}
-            onClick={() => setIsFaceUp(!isFaceUp)}
+            onClick={() => setIsFaceUp(card.flip())}
             style={{ cursor: 'pointer' }}
         >
             {isFaceUp ? (
@@ -130,7 +175,7 @@ export function CardComponent({ card }: { card: Card }) {
 
 export class Cell {
     constructor(
-        public cards: Cards = [],
+        public cards: Cards = []
     ) { }
 
     addCard(card: Card) {
@@ -162,13 +207,12 @@ export function CellComponent({ cell }: { cell: Cell }) {
 }
 
 export class Board {
-    public cells: Cells;
-
     constructor(
-        public readonly num_rows: BoardDimension,
-        public readonly num_cols: BoardDimension,
+        public readonly cells: Cells = Array.from({ length: TOTAL_BOARD_CELLS }, () => new Cell())
     ) {
-        this.cells = Array.from({ length: num_rows * num_cols }, () => new Cell());
+        if (cells.length !== TOTAL_BOARD_CELLS) {
+            throw new Error(`Board must have exactly ${TOTAL_BOARD_CELLS} cells, got ${cells.length}`);
+        }
     }
 
     getCell(cellIndex: CellIndex): Cell {
@@ -176,7 +220,7 @@ export class Board {
     }
 }
 
-export function BoardComponent({ board }: { board: Board }) {
+export function BoardComponent() {
     return (
         <>
             <div className={styles.scoreRow}>
@@ -184,7 +228,7 @@ export function BoardComponent({ board }: { board: Board }) {
                 <span>Player 2 Score: 0</span>
             </div>
             <div className={styles.board}>
-                {board.cells.map((cell, index) => (
+                {game.board.cells.map((cell, index) => (
                     <CellComponent key={index} cell={cell} />
                 ))}
             </div>
@@ -192,16 +236,41 @@ export function BoardComponent({ board }: { board: Board }) {
     );
 }
 
-
 export class Game {
-    public board: Board;
-
     constructor(
+        public readonly board: Board = new Board()
     ) {
-        this.board = new Board(BOARD_ROWS, BOARD_COLS);
-        this.board.getCell(DECK_CELL_1).addCard(new Card('AceOfSpades', true));
+        eventEmitter.on(EventType.Save, () => this.save());
     }
+
+    private static loadSavedState(): Board {
+        console.log('Loading saved state');
+        const savedState = localStorage.getItem(Game.STORAGE_KEY);
+        if (!savedState) {
+            const board = new Board();
+            board.getCell(DECK_CELL_1).addCard(new Card('AceOfSpades', true));
+            return board;
+        }
+        const parsed = JSON.parse(savedState);
+        const cells = parsed.board.cells.map((cell: { cards: { id: CardID; faceUp: CardFaceUp }[] }) => new Cell(
+            cell.cards.map((card: { id: CardID; faceUp: CardFaceUp }) => new Card(card.id, card.faceUp))
+        ));
+        return new Board(cells);
+    }
+
+    static create(): Game {
+        console.log('Creating game');
+        return new Game(Game.loadSavedState());
+    }
+
+    private save() {
+        console.log('Saving game');
+        const savedState = JSON.stringify(this);
+        localStorage.setItem(Game.STORAGE_KEY, savedState);
+    }
+
+    private static readonly STORAGE_KEY = 'gameState';
 }
 
-export const game = new Game();
+export const game = Game.create();
 
