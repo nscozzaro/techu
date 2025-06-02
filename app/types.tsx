@@ -144,6 +144,11 @@ export class Card {
     }
 }
 
+type SerializedCard = Pick<Card, 'id' | 'faceUp'>;
+type SerializedCell = { cards: SerializedCard[] };
+type SerializedBoard = { cells: SerializedCell[] };
+type SerializedGame = { board: SerializedBoard };
+
 export type Cards = Card[];
 
 export function CardComponent({ card }: { card: Card }) {
@@ -250,10 +255,11 @@ export class Game {
             board.getCell(DECK_CELL_1).addCard(new Card('AceOfSpades', true));
             return board;
         }
-        const parsed = JSON.parse(savedState);
-        const cells = parsed.board.cells.map((cell: { cards: { id: CardID; faceUp: CardFaceUp }[] }) => new Cell(
-            cell.cards.map((card: { id: CardID; faceUp: CardFaceUp }) => new Card(card.id, card.faceUp))
-        ));
+
+        const parsed = JSON.parse(savedState) as SerializedGame;
+        const cells = parsed.board.cells.map(
+            cell => new Cell(cell.cards.map(c => new Card(c.id, c.faceUp)))
+        );
         return new Board(cells);
     }
 
