@@ -24,7 +24,7 @@ export const HAND_CELLS_2 = Array.from({ length: NUM_HAND_CELLS }, (_, i) => DEC
 export const DISCARD_CELL_1 = BOARD_ROWS * BOARD_COLS - 1 as CellIndex;
 export const DISCARD_CELL_2 = BOARD_COLS - 1 as CellIndex;
 export const PLAYABLE_CELLS = Array.from({ length: BOARD_ROWS * BOARD_COLS - 2 * BOARD_COLS }, (_, i) => i + BOARD_COLS) as CellIndices;
-export const UNDEFINED = 'undefined';
+export const GAME_STORAGE_KEY = 'gameState';
 
 // Event Emitter System
 export enum EventType {
@@ -248,14 +248,11 @@ export class Game {
         eventEmitter.on(EventType.Save, () => this.save());
     }
 
-    private static loadSavedState(): Board {
-        const savedState = localStorage.getItem(Game.STORAGE_KEY);
+    private static loadGame(): Board {
+        const savedState = localStorage.getItem(GAME_STORAGE_KEY);
         if (!savedState) {
-            const board = new Board();
-            board.getCell(DECK_CELL_1).addCard(new Card('AceOfSpades', true));
-            return board;
+            return Game.createNewBoard();
         }
-
         const parsed = JSON.parse(savedState) as SerializedGame;
         const cells = parsed.board.cells.map(
             cell => new Cell(cell.cards.map(c => new Card(c.id, c.faceUp)))
@@ -263,16 +260,19 @@ export class Game {
         return new Board(cells);
     }
 
+    private static createNewBoard(): Board {
+        const board = new Board();
+        board.getCell(DECK_CELL_1).addCard(new Card('AceOfSpades', true));
+        return board;
+    }
+
     static create(): Game {
-        return new Game(Game.loadSavedState());
+        return new Game(Game.loadGame());
     }
 
     private save() {
-        const savedState = JSON.stringify(this);
-        localStorage.setItem(Game.STORAGE_KEY, savedState);
+        localStorage.setItem(GAME_STORAGE_KEY, JSON.stringify(this));
     }
-
-    private static readonly STORAGE_KEY = 'gameState';
 }
 
 export const game = Game.create();
