@@ -244,7 +244,6 @@ export class Game {
     }
 
     private static loadSavedState(): Board {
-        console.log('Loading saved state');
         const savedState = localStorage.getItem(Game.STORAGE_KEY);
         if (!savedState) {
             const board = new Board();
@@ -259,12 +258,10 @@ export class Game {
     }
 
     static create(): Game {
-        console.log('Creating game');
         return new Game(Game.loadSavedState());
     }
 
     private save() {
-        console.log('Saving game');
         const savedState = JSON.stringify(this);
         localStorage.setItem(Game.STORAGE_KEY, savedState);
     }
