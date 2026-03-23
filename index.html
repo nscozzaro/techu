@@ -121,11 +121,17 @@
             display: grid;
             align-content: center;
             justify-items: center;
-            gap: 24px;
+            gap: clamp(16px, 2.4vh, 24px);
             text-align: center;
         }
 
+        .landing-panel.has-progress {
+            width: min(100%, 980px);
+            gap: clamp(14px, 2vh, 22px);
+        }
+
         .landing-mark {
+            position: relative;
             display: grid;
             grid-template-columns: repeat(3, 22px);
             gap: 4px;
@@ -147,7 +153,20 @@
         }
 
         .landing-mark-cell.accent {
+            position: relative;
             background: var(--landing-gold);
+        }
+
+        .landing-mark-cell.accent::after {
+            content: '♦';
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            color: rgba(17, 17, 17, 0.78);
+            font-size: 0.8rem;
+            font-weight: 800;
+            line-height: 1;
         }
 
         .landing-mark-cell.claimed {
@@ -176,6 +195,16 @@
             font-size: clamp(1.35rem, 4.8vw, 2.35rem);
             line-height: 1.16;
             font-weight: 500;
+        }
+
+        .landing-panel.has-progress .landing-title {
+            max-width: 7ch;
+            font-size: clamp(2.7rem, 7vw, 4.9rem);
+        }
+
+        .landing-panel.has-progress .landing-subtitle {
+            max-width: 10ch;
+            font-size: clamp(1.2rem, 3.2vw, 2.1rem);
         }
 
         .landing-preview-wrap {
@@ -286,6 +315,10 @@
         .landing-footer strong {
             color: var(--landing-text);
             font-weight: 700;
+        }
+
+        .landing-footer[hidden] {
+            display: none;
         }
 
         .rotate-overlay {
@@ -740,8 +773,8 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: space-between;
-            padding: 3px;
+            justify-content: center;
+            padding: clamp(2px, calc(var(--card-width) * 0.04), 3px);
             font-weight: bold;
             cursor: grab;
             transition: all 0.2s;
@@ -764,37 +797,41 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 2px;
+            gap: clamp(1px, calc(var(--card-height) * 0.015), 2px);
             line-height: 1;
             text-align: center;
+            z-index: 1;
         }
 
         .card-corner.top {
-            top: 6px;
-            left: 8px;
+            top: clamp(4px, calc(var(--card-height) * 0.06), 6px);
+            left: clamp(5px, calc(var(--card-width) * 0.11), 8px);
         }
 
         .card-corner.bottom {
-            bottom: 6px;
-            right: 8px;
+            bottom: clamp(4px, calc(var(--card-height) * 0.06), 6px);
+            right: clamp(5px, calc(var(--card-width) * 0.11), 8px);
             transform: rotate(180deg);
         }
 
         .card-rank {
-            font-size: 0.95em;
+            font-size: clamp(0.68rem, calc(var(--card-height) * 0.135), 0.9rem);
             font-weight: 700;
             letter-spacing: -0.04em;
         }
 
         .card-suit-small {
-            font-size: 0.52em;
+            font-size: clamp(0.42rem, calc(var(--card-height) * 0.075), 0.52rem);
             line-height: 1;
         }
 
         .card-suit-large {
-            font-size: 2.45em;
-            line-height: 1;
-            margin: auto;
+            position: absolute;
+            inset: 50% auto auto 50%;
+            transform: translate(-50%, -50%);
+            font-size: clamp(1.05rem, calc(var(--card-height) * 0.29), 2rem);
+            line-height: 0.82;
+            z-index: 0;
         }
 
         .card.red {
@@ -852,8 +889,8 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: space-between;
-            padding: 3px;
+            justify-content: center;
+            padding: clamp(2px, calc(var(--card-width) * 0.04), 3px);
             font-weight: bold;
             position: absolute;
             top: 0;
@@ -1387,6 +1424,72 @@
             }
         }
 
+        @media (min-width: 960px) and (min-height: 720px) {
+            .landing-panel.has-progress {
+                grid-template-columns: minmax(320px, 1fr) minmax(300px, 360px);
+                grid-template-areas:
+                    "mark preview"
+                    "kicker preview"
+                    "title preview"
+                    "subtitle actions"
+                    "footer actions";
+                justify-items: start;
+                text-align: left;
+                align-content: center;
+                column-gap: clamp(40px, 6vw, 88px);
+                row-gap: 10px;
+            }
+
+            .landing-panel.has-progress .landing-mark {
+                grid-area: mark;
+                margin-bottom: 4px;
+            }
+
+            .landing-panel.has-progress .landing-kicker {
+                grid-area: kicker;
+            }
+
+            .landing-panel.has-progress .landing-title {
+                grid-area: title;
+                max-width: 5ch;
+                line-height: 0.92;
+            }
+
+            .landing-panel.has-progress .landing-subtitle {
+                grid-area: subtitle;
+                max-width: 8ch;
+            }
+
+            .landing-panel.has-progress .landing-preview-wrap {
+                grid-area: preview;
+                justify-self: end;
+                align-self: end;
+                width: min(100%, 300px);
+            }
+
+            .landing-panel.has-progress .landing-actions {
+                grid-area: actions;
+                justify-self: end;
+                width: min(100%, 360px);
+                gap: 10px;
+            }
+
+            .landing-panel.has-progress .landing-footer {
+                grid-area: footer;
+                justify-items: start;
+            }
+
+            .landing-panel.has-progress .landing-preview-wrap,
+            .landing-panel.has-progress .landing-actions {
+                justify-items: center;
+                text-align: center;
+            }
+
+            .landing-panel.has-progress .landing-btn {
+                min-height: 52px;
+            }
+        }
+
         @media (max-height: 880px) {
             .landing-panel {
                 min-height: auto;
@@ -1406,7 +1509,7 @@
 <body>
     <div id="appShell" class="app-shell show-landing">
         <section id="landingScreen" class="landing-screen" aria-label="Techu landing">
-            <div class="landing-panel">
+            <div id="landingPanel" class="landing-panel">
                 <div class="landing-mark" aria-hidden="true">
                     <span class="landing-mark-cell"></span>
                     <span class="landing-mark-cell"></span>
@@ -1439,7 +1542,7 @@
                     <button id="landingShareBtn" class="landing-btn ghost" type="button" hidden>Share Result</button>
                 </div>
 
-                <div class="landing-footer">
+                <div id="landingFooter" class="landing-footer">
                     <strong id="landingFooterDate">March 23, 2026</strong>
                     <span id="landingFooterPuzzle">Shared seed No. 1</span>
                     <span>Daily puzzles use one worldwide UTC seed. Practice stays random.</span>
@@ -4542,6 +4645,7 @@
         const ui = {
             appShell: document.getElementById('appShell'),
             landing: {
+                panel: document.getElementById('landingPanel'),
                 kicker: document.getElementById('landingKicker'),
                 title: document.getElementById('landingTitle'),
                 subtitle: document.getElementById('landingSubtitle'),
@@ -4554,6 +4658,7 @@
                 previewCaption: document.getElementById('landingPreviewCaption'),
                 puzzleDate: document.getElementById('landingPuzzleDate'),
                 puzzleNumber: document.getElementById('landingPuzzleNumber'),
+                footer: document.getElementById('landingFooter'),
                 footerDate: document.getElementById('landingFooterDate'),
                 footerPuzzle: document.getElementById('landingFooterPuzzle')
             },
@@ -4743,10 +4848,13 @@
             const progress = app.dailyProgress;
             const puzzleNumber = getDailyPuzzleNumber(app.dailyKey);
             const displayDate = formatDailyDate(app.dailyKey);
+            ui.landing.panel.classList.toggle('has-progress', Boolean(progress));
+            ui.landing.panel.classList.toggle('is-complete', progress?.status === 'ended');
             ui.landing.puzzleDate.textContent = displayDate;
             ui.landing.puzzleNumber.textContent = `Puzzle No. ${puzzleNumber}`;
             ui.landing.footerDate.textContent = displayDate;
             ui.landing.footerPuzzle.textContent = `Shared seed No. ${puzzleNumber}`;
+            ui.landing.footer.hidden = Boolean(progress);
             ui.landing.share.dataset.baseLabel = 'Share Result';
             ui.landing.share.textContent = 'Share Result';
             ui.landing.share.hidden = true;
@@ -4759,6 +4867,7 @@
                 ui.landing.play.textContent = 'Play Daily';
                 ui.landing.practice.textContent = 'Practice vs Bot';
                 ui.landing.previewWrap.hidden = true;
+                ui.landing.footer.hidden = false;
                 return;
             }
 
