@@ -5,8 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Techu</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap');
+
         :root {
-            color-scheme: dark;
+            color-scheme: light dark;
             --bg: #121316;
             --bg-accent: #1c1f25;
             --panel: rgba(27, 29, 34, 0.94);
@@ -46,6 +48,15 @@
             --card-back-accent: #31597e;
             --card-back-line: rgba(244, 239, 229, 0.32);
             --card-back-line-soft: rgba(244, 239, 229, 0.08);
+            --landing-bg: #ebe9e1;
+            --landing-panel: rgba(250, 249, 244, 0.82);
+            --landing-text: #151515;
+            --landing-muted: #57534c;
+            --landing-line: rgba(21, 21, 21, 0.14);
+            --landing-accent: #111111;
+            --landing-green: #6aaa64;
+            --landing-gold: #c9b458;
+            --landing-blank: #f4f1e8;
         }
 
         html {
@@ -59,22 +70,256 @@
         }
 
         body {
-            font-family: "Hiragino Sans", "Yu Gothic", "Noto Sans JP", "Avenir Next", sans-serif;
+            font-family: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
             background:
-                radial-gradient(circle at top, rgba(255, 92, 122, 0.18), transparent 32%),
-                linear-gradient(180deg, #20232a 0%, var(--bg) 28%, #0d0e11 100%);
+                radial-gradient(circle at top, rgba(255, 255, 255, 0.58), transparent 30%),
+                linear-gradient(180deg, #efeee8 0%, var(--landing-bg) 100%);
             min-height: 100dvh;
-            display: block;
-            color: var(--text);
+            color: var(--landing-text);
             padding: 0;
             margin: 0;
             overflow: hidden;
         }
 
+        .app-shell {
+            position: relative;
+            min-height: 100dvh;
+            width: 100%;
+            display: grid;
+            place-items: center;
+            overflow: hidden;
+        }
+
+        .landing-screen {
+            position: absolute;
+            inset: 0;
+            display: none;
+            padding: clamp(24px, 4vw, 40px);
+            overflow-y: auto;
+            z-index: 5;
+        }
+
+        .app-shell.show-landing .landing-screen {
+            display: grid;
+            place-items: center;
+        }
+
+        .landing-panel {
+            width: min(100%, 760px);
+            min-height: 100%;
+            display: grid;
+            align-content: center;
+            justify-items: center;
+            gap: 24px;
+            text-align: center;
+        }
+
+        .landing-mark {
+            display: grid;
+            grid-template-columns: repeat(3, 22px);
+            gap: 4px;
+            padding: 10px;
+            border-radius: 18px;
+            border: 4px solid #111;
+            background: rgba(255, 255, 255, 0.78);
+            box-shadow:
+                0 18px 40px rgba(17, 17, 17, 0.08),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
+        }
+
+        .landing-mark-cell {
+            width: 22px;
+            height: 22px;
+            border-radius: 4px;
+            border: 2px solid #111;
+            background: var(--landing-blank);
+        }
+
+        .landing-mark-cell.accent {
+            background: var(--landing-gold);
+        }
+
+        .landing-mark-cell.claimed {
+            background: #7ab56d;
+        }
+
+        .landing-kicker {
+            color: var(--landing-muted);
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .landing-title {
+            max-width: 11ch;
+            font-size: clamp(2.9rem, 9vw, 5.6rem);
+            line-height: 0.94;
+            font-weight: 900;
+            letter-spacing: -0.06em;
+        }
+
+        .landing-subtitle {
+            max-width: 16ch;
+            color: #1e1b18;
+            font-size: clamp(1.35rem, 4.8vw, 2.35rem);
+            line-height: 1.16;
+            font-weight: 500;
+        }
+
+        .landing-preview-wrap {
+            width: min(100%, 320px);
+            display: grid;
+            gap: 12px;
+            justify-items: center;
+        }
+
+        .landing-preview-wrap[hidden] {
+            display: none;
+        }
+
+        .daily-preview-meta {
+            display: grid;
+            gap: 4px;
+            color: var(--landing-muted);
+            font-size: 0.88rem;
+        }
+
+        .daily-preview-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 24px);
+            gap: 4px;
+            padding: 12px;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(17, 17, 17, 0.08);
+            box-shadow: 0 12px 28px rgba(17, 17, 17, 0.06);
+        }
+
+        .daily-preview-cell {
+            width: 24px;
+            height: 24px;
+            border-radius: 5px;
+            background: var(--landing-blank);
+            border: 1px solid rgba(17, 17, 17, 0.08);
+        }
+
+        .daily-preview-cell.red {
+            background: var(--landing-green);
+            border-color: rgba(0, 0, 0, 0.08);
+        }
+
+        .daily-preview-cell.black {
+            background: #222;
+            border-color: rgba(255, 255, 255, 0.08);
+        }
+
+        .daily-preview-caption {
+            color: var(--landing-muted);
+            font-size: 0.94rem;
+            line-height: 1.4;
+        }
+
+        .landing-actions {
+            width: min(100%, 520px);
+            display: grid;
+            gap: 12px;
+            justify-items: center;
+        }
+
+        .landing-btn {
+            width: min(100%, 360px);
+            min-height: 56px;
+            padding: 14px 22px;
+            border-radius: 999px;
+            border: 1px solid transparent;
+            font: inherit;
+            font-size: 1rem;
+            font-weight: 700;
+            box-shadow: none;
+        }
+
+        .landing-btn.primary {
+            background: var(--landing-accent);
+            color: white;
+        }
+
+        .landing-btn.secondary {
+            background: rgba(255, 255, 255, 0.42);
+            color: var(--landing-accent);
+            border-color: rgba(17, 17, 17, 0.14);
+        }
+
+        .landing-btn.tertiary,
+        .landing-btn.ghost {
+            background: transparent;
+            color: var(--landing-muted);
+            border-color: rgba(17, 17, 17, 0.12);
+            min-height: 48px;
+            width: min(100%, 280px);
+            font-size: 0.92rem;
+        }
+
+        .landing-btn.ghost[hidden] {
+            display: none;
+        }
+
+        .landing-footer {
+            display: grid;
+            gap: 4px;
+            color: var(--landing-muted);
+            font-size: 0.92rem;
+            line-height: 1.4;
+        }
+
+        .landing-footer strong {
+            color: var(--landing-text);
+            font-weight: 700;
+        }
+
+        .rotate-overlay {
+            display: none;
+            position: absolute;
+            inset: 0;
+            z-index: 40;
+            padding: 24px;
+            background: rgba(235, 233, 225, 0.96);
+            backdrop-filter: blur(12px);
+        }
+
+        .rotate-card {
+            margin: auto;
+            width: min(100%, 360px);
+            display: grid;
+            gap: 16px;
+            justify-items: center;
+            text-align: center;
+            padding: 28px 24px;
+            border-radius: 28px;
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(17, 17, 17, 0.08);
+            box-shadow: 0 18px 44px rgba(17, 17, 17, 0.08);
+        }
+
+        .rotate-icon {
+            font-size: 2rem;
+        }
+
+        .rotate-title {
+            font-size: 1.5rem;
+            font-weight: 800;
+            letter-spacing: -0.04em;
+        }
+
+        .rotate-copy {
+            color: var(--landing-muted);
+            line-height: 1.5;
+        }
+
         .game-container {
             background: linear-gradient(180deg, rgba(28, 30, 35, 0.98), rgba(16, 17, 20, 0.98));
-            max-width: 430px;
-            width: 100%;
+            max-width: min(100vw, 980px);
+            width: min(100vw, 980px);
             min-height: 100dvh;
             height: 100dvh;
             margin: 0 auto;
@@ -84,6 +329,10 @@
             border-right: 1px solid var(--line);
             box-shadow: var(--shadow);
             overflow: hidden;
+        }
+
+        .app-shell.show-landing .game-container {
+            display: none;
         }
 
         .header {
@@ -1054,48 +1303,157 @@
                 padding: 12px 14px;
             }
         }
+
+        @media (orientation: landscape) and (max-height: 500px) {
+            .game-container {
+                width: 100vw;
+                max-width: 100vw;
+                border-left: none;
+                border-right: none;
+                box-shadow: none;
+            }
+
+            .header {
+                padding: calc(6px + env(safe-area-inset-top, 0px)) 10px 6px;
+                gap: 8px;
+            }
+
+            .scores {
+                font-size: 0.76em;
+            }
+
+            .header-status {
+                min-height: 34px;
+                padding: 4px 8px;
+                font-size: 0.58em;
+            }
+
+            .icon-btn {
+                width: 34px;
+                height: 34px;
+                border-radius: 10px;
+            }
+
+            .game-main {
+                padding: 6px 10px calc(8px + env(safe-area-inset-bottom, 0px));
+            }
+
+            .player-area {
+                border-radius: 12px;
+            }
+        }
+
+        @media (max-width: 760px) {
+            .landing-panel {
+                gap: 20px;
+            }
+
+            .landing-subtitle {
+                max-width: 14ch;
+            }
+        }
+
+        @media (orientation: portrait) and (max-width: 900px) {
+            .app-shell.in-game .rotate-overlay {
+                display: flex;
+            }
+
+            .app-shell.in-game .game-container {
+                visibility: hidden;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="game-container">
-        <div class="header">
-            <div class="scores">
-                <span id="botScoreWrap" class="score-black">Bot: <span id="blackScore">0</span></span> |
-                <span id="userScoreWrap" class="score-red">You: <span id="redScore">0</span></span>
+    <div id="appShell" class="app-shell show-landing">
+        <section id="landingScreen" class="landing-screen" aria-label="Techu landing">
+            <div class="landing-panel">
+                <div class="landing-mark" aria-hidden="true">
+                    <span class="landing-mark-cell"></span>
+                    <span class="landing-mark-cell"></span>
+                    <span class="landing-mark-cell"></span>
+                    <span class="landing-mark-cell"></span>
+                    <span class="landing-mark-cell accent"></span>
+                    <span class="landing-mark-cell claimed"></span>
+                    <span class="landing-mark-cell claimed"></span>
+                    <span class="landing-mark-cell claimed"></span>
+                    <span class="landing-mark-cell claimed"></span>
+                </div>
+
+                <div class="landing-kicker" id="landingKicker">Daily Puzzle</div>
+                <h1 class="landing-title" id="landingTitle">Techu</h1>
+                <p class="landing-subtitle" id="landingSubtitle">A shared daily duel with one shuffled deck for everyone.</p>
+
+                <div id="dailyPreviewWrap" class="landing-preview-wrap" hidden>
+                    <div class="daily-preview-meta">
+                        <strong id="landingPuzzleDate">March 23, 2026</strong>
+                        <span id="landingPuzzleNumber">Puzzle No. 1</span>
+                    </div>
+                    <div id="dailyPreviewGrid" class="daily-preview-grid" aria-label="Saved daily board preview"></div>
+                    <div id="landingPreviewCaption" class="daily-preview-caption">Your saved board so far.</div>
+                </div>
+
+                <div class="landing-actions">
+                    <button id="landingPlayBtn" class="landing-btn primary" type="button">Play Daily</button>
+                    <button id="landingPracticeBtn" class="landing-btn secondary" type="button">Practice vs Bot</button>
+                    <button id="landingRulesBtn" class="landing-btn tertiary" type="button">Rules</button>
+                    <button id="landingShareBtn" class="landing-btn ghost" type="button" hidden>Share Result</button>
+                </div>
+
+                <div class="landing-footer">
+                    <strong id="landingFooterDate">March 23, 2026</strong>
+                    <span id="landingFooterPuzzle">Shared seed No. 1</span>
+                    <span>Daily puzzles use one worldwide UTC seed. Practice stays random.</span>
+                </div>
             </div>
-            <div class="header-status neutral" id="statusBar">Setting up...</div>
-            <div class="header-actions">
-                <button id="gameMenuBtn" class="icon-btn" type="button" aria-label="Open game options">+</button>
-                <button id="rulesBtn" class="icon-btn" type="button" aria-label="Open rules">?</button>
-                <button id="settingsBtn" class="icon-btn" type="button" aria-label="Open settings">⚙</button>
+        </section>
+
+        <div id="rotateOverlay" class="rotate-overlay" aria-live="polite">
+            <div class="rotate-card">
+                <div class="rotate-icon">↻</div>
+                <div class="rotate-title">Rotate to Play</div>
+                <p class="rotate-copy">Techu is tuned for landscape play so the header, board, hands, and decks all stay visible at once.</p>
             </div>
         </div>
 
-        <div class="game-main">
-            <div class="playfield">
-                <!-- Bot's area -->
-                <div class="player-area">
-                    <div class="deck-area">
-                        <div class="deck" id="blackDeck"></div>
-                        <div class="deck-count"><span id="blackDeckCount">26</span></div>
-                    </div>
-                    <div class="hand" id="blackHand"></div>
-                    <div class="discard-pile" id="blackDiscard">
-                        <span class="discard-label">Discard</span>
-                    </div>
+        <div class="game-container">
+            <div class="header">
+                <div class="scores">
+                    <span id="botScoreWrap" class="score-black">Bot: <span id="blackScore">0</span></span> |
+                    <span id="userScoreWrap" class="score-red">You: <span id="redScore">0</span></span>
                 </div>
+                <div class="header-status neutral" id="statusBar">Setting up...</div>
+                <div class="header-actions">
+                    <button id="gameMenuBtn" class="icon-btn" type="button" aria-label="Open game options">+</button>
+                    <button id="rulesBtn" class="icon-btn" type="button" aria-label="Open rules">?</button>
+                    <button id="settingsBtn" class="icon-btn" type="button" aria-label="Open settings">⚙</button>
+                </div>
+            </div>
 
-                <div id="board" class="board"></div>
-
-                <!-- Player's area -->
-                <div class="player-area">
-                    <div class="deck-area">
-                        <div class="deck" id="redDeck"></div>
-                        <div class="deck-count"><span id="redDeckCount">26</span></div>
+            <div class="game-main">
+                <div class="playfield">
+                    <div class="player-area">
+                        <div class="deck-area">
+                            <div class="deck" id="blackDeck"></div>
+                            <div class="deck-count"><span id="blackDeckCount">26</span></div>
+                        </div>
+                        <div class="hand" id="blackHand"></div>
+                        <div class="discard-pile" id="blackDiscard">
+                            <span class="discard-label">Discard</span>
+                        </div>
                     </div>
-                    <div class="hand" id="redHand"></div>
-                    <div class="discard-pile" id="redDiscard" data-drop-target="true">
-                        <span class="discard-label">Discard</span>
+
+                    <div id="board" class="board"></div>
+
+                    <div class="player-area">
+                        <div class="deck-area">
+                            <div class="deck" id="redDeck"></div>
+                            <div class="deck-count"><span id="redDeckCount">26</span></div>
+                        </div>
+                        <div class="hand" id="redHand"></div>
+                        <div class="discard-pile" id="redDiscard" data-drop-target="true">
+                            <span class="discard-label">Discard</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1105,9 +1463,9 @@
     <div id="gameMenuModal" class="modal">
         <div class="modal-content">
             <button id="closeGameMenuIconBtn" class="modal-close" type="button" aria-label="Close game options">×</button>
-            <h2>Create Game</h2>
-            <div class="menu-section">
-                <div class="menu-label">I play as</div>
+            <h2 id="gameMenuTitle">Game Options</h2>
+            <div id="practiceColorSection" class="menu-section">
+                <div class="menu-label">Practice color</div>
                 <div id="playerColorChoices" class="color-select-grid">
                     <button class="color-select-btn selected" type="button" data-player-color="red" aria-pressed="true">
                         <span class="choice-card red"><span class="choice-glyph">♥</span></span>
@@ -1124,9 +1482,17 @@
                 </div>
             </div>
             <div class="menu-actions">
-                <button id="startNewGameBtn" class="menu-action" type="button">
-                    <strong>Start Game</strong>
-                    <span id="startNewGameCopy">Play as Red with hearts and diamonds from the bottom row.</span>
+                <button id="menuDailyBtn" class="menu-action" type="button">
+                    <strong id="menuDailyTitle">Return to Daily Home</strong>
+                    <span id="menuDailyCopy">See today’s saved puzzle, continue it, or share your result.</span>
+                </button>
+                <button id="menuPracticeBtn" class="menu-action" type="button">
+                    <strong id="menuPracticeTitle">Start Practice Match</strong>
+                    <span id="menuPracticeCopy">Play a fresh random deck against the bot.</span>
+                </button>
+                <button id="menuShareBtn" class="menu-action" type="button" hidden>
+                    <strong>Share Daily Result</strong>
+                    <span>Copy a Wordle-style summary of today’s finished board.</span>
                 </button>
                 <button id="openAnalysisBtn" class="menu-action" type="button">
                     <strong>Export Match Log</strong>
@@ -1141,6 +1507,7 @@
             <button id="closeRulesBtn" class="modal-close" type="button" aria-label="Close rules">×</button>
             <h2>How to Play</h2>
             <div class="rules">
+                <p><strong>Daily vs Practice:</strong> Daily uses one shared worldwide UTC shuffle each day. Practice starts a fresh random deck against the Bot.</p>
                 <p><strong>Goal:</strong> Finish with more spaces than the Bot when both players are out of cards.</p>
 
                 <h3>Core Rules</h3>
@@ -1221,12 +1588,18 @@
         const MATCH_LOG_VERSION = 'TECHU_MATCH_LOG_V1';
         const TECHU_SETTINGS = { showAllowedMoves: true };
         const TECHU_GAME_OPTIONS = { playerColor: 'red', seed: null };
-        const GAME_MENU_COPY = {
+        const PRACTICE_COLOR_COPY = {
             red: 'Play as Red with hearts and diamonds from the bottom row.',
             random: 'Get Red or Black at random each time you start a game.',
             black: 'Play as Black with spades and clubs from the bottom row.'
         };
         const PLAYERS = ['red', 'black'];
+        const APP_MODES = { landing: 'landing', daily: 'daily', practice: 'practice' };
+        const DAILY_STORAGE_VERSION = 1;
+        const DAILY_STORAGE_PREFIX = 'techu-daily:';
+        const DAILY_PLAYER_COLOR = 'red';
+        const DAILY_EPOCH_UTC = Date.UTC(2026, 2, 23);
+        const SHARE_EMOJI = { red: '🟩', black: '⬛', empty: '⬜' };
         const PLAYER_AREA_META = {
             top: { handId: 'blackHand', deckId: 'blackDeck', deckCountId: 'blackDeckCount', discardId: 'blackDiscard' },
             bottom: { handId: 'redHand', deckId: 'redDeck', deckCountId: 'redDeckCount', discardId: 'redDiscard' }
@@ -1315,6 +1688,93 @@
         const resolvePlayerColor = (choice, random = Math.random) => (
             choice === 'random' ? (random() < 0.5 ? 'red' : 'black') : choice
         );
+        const cardFromCode = (code) => {
+            if (!code) return null;
+            const suit = code.slice(-1);
+            const rank = code.slice(0, -1);
+            const color = PLAYER_SUITS.red.includes(suit) ? 'red' : 'black';
+            return { rank, suit, color };
+        };
+        const getUtcDateKey = (date = new Date()) => {
+            const year = date.getUTCFullYear();
+            const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+            const day = String(date.getUTCDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+        const getDailySeed = (dateKey) => `daily:${dateKey}`;
+        const getDailyPuzzleNumber = (dateKey) => {
+            const [year, month, day] = dateKey.split('-').map(Number);
+            const utcValue = Date.UTC(year, month - 1, day);
+            return Math.max(1, Math.floor((utcValue - DAILY_EPOCH_UTC) / 86400000) + 1);
+        };
+        const formatDailyDate = (dateKey) => {
+            const [year, month, day] = dateKey.split('-').map(Number);
+            return new Intl.DateTimeFormat(undefined, {
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric',
+                timeZone: 'UTC'
+            }).format(new Date(Date.UTC(year, month - 1, day)));
+        };
+        const getDailyStorageKey = (dateKey) => `${DAILY_STORAGE_PREFIX}${dateKey}`;
+        const safeLocalStorageGet = (key) => {
+            try {
+                return window.localStorage?.getItem(key) ?? null;
+            } catch (error) {
+                return null;
+            }
+        };
+        const safeLocalStorageSet = (key, value) => {
+            try {
+                window.localStorage?.setItem(key, value);
+            } catch (error) {
+                console.warn('Unable to persist Techu state.', error);
+            }
+        };
+        const loadDailyProgress = (dateKey) => {
+            const raw = safeLocalStorageGet(getDailyStorageKey(dateKey));
+            if (!raw) return null;
+            try {
+                const parsed = JSON.parse(raw);
+                return parsed?.version === DAILY_STORAGE_VERSION ? parsed : null;
+            } catch (error) {
+                console.warn('Unable to load saved Techu daily state.', error);
+                return null;
+            }
+        };
+        const getSnapshotOwner = (cell) => cell?.owner ?? null;
+        const countSnapshotCells = (board, owner) => board.reduce(
+            (total, row) => total + row.reduce((rowTotal, cell) => rowTotal + (getSnapshotOwner(cell) === owner ? 1 : 0), 0),
+            0
+        );
+        const getDailyResultLabel = (snapshot) => {
+            if (!snapshot?.game) return '';
+            const scores = {
+                red: countSnapshotCells(snapshot.game.board, 'red'),
+                black: countSnapshotCells(snapshot.game.board, 'black')
+            };
+            if (scores.red > scores.black) return `You won ${scores.red}-${scores.black}`;
+            if (scores.black > scores.red) return `Bot won ${scores.black}-${scores.red}`;
+            return `Tie game ${scores.red}-${scores.black}`;
+        };
+        const buildShareGrid = (board) => board.map((row) => row.map((cell) => {
+            const owner = getSnapshotOwner(cell);
+            return owner ? SHARE_EMOJI[owner] : SHARE_EMOJI.empty;
+        }).join('')).join('\n');
+        const buildDailyShareText = (snapshot) => {
+            if (!snapshot?.game) return '';
+            const puzzleNumber = snapshot.puzzleNumber ?? getDailyPuzzleNumber(snapshot.dateKey);
+            const scores = {
+                red: countSnapshotCells(snapshot.game.board, 'red'),
+                black: countSnapshotCells(snapshot.game.board, 'black')
+            };
+            const outcome = scores.red > scores.black ? 'W' : scores.red < scores.black ? 'L' : 'T';
+            return [
+                `Techu Daily #${puzzleNumber} ${outcome} ${scores.red}-${scores.black}`,
+                buildShareGrid(snapshot.game.board),
+                'https://techu.vercel.app/'
+            ].join('\n');
+        };
         const createDeck = (player) => PLAYER_SUITS[player].flatMap((suit) => (
             CARD_RANKS.map((rank) => ({ rank, suit, color: player }))
         ));
@@ -1334,11 +1794,15 @@
                     this[`${player}Hand`] = Array(HAND_SIZE).fill(null);
                     this[`${player}Discard`] = [];
                 });
-                const options = { seed: null, ...gameOptions };
+                const options = { seed: null, mode: APP_MODES.practice, initialState: null, onStateChange: null, onGameOver: null, ...gameOptions };
+                const savedState = options.initialState;
                 this.gameOptions = options;
-                this.rng = createSeededRandom(options.seed);
-                this.userPlayer = resolvePlayerColor(normalizePlayerColor(options.playerColor), this.rng);
-                this.botPlayer = this.otherPlayer(this.userPlayer);
+                this.mode = options.mode;
+                this.onStateChange = typeof options.onStateChange === 'function' ? options.onStateChange : null;
+                this.onGameOver = typeof options.onGameOver === 'function' ? options.onGameOver : null;
+                this.rng = createSeededRandom(savedState?.gameOptions?.seed ?? options.seed);
+                this.userPlayer = savedState?.userPlayer ?? resolvePlayerColor(normalizePlayerColor(options.playerColor), this.rng);
+                this.botPlayer = savedState?.botPlayer ?? (this.userPlayer === 'red' ? 'black' : 'red');
                 this.currentPlayer = this.userPlayer;
                 this.gamePhase = 'setup';
                 this.draggedCard = null;
@@ -1376,8 +1840,15 @@
                 document.addEventListener('dragover', this.handleDocumentDragOver);
                 document.addEventListener('drop', this.handleDocumentDrop);
                 document.addEventListener('visibilitychange', this.handleVisibilityChange);
-                this.initGame();
+                if (savedState) {
+                    this.restoreSerializedState(savedState);
+                } else {
+                    this.initGame();
+                }
                 this.setupDiscardHandlers();
+                if (savedState) {
+                    this.resumePendingTurn();
+                }
                 requestAnimationFrame(() => this.sizeLayout());
             }
 
@@ -1625,6 +2096,7 @@
             serializeCellStack(cell) {
                 return cell ? {
                     ...this.summarizeCell(cell),
+                    fromSlot: cell.fromSlot ?? null,
                     covered: this.serializeCellStack(cell.coveredCell)
                 } : null;
             }
@@ -1639,6 +2111,122 @@
 
             snapshotDiscards() {
                 return createPlayerMap((player) => this.getPlayerState(player).discard.map((card) => this.cardToCode(card)));
+            }
+
+            restoreCardList(codes = []) {
+                return codes.map((code) => cardFromCode(code));
+            }
+
+            restoreCellStack(snapshot) {
+                return snapshot ? {
+                    card: cardFromCode(snapshot.card),
+                    owner: snapshot.owner,
+                    faceUp: Boolean(snapshot.faceUp),
+                    fromSlot: snapshot.fromSlot ?? null,
+                    coveredCell: this.restoreCellStack(snapshot.covered)
+                } : null;
+            }
+
+            serializeState() {
+                return {
+                    version: DAILY_STORAGE_VERSION,
+                    mode: this.mode,
+                    userPlayer: this.userPlayer,
+                    botPlayer: this.botPlayer,
+                    gameOptions: {
+                        playerColor: normalizePlayerColor(this.gameOptions.playerColor),
+                        seed: this.gameOptions.seed ?? null
+                    },
+                    currentPlayer: this.currentPlayer,
+                    gamePhase: this.gamePhase,
+                    waitingForFlip: this.waitingForFlip,
+                    openingMoveComplete: this.openingMoveComplete,
+                    setupWidePlacement: this.setupWidePlacement,
+                    openingDealInProgress: false,
+                    setupPlacements: createPlayerMap((player) => {
+                        const placement = this.setupPlacements[player];
+                        return placement ? {
+                            row: placement.row,
+                            col: placement.col,
+                            card: this.cardToCode(placement.card)
+                        } : null;
+                    }),
+                    board: this.snapshotBoard(),
+                    hands: this.snapshotHands(),
+                    decks: createPlayerMap((player) => this.getPlayerState(player).deck.map((card) => this.cardToCode(card))),
+                    discards: this.snapshotDiscards(),
+                    matchLog: this.matchLog ? JSON.parse(JSON.stringify(this.matchLog)) : null,
+                    matchLogStep: this.matchLogStep ?? 0
+                };
+            }
+
+            restoreSerializedState(snapshot) {
+                this.board = snapshot.board.map((row) => row.map((cell) => this.restoreCellStack(cell)));
+                PLAYERS.forEach((player) => {
+                    this[`${player}Deck`] = this.restoreCardList(snapshot.decks?.[player] ?? []);
+                    this[`${player}Hand`] = this.restoreCardList(snapshot.hands?.[player] ?? Array(HAND_SIZE).fill(null));
+                    this[`${player}Discard`] = this.restoreCardList(snapshot.discards?.[player] ?? []);
+                });
+                this.gameOptions = {
+                    ...this.gameOptions,
+                    ...(snapshot.gameOptions ?? {})
+                };
+                this.mode = snapshot.mode ?? this.mode;
+                this.userPlayer = snapshot.userPlayer ?? this.userPlayer;
+                this.botPlayer = snapshot.botPlayer ?? (this.userPlayer === 'red' ? 'black' : 'red');
+                this.currentPlayer = snapshot.currentPlayer ?? this.currentPlayer;
+                this.gamePhase = snapshot.gamePhase ?? this.gamePhase;
+                this.waitingForFlip = snapshot.waitingForFlip ?? null;
+                this.openingMoveComplete = Boolean(snapshot.openingMoveComplete);
+                this.setupWidePlacement = Boolean(snapshot.setupWidePlacement);
+                this.openingDealInProgress = false;
+                this.searchFocus = null;
+                this.setupPlacements = createPlayerMap((player) => {
+                    const placement = snapshot.setupPlacements?.[player];
+                    return placement ? {
+                        row: placement.row,
+                        col: placement.col,
+                        card: cardFromCode(placement.card)
+                    } : null;
+                });
+                this.dealingToSlot = createPlayerMap(() => null);
+                this.matchLog = snapshot.matchLog ? JSON.parse(JSON.stringify(snapshot.matchLog)) : null;
+                this.matchLogStep = snapshot.matchLogStep ?? (this.matchLog?.events?.length ?? 0);
+                this.cacheElements();
+                this.applyPlayerSideClasses();
+                this.updateUI();
+            }
+
+            resumePendingTurn() {
+                if (this.gamePhase === 'ended' || this.isDestroyed) return;
+
+                if (this.gamePhase === 'setup') {
+                    if (!this.setupPlacements[this.botPlayer]) {
+                        this.scheduleAiSetupTurn(300);
+                    }
+                    return;
+                }
+
+                if (this.waitingForFlip === this.botPlayer) {
+                    for (let r = 0; r < BOARD_SIZE; r++) {
+                        for (let c = 0; c < BOARD_SIZE; c++) {
+                            const cell = this.board[r][c];
+                            if (cell && cell.owner === this.botPlayer && !cell.faceUp) {
+                                setTimeout(() => this.flipCard(r, c), 350);
+                                return;
+                            }
+                        }
+                    }
+                }
+
+                if (!this.waitingForFlip && this.currentPlayer === this.botPlayer) {
+                    this.queueBotTurn(350);
+                }
+            }
+
+            notifyStateChange() {
+                if (this.openingDealInProgress) return;
+                this.onStateChange?.(this.serializeState());
             }
 
             roundLogScore(score) {
@@ -1759,6 +2347,7 @@
                 const innerWidth = gameMain.clientWidth - parseFloat(mainStyles.paddingLeft) - parseFloat(mainStyles.paddingRight);
                 const innerHeight = gameMain.clientHeight - parseFloat(mainStyles.paddingTop) - parseFloat(mainStyles.paddingBottom);
                 const compact = innerWidth < 390 || innerHeight < 700;
+                const landscapeTight = window.matchMedia('(orientation: landscape)').matches && innerHeight < 440;
                 const boardGap = compact ? 4 : 5;
                 const slotGap = compact ? 5 : 6;
                 const playfieldGap = compact ? 6 : 8;
@@ -1766,8 +2355,11 @@
                 const widthRatio = 0.72;
                 const maxHeightByWidth = ((innerWidth - boardGap * 4) / BOARD_SIZE) / widthRatio;
                 const maxHeightByHeight = (innerHeight - boardGap * 4 - playfieldGap * 2 - areaPadding * 4) / 7;
-                const cardHeight = Math.max(72, Math.floor(Math.min(maxHeightByWidth, maxHeightByHeight, compact ? 94 : 104)));
-                const cardWidth = Math.max(52, Math.floor(cardHeight * widthRatio));
+                const minCardHeight = landscapeTight ? 42 : (compact ? 56 : 72);
+                const maxCardHeight = landscapeTight ? 84 : (compact ? 94 : 104);
+                const cardHeight = Math.max(minCardHeight, Math.floor(Math.min(maxHeightByWidth, maxHeightByHeight, maxCardHeight)));
+                const minCardWidth = landscapeTight ? 30 : (compact ? 40 : 52);
+                const cardWidth = Math.max(minCardWidth, Math.floor(cardHeight * widthRatio));
 
                 container.style.setProperty('--card-width', `${cardWidth}px`);
                 container.style.setProperty('--card-height', `${cardHeight}px`);
@@ -3291,6 +3883,11 @@
                 this.announce(message, 'success');
                 this.gamePhase = 'ended';
                 this.updateUI();
+                this.onGameOver?.({
+                    scores,
+                    message,
+                    state: this.serializeState()
+                });
             }
 
             getScores() {
@@ -3390,6 +3987,7 @@
                 this.renderDecks();
                 this.updateScores();
                 this.renderCommunication();
+                this.notifyStateChange();
             }
 
             renderCardBack() {
@@ -3827,6 +4425,23 @@
         }
 
         const ui = {
+            appShell: document.getElementById('appShell'),
+            landing: {
+                kicker: document.getElementById('landingKicker'),
+                title: document.getElementById('landingTitle'),
+                subtitle: document.getElementById('landingSubtitle'),
+                play: document.getElementById('landingPlayBtn'),
+                practice: document.getElementById('landingPracticeBtn'),
+                rules: document.getElementById('landingRulesBtn'),
+                share: document.getElementById('landingShareBtn'),
+                previewWrap: document.getElementById('dailyPreviewWrap'),
+                previewGrid: document.getElementById('dailyPreviewGrid'),
+                previewCaption: document.getElementById('landingPreviewCaption'),
+                puzzleDate: document.getElementById('landingPuzzleDate'),
+                puzzleNumber: document.getElementById('landingPuzzleNumber'),
+                footerDate: document.getElementById('landingFooterDate'),
+                footerPuzzle: document.getElementById('landingFooterPuzzle')
+            },
             modals: {
                 game: document.getElementById('gameMenuModal'),
                 rules: document.getElementById('rulesModal'),
@@ -3835,7 +4450,6 @@
             },
             buttons: {
                 openGame: document.getElementById('gameMenuBtn'),
-                startGame: document.getElementById('startNewGameBtn'),
                 openAnalysis: document.getElementById('openAnalysisBtn'),
                 closeGame: document.getElementById('closeGameMenuIconBtn'),
                 openRules: document.getElementById('rulesBtn'),
@@ -3843,26 +4457,55 @@
                 openSettings: document.getElementById('settingsBtn'),
                 closeSettings: document.getElementById('closeSettingsIconBtn'),
                 closeAnalysis: document.getElementById('closeAnalysisBtn'),
-                copyAnalysis: document.getElementById('copyAnalysisBtn')
+                copyAnalysis: document.getElementById('copyAnalysisBtn'),
+                menuDaily: document.getElementById('menuDailyBtn'),
+                menuPractice: document.getElementById('menuPracticeBtn'),
+                menuShare: document.getElementById('menuShareBtn')
             },
             colorButtons: [...document.querySelectorAll('[data-player-color]')],
+            practiceColorSection: document.getElementById('practiceColorSection'),
+            gameMenuTitle: document.getElementById('gameMenuTitle'),
+            menuDailyTitle: document.getElementById('menuDailyTitle'),
+            menuDailyCopy: document.getElementById('menuDailyCopy'),
+            menuPracticeTitle: document.getElementById('menuPracticeTitle'),
+            menuPracticeCopy: document.getElementById('menuPracticeCopy'),
             showAllowedMovesToggle: document.getElementById('showAllowedMovesToggle'),
-            startNewGameCopy: document.getElementById('startNewGameCopy'),
             analysisExport: document.getElementById('analysisExport'),
             copyAnalysisTitle: document.querySelector('#copyAnalysisBtn strong'),
             copyAnalysisBody: document.querySelector('#copyAnalysisBtn span')
         };
 
+        const app = {
+            mode: APP_MODES.landing,
+            dailyKey: getUtcDateKey(),
+            dailyProgress: loadDailyProgress(getUtcDateKey()),
+            game: null
+        };
+
+        let analysisCopyTimer = null;
+        let landingShareTimer = null;
+        let menuShareTimer = null;
+
         const setModalOpen = (modal, isOpen) => {
             modal?.classList.toggle('show', isOpen);
+        };
+
+        const closeAllModals = () => {
+            Object.values(ui.modals).forEach((modal) => setModalOpen(modal, false));
+        };
+
+        const setShellMode = (mode) => {
+            app.mode = mode;
+            ui.appShell.classList.toggle('show-landing', mode === APP_MODES.landing);
+            ui.appShell.classList.toggle('in-game', mode !== APP_MODES.landing);
+            document.title = mode === APP_MODES.landing ? 'Techu Daily' : `Techu ${mode === APP_MODES.daily ? 'Daily' : 'Practice'}`;
         };
 
         const syncSettingsUI = () => {
             ui.showAllowedMovesToggle.checked = TECHU_SETTINGS.showAllowedMoves;
         };
 
-        const syncGameMenuUI = () => {
-            ui.startNewGameCopy.textContent = GAME_MENU_COPY[TECHU_GAME_OPTIONS.playerColor];
+        const syncPracticeColorUI = () => {
             ui.colorButtons.forEach((button) => {
                 const selected = button.dataset.playerColor === TECHU_GAME_OPTIONS.playerColor;
                 button.classList.toggle('selected', selected);
@@ -3882,13 +4525,179 @@
             );
         };
 
-        const createGame = () => new TechuGame(TECHU_SETTINGS, TECHU_GAME_OPTIONS);
-        let game = createGame();
-        let analysisCopyTimer = null;
-        window.exportTechuMatchLog = () => game.getMatchLogText();
+        const flashLandingShareState = (text) => {
+            clearTimeout(landingShareTimer);
+            const previous = ui.landing.share.dataset.baseLabel || 'Share Result';
+            ui.landing.share.textContent = text;
+            landingShareTimer = setTimeout(() => {
+                ui.landing.share.textContent = previous;
+            }, 1800);
+        };
+
+        const flashMenuShareState = (title, body) => {
+            clearTimeout(menuShareTimer);
+            const titleEl = ui.buttons.menuShare.querySelector('strong');
+            const bodyEl = ui.buttons.menuShare.querySelector('span');
+            titleEl.textContent = title;
+            bodyEl.textContent = body;
+            menuShareTimer = setTimeout(() => {
+                titleEl.textContent = 'Share Daily Result';
+                bodyEl.textContent = 'Copy a Wordle-style summary of today’s finished board.';
+            }, 1800);
+        };
+
+        const fallbackCopyText = (text) => {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.setAttribute('readonly', '');
+            textarea.style.position = 'absolute';
+            textarea.style.left = '-9999px';
+            document.body.appendChild(textarea);
+            textarea.select();
+            textarea.setSelectionRange(0, textarea.value.length);
+            const copied = document.execCommand?.('copy') ?? false;
+            textarea.remove();
+            return copied;
+        };
+
+        const copyTextToClipboard = async (text) => {
+            if (!text) return false;
+            try {
+                if (navigator.clipboard?.writeText) {
+                    await navigator.clipboard.writeText(text);
+                    return true;
+                }
+            } catch (error) {
+                console.warn('Clipboard copy failed, falling back to manual copy.', error);
+            }
+            return fallbackCopyText(text);
+        };
+
+        const shareText = async (text) => {
+            if (!text) return null;
+            if (navigator.share) {
+                try {
+                    await navigator.share({ text });
+                    return 'shared';
+                } catch (error) {
+                    if (error?.name === 'AbortError') {
+                        return null;
+                    }
+                    console.warn('Web Share failed, falling back to clipboard.', error);
+                }
+            }
+
+            return (await copyTextToClipboard(text)) ? 'copied' : null;
+        };
+
+        const renderPreviewGrid = (progress) => {
+            ui.landing.previewGrid.innerHTML = '';
+            const board = progress?.game?.board;
+            if (!board) {
+                ui.landing.previewWrap.hidden = true;
+                return;
+            }
+
+            board.forEach((row) => {
+                row.forEach((cell) => {
+                    const previewCell = document.createElement('div');
+                    previewCell.className = 'daily-preview-cell';
+                    const owner = getSnapshotOwner(cell);
+                    if (owner) {
+                        previewCell.classList.add(owner);
+                    }
+                    ui.landing.previewGrid.appendChild(previewCell);
+                });
+            });
+
+            ui.landing.previewWrap.hidden = false;
+        };
+
+        const renderLanding = () => {
+            clearTimeout(landingShareTimer);
+            app.dailyProgress = loadDailyProgress(app.dailyKey);
+            const progress = app.dailyProgress;
+            const puzzleNumber = getDailyPuzzleNumber(app.dailyKey);
+            const displayDate = formatDailyDate(app.dailyKey);
+            ui.landing.puzzleDate.textContent = displayDate;
+            ui.landing.puzzleNumber.textContent = `Puzzle No. ${puzzleNumber}`;
+            ui.landing.footerDate.textContent = displayDate;
+            ui.landing.footerPuzzle.textContent = `Shared seed No. ${puzzleNumber}`;
+            ui.landing.share.dataset.baseLabel = 'Share Result';
+            ui.landing.share.textContent = 'Share Result';
+            ui.landing.share.hidden = true;
+
+            if (!progress) {
+                ui.landing.kicker.textContent = `Daily Puzzle #${puzzleNumber}`;
+                ui.landing.title.textContent = 'Techu';
+                ui.landing.subtitle.textContent = 'Play the same daily duel as everyone else, then warm up in practice whenever you want.';
+                ui.landing.play.textContent = 'Play Daily';
+                ui.landing.practice.textContent = 'Practice vs Bot';
+                ui.landing.previewWrap.hidden = true;
+                return;
+            }
+
+            renderPreviewGrid(progress);
+            const redScore = countSnapshotCells(progress.game.board, 'red');
+            const blackScore = countSnapshotCells(progress.game.board, 'black');
+
+            if (progress.status === 'ended') {
+                ui.landing.kicker.textContent = `Daily Puzzle #${progress.puzzleNumber ?? puzzleNumber}`;
+                ui.landing.title.textContent = 'Daily Complete';
+                ui.landing.subtitle.textContent = getDailyResultLabel(progress);
+                ui.landing.previewCaption.textContent = `Final board • ${redScore}-${blackScore}`;
+                ui.landing.play.textContent = 'View Today’s Board';
+                ui.landing.share.hidden = false;
+                return;
+            }
+
+            ui.landing.kicker.textContent = `Daily Puzzle #${progress.puzzleNumber ?? puzzleNumber}`;
+            ui.landing.title.textContent = 'Welcome Back';
+            ui.landing.subtitle.textContent = 'Your duel is saved exactly where you left it.';
+            ui.landing.previewCaption.textContent = `Current board • ${redScore}-${blackScore}`;
+            ui.landing.play.textContent = 'Continue Daily';
+        };
+
+        const syncGameMenuUI = () => {
+            clearTimeout(menuShareTimer);
+            syncPracticeColorUI();
+            const dailyEnded = app.dailyProgress?.status === 'ended';
+            const inPractice = app.mode === APP_MODES.practice;
+
+            ui.practiceColorSection.hidden = !inPractice;
+            ui.gameMenuTitle.textContent = inPractice ? 'Practice Options' : 'Daily Options';
+            ui.menuDailyTitle.textContent = inPractice ? 'Go to Daily Home' : 'Return to Daily Home';
+            ui.menuDailyCopy.textContent = inPractice
+                ? 'Leave practice and go back to today’s saved daily puzzle screen.'
+                : 'See today’s saved puzzle, continue it later, or share your result.';
+            ui.menuPracticeTitle.textContent = inPractice ? 'Restart Practice Match' : 'Start Practice Match';
+            ui.menuPracticeCopy.textContent = inPractice
+                ? PRACTICE_COLOR_COPY[TECHU_GAME_OPTIONS.playerColor]
+                : 'Play a fresh random deck against the bot.';
+            ui.buttons.menuShare.hidden = !dailyEnded;
+            const titleEl = ui.buttons.menuShare.querySelector('strong');
+            const bodyEl = ui.buttons.menuShare.querySelector('span');
+            titleEl.textContent = 'Share Daily Result';
+            bodyEl.textContent = 'Copy a Wordle-style summary of today’s finished board.';
+        };
+
+        const persistDailyProgress = (state) => {
+            const payload = {
+                version: DAILY_STORAGE_VERSION,
+                dateKey: app.dailyKey,
+                puzzleNumber: getDailyPuzzleNumber(app.dailyKey),
+                seed: getDailySeed(app.dailyKey),
+                status: state.gamePhase === 'ended' ? 'ended' : 'in_progress',
+                updatedAt: new Date().toISOString(),
+                game: state
+            };
+            app.dailyProgress = payload;
+            safeLocalStorageSet(getDailyStorageKey(app.dailyKey), JSON.stringify(payload));
+            syncGameMenuUI();
+        };
 
         const populateAnalysisExport = () => {
-            const text = game.getMatchLogText();
+            const text = app.game?.getMatchLogText?.() ?? '';
             ui.analysisExport.value = text;
             ui.analysisExport.scrollTop = 0;
             return text;
@@ -3908,42 +4717,95 @@
 
         const copyAnalysisExport = async () => {
             const text = populateAnalysisExport();
-            try {
-                if (navigator.clipboard?.writeText) {
-                    await navigator.clipboard.writeText(text);
-                    flashAnalysisCopyState('Copied Match Log', 'Paste it into chat and ask me why the Bot lost.');
-                    return;
-                }
-            } catch (error) {
-                console.warn('Clipboard copy failed, falling back to manual copy.', error);
+            const copied = await copyTextToClipboard(text);
+            if (copied) {
+                flashAnalysisCopyState('Copied Match Log', 'Paste it into chat and ask me why the Bot lost.');
+                return;
             }
 
             selectAnalysisExport();
-            const copied = document.execCommand?.('copy') ?? false;
+            const manualCopy = document.execCommand?.('copy') ?? false;
             flashAnalysisCopyState(
-                copied ? 'Copied Match Log' : 'Use Cmd/Ctrl+C',
-                copied
+                manualCopy ? 'Copied Match Log' : 'Use Cmd/Ctrl+C',
+                manualCopy
                     ? 'Paste it into chat and ask me why the Bot lost.'
                     : 'The log is selected so you can copy it manually.'
             );
         };
 
-        const restartGame = () => {
+        const shareDailyResult = async () => {
+            const progress = app.dailyProgress;
+            if (!progress?.game || progress.status !== 'ended') return;
+            const method = await shareText(buildDailyShareText(progress));
+            if (method === 'shared') {
+                flashLandingShareState('Shared Result');
+                flashMenuShareState('Shared Daily Result', 'Your system share sheet sent the finished board.');
+            } else if (method === 'copied') {
+                flashLandingShareState('Copied Result');
+                flashMenuShareState('Copied Daily Result', 'Paste the finished board anywhere you want.');
+            }
+        };
+
+        const destroyCurrentGame = () => {
             clearTimeout(analysisCopyTimer);
-            Object.values(ui.modals).forEach((modal) => setModalOpen(modal, false));
-            game.destroy();
-            game = createGame();
+            if (app.game) {
+                app.game.destroy();
+                app.game = null;
+            }
+            window.exportTechuMatchLog = () => '';
+        };
+
+        const enterLandingView = () => {
+            closeAllModals();
+            destroyCurrentGame();
+            setShellMode(APP_MODES.landing);
+            renderLanding();
             resetAnalysisCopyState();
+        };
+
+        const createDailyGame = () => new TechuGame(TECHU_SETTINGS, {
+            mode: APP_MODES.daily,
+            playerColor: DAILY_PLAYER_COLOR,
+            seed: getDailySeed(app.dailyKey),
+            initialState: app.dailyProgress?.game ?? null,
+            onStateChange: persistDailyProgress,
+            onGameOver: () => {
+                setTimeout(() => {
+                    if (app.mode === APP_MODES.daily) {
+                        enterLandingView();
+                    }
+                }, 900);
+            }
+        });
+
+        const createPracticeGame = () => new TechuGame(TECHU_SETTINGS, {
+            mode: APP_MODES.practice,
+            playerColor: TECHU_GAME_OPTIONS.playerColor,
+            seed: null
+        });
+
+        const enterGameView = (mode) => {
+            closeAllModals();
+            destroyCurrentGame();
+            setShellMode(mode);
+            resetAnalysisCopyState();
+            app.game = mode === APP_MODES.daily ? createDailyGame() : createPracticeGame();
+            window.exportTechuMatchLog = () => app.game?.getMatchLogText?.() ?? '';
+            syncGameMenuUI();
         };
 
         syncSettingsUI();
         syncGameMenuUI();
         resetAnalysisCopyState();
+        setShellMode(APP_MODES.landing);
+        renderLanding();
+        window.exportTechuMatchLog = () => '';
 
         [
             [ui.buttons.openGame, ui.modals.game, syncGameMenuUI],
             [ui.buttons.openRules, ui.modals.rules],
-            [ui.buttons.openSettings, ui.modals.settings, syncSettingsUI]
+            [ui.buttons.openSettings, ui.modals.settings, syncSettingsUI],
+            [ui.landing.rules, ui.modals.rules]
         ].forEach(([button, modal, beforeOpen]) => {
             button.addEventListener('click', () => {
                 beforeOpen?.();
@@ -3975,7 +4837,24 @@
             });
         });
 
-        ui.buttons.startGame.addEventListener('click', restartGame);
+        ui.landing.play.addEventListener('click', () => enterGameView(APP_MODES.daily));
+        ui.landing.practice.addEventListener('click', () => enterGameView(APP_MODES.practice));
+        ui.landing.share.addEventListener('click', () => {
+            shareDailyResult();
+        });
+
+        ui.buttons.menuDaily.addEventListener('click', () => {
+            enterLandingView();
+        });
+
+        ui.buttons.menuPractice.addEventListener('click', () => {
+            enterGameView(APP_MODES.practice);
+        });
+
+        ui.buttons.menuShare.addEventListener('click', () => {
+            shareDailyResult();
+        });
+
         ui.buttons.copyAnalysis.addEventListener('click', () => {
             copyAnalysisExport();
         });
@@ -3990,7 +4869,7 @@
 
         ui.showAllowedMovesToggle.addEventListener('change', (e) => {
             TECHU_SETTINGS.showAllowedMoves = e.target.checked;
-            game.refreshAllowedMoveHighlights();
+            app.game?.refreshAllowedMoveHighlights();
         });
     </script>
 </body>
