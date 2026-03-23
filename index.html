@@ -90,6 +90,13 @@
             overflow: hidden;
         }
 
+        .app-shell.in-game {
+            place-items: stretch;
+            background:
+                radial-gradient(circle at top, rgba(255, 255, 255, 0.06), transparent 24%),
+                linear-gradient(180deg, #20232a 0%, var(--bg) 28%, #0d0e11 100%);
+        }
+
         .landing-screen {
             position: absolute;
             inset: 0;
@@ -333,6 +340,15 @@
 
         .app-shell.show-landing .game-container {
             display: none;
+        }
+
+        .app-shell.in-game .game-container {
+            width: 100vw;
+            max-width: 100vw;
+            margin: 0;
+            border-left: none;
+            border-right: none;
+            box-shadow: none;
         }
 
         .header {
