@@ -1394,14 +1394,12 @@
             }
         }
 
-        @media (orientation: portrait) and (max-width: 900px) {
-            .app-shell.in-game .rotate-overlay {
-                display: flex;
-            }
+        .app-shell.in-game.show-rotate-overlay .rotate-overlay {
+            display: flex;
+        }
 
-            .app-shell.in-game .game-container {
-                visibility: hidden;
-            }
+        .app-shell.in-game.show-rotate-overlay .game-container {
+            visibility: hidden;
         }
     </style>
 </head>
@@ -4616,6 +4614,22 @@
             ui.appShell.classList.toggle('show-landing', mode === APP_MODES.landing);
             ui.appShell.classList.toggle('in-game', mode !== APP_MODES.landing);
             document.title = mode === APP_MODES.landing ? 'Techu Daily' : `Techu ${mode === APP_MODES.daily ? 'Daily' : 'Practice'}`;
+            syncRotateOverlay();
+        };
+
+        const shouldShowRotateOverlay = () => {
+            if (app.mode === APP_MODES.landing) return false;
+
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            const portraitViewport = viewportHeight > viewportWidth;
+            const crampedPhoneViewport = viewportWidth < 600 && viewportHeight < 760;
+
+            return portraitViewport && crampedPhoneViewport;
+        };
+
+        const syncRotateOverlay = () => {
+            ui.appShell.classList.toggle('show-rotate-overlay', shouldShowRotateOverlay());
         };
 
         const syncSettingsUI = () => {
@@ -4919,6 +4933,8 @@
         setShellMode(APP_MODES.landing);
         renderLanding();
         window.exportTechuMatchLog = () => '';
+        window.addEventListener('resize', syncRotateOverlay);
+        window.addEventListener('orientationchange', syncRotateOverlay);
 
         [
             [ui.buttons.openGame, ui.modals.game, syncGameMenuUI],
