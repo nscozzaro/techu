@@ -4618,14 +4618,7 @@
         };
 
         const shouldShowRotateOverlay = () => {
-            if (app.mode === APP_MODES.landing) return false;
-
-            const viewportWidth = window.innerWidth;
-            const viewportHeight = window.innerHeight;
-            const portraitViewport = viewportHeight > viewportWidth;
-            const crampedPhoneViewport = viewportWidth < 600 && viewportHeight < 760;
-
-            return portraitViewport && crampedPhoneViewport;
+            return false;
         };
 
         const syncRotateOverlay = () => {
