@@ -781,6 +781,10 @@
             box-shadow: 0 2px 6px rgba(0,0,0,0.4);
             position: relative;
             user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: none;
         }
 
         .card:active {
@@ -916,6 +920,25 @@
 
         .board-card.back {
             transform: rotateY(180deg);
+        }
+
+        .board-card.back,
+        .card * {
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        .touch-drag-ghost {
+            position: fixed;
+            left: 0;
+            top: 0;
+            margin: 0;
+            pointer-events: none;
+            z-index: 2000;
+            opacity: 0.98;
+            transform: translate3d(0, 0, 0) scale(1.02);
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.28);
         }
 
         .cell.flipped .board-card.face {
@@ -1963,6 +1986,8 @@
                 this.activeDragElement = null;
                 this.dragPointerOffset = null;
                 this.lastDragPoint = null;
+                this.pointerDragId = null;
+                this.pointerDragGhost = null;
                 this.dropResolved = false;
                 this.pendingReturnAnimation = false;
                 this.returnAnimationTimer = null;
@@ -1978,10 +2003,15 @@
                     e.preventDefault();
                 };
                 this.handleDocumentDrop = (e) => this.handleGlobalDrop(e);
+                this.handleDocumentPointerMove = (e) => this.handlePointerMove(e);
+                this.handleDocumentPointerUp = (e) => this.handlePointerEnd(e);
                 this.handleVisibilityChange = () => this.handleTabVisibilityChange();
                 window.addEventListener('resize', this.handleResize);
                 document.addEventListener('dragover', this.handleDocumentDragOver);
                 document.addEventListener('drop', this.handleDocumentDrop);
+                document.addEventListener('pointermove', this.handleDocumentPointerMove, { passive: false });
+                document.addEventListener('pointerup', this.handleDocumentPointerUp, { passive: false });
+                document.addEventListener('pointercancel', this.handleDocumentPointerUp, { passive: false });
                 document.addEventListener('visibilitychange', this.handleVisibilityChange);
                 if (savedState) {
                     this.restoreSerializedState(savedState);
@@ -2046,6 +2076,9 @@
                 window.removeEventListener('resize', this.handleResize);
                 document.removeEventListener('dragover', this.handleDocumentDragOver);
                 document.removeEventListener('drop', this.handleDocumentDrop);
+                document.removeEventListener('pointermove', this.handleDocumentPointerMove);
+                document.removeEventListener('pointerup', this.handleDocumentPointerUp);
+                document.removeEventListener('pointercancel', this.handleDocumentPointerUp);
                 document.removeEventListener('visibilitychange', this.handleVisibilityChange);
                 ['communicationTimer', 'returnAnimationTimer', 'setupTimer'].forEach((key) => this.clearTimer(key));
                 this.communicationState.transient = null;
@@ -2533,10 +2566,25 @@
                 });
             }
 
+            clearDropFeedback() {
+                document.querySelectorAll('.cell.drag-over, .cell.invalid-drop, .discard-pile.drag-over').forEach((el) => {
+                    el.classList.remove('drag-over', 'invalid-drop');
+                });
+                this.getPlayerEls(this.userPlayer).hand.style.background = '';
+            }
+
+            removePointerGhost() {
+                if (!this.pointerDragGhost) return;
+                this.pointerDragGhost.remove();
+                this.pointerDragGhost = null;
+            }
+
             finishDragCleanup(target = this.activeDragElement) {
                 if (target && target.classList) {
                     target.classList.remove('dragging');
                 }
+                this.removePointerGhost();
+                this.clearDropFeedback();
                 this.clearAllowedMoveHighlights();
                 this.clearDragSourceState();
                 this.clearLiftedBoardState();
@@ -2546,9 +2594,86 @@
                 this.activeDragElement = null;
                 this.dragPointerOffset = null;
                 this.lastDragPoint = null;
+                this.pointerDragId = null;
                 this.dropResolved = false;
                 this.pendingReturnAnimation = false;
                 this.clearTimer('returnAnimationTimer');
+            }
+
+            createPointerGhost(sourceEl) {
+                const ghost = sourceEl.cloneNode(true);
+                ghost.classList.remove('dragging');
+                ghost.classList.add('touch-drag-ghost');
+                document.body.appendChild(ghost);
+                this.pointerDragGhost = ghost;
+                return ghost;
+            }
+
+            positionPointerGhost(clientX, clientY) {
+                if (!this.pointerDragGhost) return;
+                const offsetX = this.dragPointerOffset?.x ?? (this.pointerDragGhost.offsetWidth / 2);
+                const offsetY = this.dragPointerOffset?.y ?? (this.pointerDragGhost.offsetHeight / 2);
+                this.pointerDragGhost.style.left = `${clientX - offsetX}px`;
+                this.pointerDragGhost.style.top = `${clientY - offsetY}px`;
+                this.pointerDragGhost.style.width = `${this.activeDragElement?.offsetWidth ?? this.pointerDragGhost.offsetWidth}px`;
+                this.pointerDragGhost.style.height = `${this.activeDragElement?.offsetHeight ?? this.pointerDragGhost.offsetHeight}px`;
+            }
+
+            getPointerDropTarget(clientX, clientY) {
+                const hovered = document.elementFromPoint(clientX, clientY);
+                if (!hovered) return null;
+
+                const discardEl = hovered.closest('.discard-pile');
+                if (discardEl === this.getPlayerEls(this.userPlayer).discard) {
+                    return { type: 'discard', el: discardEl };
+                }
+
+                const handEl = hovered.closest(`#${this.getPlayerEls(this.userPlayer).hand.id}`);
+                if (handEl) {
+                    return { type: 'hand', el: handEl };
+                }
+
+                const cellEl = hovered.closest('.cell');
+                if (!cellEl) return null;
+
+                return {
+                    type: 'cell',
+                    el: cellEl,
+                    row: Number(cellEl.dataset.row),
+                    col: Number(cellEl.dataset.col)
+                };
+            }
+
+            refreshPointerDropFeedback(clientX, clientY) {
+                this.clearDropFeedback();
+                if (!this.draggedCard || this.currentPlayer !== this.userPlayer) return;
+
+                const target = this.getPointerDropTarget(clientX, clientY);
+                if (!target) return;
+
+                if (target.type === 'discard') {
+                    if (!this.draggedFromBoard && this.canDiscard(this.userPlayer)) {
+                        target.el.classList.add('drag-over');
+                    }
+                    return;
+                }
+
+                if (target.type === 'hand') {
+                    if (this.draggedFromBoard) {
+                        target.el.style.background = 'rgba(76, 175, 80, 0.2)';
+                    }
+                    return;
+                }
+
+                if (this.draggedFromBoard && target.row === this.draggedFromBoard.row && target.col === this.draggedFromBoard.col) {
+                    return;
+                }
+
+                const isValidTarget = this.draggedFromBoard
+                    ? this.canRepositionPendingCard(target.row, target.col)
+                    : this.isValidMove(target.row, target.col, this.draggedCard, this.currentPlayer);
+
+                target.el.classList.add(isValidTarget ? 'drag-over' : 'invalid-drop');
             }
 
             animateCardReturn(clientX, clientY, message = null) {
@@ -4400,6 +4525,7 @@
                         }
                         cardEl.addEventListener('dragstart', (e) => this.handleDragStart(e, card, i));
                         cardEl.addEventListener('dragend', (e) => this.handleDragEnd(e));
+                        cardEl.addEventListener('pointerdown', (e) => this.handlePointerDragStart(e, card, i));
                     } else {
                         cardEl.className = 'card card-back';
                         if (this.dealingToSlot[this.botPlayer] === i) {
@@ -4442,6 +4568,38 @@
                 e.dataTransfer.effectAllowed = 'move';
             }
 
+            beginPointerDrag(e, { card, slotIndex, fromBoard = null }) {
+                if (e.pointerType === 'mouse') return;
+                if (this.openingDealInProgress || this.currentPlayer !== this.userPlayer || this.gamePhase === 'ended') return;
+
+                const sourceEl = e.currentTarget;
+                const rect = sourceEl.getBoundingClientRect();
+                this.draggedCard = card;
+                this.draggedSlot = slotIndex;
+                this.draggedFromBoard = fromBoard;
+                this.activeDragElement = sourceEl;
+                this.dragPointerOffset = {
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top
+                };
+                this.lastDragPoint = { x: e.clientX, y: e.clientY };
+                this.pointerDragId = e.pointerId;
+                this.dropResolved = false;
+                this.pendingReturnAnimation = false;
+                e.preventDefault();
+                sourceEl.classList.add('dragging');
+
+                if (!fromBoard) {
+                    sourceEl.closest('.hand-slot')?.classList.add('drag-source');
+                }
+
+                sourceEl.setPointerCapture?.(e.pointerId);
+                this.createPointerGhost(sourceEl);
+                this.positionPointerGhost(e.clientX, e.clientY);
+                this.refreshAllowedMoveHighlights();
+                this.refreshPointerDropFeedback(e.clientX, e.clientY);
+            }
+
             endDrag(e) {
                 if (this.pendingReturnAnimation) return;
                 if (this.draggedCard && !this.dropResolved) {
@@ -4457,6 +4615,99 @@
 
             handleDragEnd(e) {
                 this.endDrag(e);
+            }
+
+            handlePointerDragStart(e, card, slotIndex) {
+                this.beginPointerDrag(e, { card, slotIndex });
+            }
+
+            handlePointerMove(e) {
+                if (e.pointerId !== this.pointerDragId || !this.draggedCard) return;
+
+                this.lastDragPoint = { x: e.clientX, y: e.clientY };
+                this.positionPointerGhost(e.clientX, e.clientY);
+                this.refreshPointerDropFeedback(e.clientX, e.clientY);
+                e.preventDefault();
+            }
+
+            handlePointerEnd(e) {
+                if (e.pointerId !== this.pointerDragId) return;
+
+                this.activeDragElement?.releasePointerCapture?.(e.pointerId);
+                this.pointerDragId = null;
+                this.clearDropFeedback();
+
+                if (!this.draggedCard || this.pendingReturnAnimation) {
+                    this.finishDragCleanup();
+                    return;
+                }
+
+                const target = this.getPointerDropTarget(e.clientX, e.clientY);
+                if (target?.type === 'discard') {
+                    if (this.draggedFromBoard || this.currentPlayer !== this.userPlayer) {
+                        this.removePointerGhost();
+                        this.animateCardReturn(e.clientX, e.clientY);
+                        return;
+                    }
+                    if (!this.canDiscard(this.userPlayer)) {
+                        this.removePointerGhost();
+                        this.animateCardReturn(e.clientX, e.clientY, 'Discard unlocks after the first move');
+                        return;
+                    }
+
+                    this.dropResolved = true;
+                    this.discardCard(this.draggedCard, this.userPlayer);
+                    this.finishDragCleanup();
+                    return;
+                }
+
+                if (target?.type === 'hand' && this.draggedFromBoard) {
+                    const { row, col } = this.draggedFromBoard;
+                    const cellData = this.board[row][col];
+                    if (cellData && cellData.fromSlot !== null) {
+                        this.dropResolved = true;
+                        this.getPlayerState(this.userPlayer).hand[cellData.fromSlot] = cellData.card;
+                        this.board[row][col] = cellData.coveredCell ?? null;
+                        this.logGameEvent('return-pending', {
+                            player: this.userPlayer,
+                            card: this.cardToCode(cellData.card),
+                            from: { row, col },
+                            toSlot: cellData.fromSlot
+                        });
+                        this.updateUI();
+                        this.finishDragCleanup();
+                        return;
+                    }
+                }
+
+                if (target?.type === 'cell') {
+                    if (this.draggedFromBoard) {
+                        const sameCell = target.row === this.draggedFromBoard.row && target.col === this.draggedFromBoard.col;
+                        if (!sameCell && !this.movePendingBoardCard(target.row, target.col)) {
+                            this.removePointerGhost();
+                            this.animateCardReturn(e.clientX, e.clientY, 'Must connect to home row');
+                            return;
+                        }
+
+                        this.dropResolved = true;
+                        this.finishDragCleanup();
+                        return;
+                    }
+
+                    if (this.isValidMove(target.row, target.col, this.draggedCard, this.currentPlayer)) {
+                        this.dropResolved = true;
+                        this.placeCard(target.row, target.col, this.draggedCard, this.currentPlayer);
+                        this.finishDragCleanup();
+                        return;
+                    }
+
+                    this.removePointerGhost();
+                    this.animateCardReturn(e.clientX, e.clientY, 'Must connect to home row');
+                    return;
+                }
+
+                this.removePointerGhost();
+                this.animateCardReturn(e.clientX, e.clientY);
             }
 
             handleBoardCardDragStart(e, row, col) {
