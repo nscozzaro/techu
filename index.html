@@ -1161,17 +1161,31 @@
         }
 
         .modal-content {
+            --modal-width: 390px;
             position: relative;
             background: #22252b;
             padding: 20px;
             border-radius: 18px;
             text-align: center;
-            max-width: 350px;
-            width: 100%;
+            width: min(100%, var(--modal-width));
+            max-width: var(--modal-width);
             border: 1px solid var(--line-strong);
             box-shadow: 0 10px 40px rgba(0,0,0,0.8);
-            max-height: 80vh;
+            max-height: min(88vh, 900px);
             overflow-y: auto;
+        }
+
+        #gameMenuModal .modal-content,
+        #settingsModal .modal-content {
+            --modal-width: 520px;
+        }
+
+        #rulesModal .modal-content {
+            --modal-width: 640px;
+        }
+
+        #analysisModal .modal-content {
+            --modal-width: 760px;
         }
 
         .modal-close {
