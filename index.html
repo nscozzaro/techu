@@ -938,6 +938,7 @@
             z-index: 2000;
             opacity: 0.98;
             transform: translate3d(0, 0, 0) scale(1.02);
+            will-change: transform;
             box-shadow: 0 16px 36px rgba(0, 0, 0, 0.28);
         }
 
@@ -1988,6 +1989,10 @@
                 this.lastDragPoint = null;
                 this.pointerDragId = null;
                 this.pointerDragGhost = null;
+                this.pointerGhostMetrics = null;
+                this.pointerDragFrame = null;
+                this.pendingPointerPoint = null;
+                this.activePointerFeedback = null;
                 this.dropResolved = false;
                 this.pendingReturnAnimation = false;
                 this.returnAnimationTimer = null;
@@ -2567,22 +2572,34 @@
             }
 
             clearDropFeedback() {
-                document.querySelectorAll('.cell.drag-over, .cell.invalid-drop, .discard-pile.drag-over').forEach((el) => {
-                    el.classList.remove('drag-over', 'invalid-drop');
-                });
-                this.getPlayerEls(this.userPlayer).hand.style.background = '';
+                if (this.activePointerFeedback?.el) {
+                    this.activePointerFeedback.el.classList.remove('drag-over', 'invalid-drop');
+                }
+                if (this.activePointerFeedback?.handEl) {
+                    this.activePointerFeedback.handEl.style.background = '';
+                }
+                this.activePointerFeedback = null;
             }
 
             removePointerGhost() {
                 if (!this.pointerDragGhost) return;
                 this.pointerDragGhost.remove();
                 this.pointerDragGhost = null;
+                this.pointerGhostMetrics = null;
+            }
+
+            cancelPointerDragFrame() {
+                if (!this.pointerDragFrame) return;
+                cancelAnimationFrame(this.pointerDragFrame);
+                this.pointerDragFrame = null;
+                this.pendingPointerPoint = null;
             }
 
             finishDragCleanup(target = this.activeDragElement) {
                 if (target && target.classList) {
                     target.classList.remove('dragging');
                 }
+                this.cancelPointerDragFrame();
                 this.removePointerGhost();
                 this.clearDropFeedback();
                 this.clearAllowedMoveHighlights();
@@ -2606,17 +2623,22 @@
                 ghost.classList.add('touch-drag-ghost');
                 document.body.appendChild(ghost);
                 this.pointerDragGhost = ghost;
+                this.pointerGhostMetrics = {
+                    width: sourceEl.offsetWidth,
+                    height: sourceEl.offsetHeight
+                };
+                ghost.style.width = `${this.pointerGhostMetrics.width}px`;
+                ghost.style.height = `${this.pointerGhostMetrics.height}px`;
                 return ghost;
             }
 
             positionPointerGhost(clientX, clientY) {
                 if (!this.pointerDragGhost) return;
-                const offsetX = this.dragPointerOffset?.x ?? (this.pointerDragGhost.offsetWidth / 2);
-                const offsetY = this.dragPointerOffset?.y ?? (this.pointerDragGhost.offsetHeight / 2);
-                this.pointerDragGhost.style.left = `${clientX - offsetX}px`;
-                this.pointerDragGhost.style.top = `${clientY - offsetY}px`;
-                this.pointerDragGhost.style.width = `${this.activeDragElement?.offsetWidth ?? this.pointerDragGhost.offsetWidth}px`;
-                this.pointerDragGhost.style.height = `${this.activeDragElement?.offsetHeight ?? this.pointerDragGhost.offsetHeight}px`;
+                const width = this.pointerGhostMetrics?.width ?? this.pointerDragGhost.offsetWidth;
+                const height = this.pointerGhostMetrics?.height ?? this.pointerDragGhost.offsetHeight;
+                const offsetX = this.dragPointerOffset?.x ?? (width / 2);
+                const offsetY = this.dragPointerOffset?.y ?? (height / 2);
+                this.pointerDragGhost.style.transform = `translate3d(${clientX - offsetX}px, ${clientY - offsetY}px, 0) scale(1.02)`;
             }
 
             getPointerDropTarget(clientX, clientY) {
@@ -2645,15 +2667,30 @@
             }
 
             refreshPointerDropFeedback(clientX, clientY) {
-                this.clearDropFeedback();
                 if (!this.draggedCard || this.currentPlayer !== this.userPlayer) return;
 
                 const target = this.getPointerDropTarget(clientX, clientY);
-                if (!target) return;
+                const previous = this.activePointerFeedback;
+                const sameTarget =
+                    previous &&
+                    ((target?.type === 'cell' && previous.type === 'cell' && previous.row === target.row && previous.col === target.col) ||
+                    (target?.type === 'discard' && previous.type === 'discard') ||
+                    (target?.type === 'hand' && previous.type === 'hand') ||
+                    (!target && previous.type === 'none'));
+
+                if (sameTarget) return;
+
+                this.clearDropFeedback();
+
+                if (!target) {
+                    this.activePointerFeedback = { type: 'none' };
+                    return;
+                }
 
                 if (target.type === 'discard') {
                     if (!this.draggedFromBoard && this.canDiscard(this.userPlayer)) {
                         target.el.classList.add('drag-over');
+                        this.activePointerFeedback = { type: 'discard', el: target.el };
                     }
                     return;
                 }
@@ -2661,11 +2698,13 @@
                 if (target.type === 'hand') {
                     if (this.draggedFromBoard) {
                         target.el.style.background = 'rgba(76, 175, 80, 0.2)';
+                        this.activePointerFeedback = { type: 'hand', handEl: target.el };
                     }
                     return;
                 }
 
                 if (this.draggedFromBoard && target.row === this.draggedFromBoard.row && target.col === this.draggedFromBoard.col) {
+                    this.activePointerFeedback = { type: 'cell', row: target.row, col: target.col };
                     return;
                 }
 
@@ -2674,6 +2713,26 @@
                     : this.isValidMove(target.row, target.col, this.draggedCard, this.currentPlayer);
 
                 target.el.classList.add(isValidTarget ? 'drag-over' : 'invalid-drop');
+                this.activePointerFeedback = {
+                    type: 'cell',
+                    el: target.el,
+                    row: target.row,
+                    col: target.col
+                };
+            }
+
+            schedulePointerDragFrame(clientX, clientY) {
+                this.pendingPointerPoint = { x: clientX, y: clientY };
+                if (this.pointerDragFrame) return;
+
+                this.pointerDragFrame = requestAnimationFrame(() => {
+                    this.pointerDragFrame = null;
+                    const point = this.pendingPointerPoint;
+                    this.pendingPointerPoint = null;
+                    if (!point || !this.draggedCard) return;
+                    this.positionPointerGhost(point.x, point.y);
+                    this.refreshPointerDropFeedback(point.x, point.y);
+                });
             }
 
             animateCardReturn(clientX, clientY, message = null) {
@@ -4597,7 +4656,7 @@
                 this.createPointerGhost(sourceEl);
                 this.positionPointerGhost(e.clientX, e.clientY);
                 this.refreshAllowedMoveHighlights();
-                this.refreshPointerDropFeedback(e.clientX, e.clientY);
+                this.schedulePointerDragFrame(e.clientX, e.clientY);
             }
 
             endDrag(e) {
@@ -4625,8 +4684,7 @@
                 if (e.pointerId !== this.pointerDragId || !this.draggedCard) return;
 
                 this.lastDragPoint = { x: e.clientX, y: e.clientY };
-                this.positionPointerGhost(e.clientX, e.clientY);
-                this.refreshPointerDropFeedback(e.clientX, e.clientY);
+                this.schedulePointerDragFrame(e.clientX, e.clientY);
                 e.preventDefault();
             }
 
