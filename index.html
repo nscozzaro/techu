@@ -1623,6 +1623,7 @@
         const DIRECTIONS = [[-1, 0], [1, 0], [0, -1], [0, 1]];
         const BOARD_SIZE = 5;
         const HAND_SIZE = 3;
+        const SEARCH_TIMEOUT = Symbol('techu-search-timeout');
         const BOT_STRATEGY = {
             cardBands: {
                 utilityMax: 6,
@@ -1672,9 +1673,9 @@
                     endgame: { score: 180, connected: 8, disconnected: 3, frontier: 2, pressure: 8, mobility: 4, threat: 1, hand: 1, home: 4 }
                 },
                 config: {
-                    early: { depth: 4, rootMoveLimit: 8, nodeMoveLimit: 5, discardLimit: 1, tacticalWidth: 2, staticBlend: 0.03, exactSolve: false },
-                    late: { depth: 5, rootMoveLimit: 9, nodeMoveLimit: 6, discardLimit: 2, tacticalWidth: 3, staticBlend: 0.02, exactSolve: false },
-                    endgame: { depth: 1, rootMoveLimit: 10, nodeMoveLimit: 7, discardLimit: 2, tacticalWidth: 4, staticBlend: 0.01, exactSolve: true }
+                    early: { depth: 2, rootMoveLimit: 6, nodeMoveLimit: 4, discardLimit: 1, tacticalWidth: 2, staticBlend: 0.04, timeMs: 20, nodeBudget: 700 },
+                    late: { depth: 3, rootMoveLimit: 7, nodeMoveLimit: 4, discardLimit: 1, tacticalWidth: 2, staticBlend: 0.03, timeMs: 28, nodeBudget: 1400 },
+                    endgame: { depth: 4, rootMoveLimit: 8, nodeMoveLimit: 5, discardLimit: 2, tacticalWidth: 3, staticBlend: 0.02, timeMs: 36, nodeBudget: 2400 }
                 }
             }
         };
@@ -2303,7 +2304,7 @@
                         userPlayer: this.userPlayer,
                         botPlayer: this.botPlayer,
                         seed: this.gameOptions.seed ?? null,
-                        botStrategy: 'strategic-search-lite-v15'
+                        botStrategy: 'strategic-search-lite-v16'
                     },
                     shuffle: createPlayerMap((player) => this[`${player}Deck`].map((card) => this.cardToCode(card))),
                     events: []
@@ -3418,10 +3419,32 @@
                         ? BOT_STRATEGY.search.config.late
                         : BOT_STRATEGY.search.config.early;
 
+                return { ...stage };
+            }
+
+            createSearchSession(config) {
+                const startTime = performance.now();
                 return {
-                    ...stage,
-                    depth: stage.exactSolve ? Math.max(phase.reserveCards, 1) : stage.depth
+                    startTime,
+                    deadline: startTime + (config.timeMs ?? 24),
+                    nodeBudget: config.nodeBudget ?? 1200,
+                    nodes: 0
                 };
+            }
+
+            isSearchBudgetExceeded(session) {
+                return session.nodes >= session.nodeBudget || performance.now() >= session.deadline;
+            }
+
+            touchSearchNode(session) {
+                if (!session) return;
+                session.nodes += 1;
+                if (session.nodes >= session.nodeBudget) {
+                    throw SEARCH_TIMEOUT;
+                }
+                if (performance.now() >= session.deadline) {
+                    throw SEARCH_TIMEOUT;
+                }
             }
 
             getRankedActions(player = this.currentPlayer, config = this.getSearchConfig(), depth = config.depth) {
@@ -3530,7 +3553,9 @@
                 ].join('|');
             }
 
-            searchGameTree(depth, alpha, beta, cache, config) {
+            searchGameTree(depth, alpha, beta, cache, config, session) {
+                this.touchSearchNode(session);
+
                 if (this.isGameOver()) {
                     return this.getTerminalSearchScore();
                 }
@@ -3555,9 +3580,13 @@
                 let best = maximizing ? -Infinity : Infinity;
                 for (const action of actions) {
                     const snapshot = this.captureSearchState();
-                    this.applySearchAction(action, player);
-                    const value = this.searchGameTree(depth - 1, alpha, beta, cache, config);
-                    this.restoreSearchState(snapshot);
+                    let value;
+                    try {
+                        this.applySearchAction(action, player);
+                        value = this.searchGameTree(depth - 1, alpha, beta, cache, config, session);
+                    } finally {
+                        this.restoreSearchState(snapshot);
+                    }
 
                     if (maximizing) {
                         best = Math.max(best, value);
@@ -3576,31 +3605,78 @@
 
             getBestStrategicAction() {
                 const config = this.getSearchConfig();
-                const actions = this.getRankedActions(this.botPlayer, config, config.depth);
-                if (!actions.length) {
+                const baseActions = this.getRankedActions(this.botPlayer, config, config.depth)
+                    .map((action) => ({
+                        ...action,
+                        searchScore: action.staticScore,
+                        score: action.staticScore
+                    }));
+                if (!baseActions.length) {
                     return { bestAction: null, rankedActions: [], config };
                 }
 
-                const cache = new Map();
-                for (const action of actions) {
-                    const snapshot = this.captureSearchState();
-                    this.applySearchAction(action, this.botPlayer);
-                    const searchScore = this.searchGameTree(config.depth - 1, -Infinity, Infinity, cache, config);
-                    this.restoreSearchState(snapshot);
-                    action.searchScore = searchScore;
-                    action.score = searchScore + action.staticScore * config.staticBlend;
+                const session = this.createSearchSession(config);
+                let rankedActions = baseActions;
+                let bestCompleted = {
+                    bestAction: rankedActions[0] ? { ...rankedActions[0] } : null,
+                    rankedActions: rankedActions.map((action) => ({ ...action })),
+                    config,
+                    searchedDepth: 0,
+                    timedOut: false
+                };
+
+                for (let depth = 1; depth <= config.depth; depth++) {
+                    if (this.isSearchBudgetExceeded(session)) {
+                        break;
+                    }
+
+                    const cache = new Map();
+                    let completedDepth = true;
+
+                    for (const action of rankedActions) {
+                        if (this.isSearchBudgetExceeded(session)) {
+                            completedDepth = false;
+                            break;
+                        }
+
+                        const snapshot = this.captureSearchState();
+                        try {
+                            this.applySearchAction(action, this.botPlayer);
+                            const searchScore = this.searchGameTree(depth - 1, -Infinity, Infinity, cache, config, session);
+                            action.searchScore = searchScore;
+                            action.score = searchScore + action.staticScore * config.staticBlend;
+                        } catch (error) {
+                            if (error !== SEARCH_TIMEOUT) throw error;
+                            completedDepth = false;
+                            break;
+                        } finally {
+                            this.restoreSearchState(snapshot);
+                        }
+                    }
+
+                    rankedActions.sort((a, b) => {
+                        const scoreDiff = b.score - a.score;
+                        if (scoreDiff !== 0) return scoreDiff;
+                        return b.staticScore - a.staticScore;
+                    });
+
+                    if (completedDepth) {
+                        bestCompleted = {
+                            bestAction: rankedActions[0] ? { ...rankedActions[0] } : null,
+                            rankedActions: rankedActions.map((action) => ({ ...action })),
+                            config,
+                            searchedDepth: depth,
+                            timedOut: false
+                        };
+                    } else {
+                        break;
+                    }
                 }
 
-                actions.sort((a, b) => {
-                    const scoreDiff = b.score - a.score;
-                    if (scoreDiff !== 0) return scoreDiff;
-                    return b.staticScore - a.staticScore;
-                });
-
                 return {
-                    bestAction: actions[0] ?? null,
-                    rankedActions: actions,
-                    config
+                    ...bestCompleted,
+                    timedOut: bestCompleted.searchedDepth < config.depth,
+                    nodes: session.nodes
                 };
             }
 
