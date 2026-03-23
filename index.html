@@ -1262,6 +1262,11 @@
                 lowClaim: 4,
                 cleanCapture: 8,
                 overkill: 4,
+                efficientCapture: 5,
+                captureEconomy: 3,
+                premiumCaptureTax: 8,
+                exposedCapture: 11,
+                supportShield: 4,
                 safeCapture: 6,
                 supportedClaim: 4,
                 unsupportedHigh: 8,
@@ -1694,7 +1699,7 @@
                         userPlayer: this.userPlayer,
                         botPlayer: this.botPlayer,
                         seed: this.gameOptions.seed ?? null,
-                        botStrategy: 'strategic-search-lite-v14'
+                        botStrategy: 'strategic-search-lite-v15'
                     },
                     shuffle: createPlayerMap((player) => this[`${player}Deck`].map((card) => this.cardToCode(card))),
                     events: []
@@ -2234,6 +2239,23 @@
                 }, 0);
             }
 
+            findLeastWinningCard(player, row, col, targetValue) {
+                const { hand } = this.getPlayerState(player);
+                let best = null;
+
+                hand.forEach((card, slotIndex) => {
+                    if (!card) return;
+                    const value = this.getCardValue(card);
+                    if (value <= targetValue || !this.isValidMove(row, col, card, player)) return;
+                    const candidate = { card, slotIndex, value, gap: value - targetValue };
+                    if (!best || candidate.value < best.value || (candidate.value === best.value && candidate.gap < best.gap)) {
+                        best = candidate;
+                    }
+                });
+
+                return best;
+            }
+
             getConnectedCellKeys(player, board = this.board) {
                 const connected = new Set();
                 const queue = [];
@@ -2383,14 +2405,16 @@
                     return 0;
                 }
 
+                const exactReply = this.findLeastWinningCard(opponent, row, col, value);
                 const higherCards = this.countUnknownHigherCards(opponent, value);
-                if (!higherCards) {
+                if (!higherCards && !exactReply) {
                     return 0;
                 }
 
                 const adjacentPressure = this.countAdjacentOwned(row, col, opponent) * 2;
                 const frontierPressure = this.getFrontierCellKeys(opponent).has(`${row},${col}`) ? 4 : 0;
-                return Math.min(26, higherCards * 2 + adjacentPressure + frontierPressure);
+                const exactPressure = exactReply ? 8 + exactReply.gap * 2 : 0;
+                return Math.min(26, exactPressure + higherCards * 2 + adjacentPressure + frontierPressure);
             }
 
             simulateMove(row, col, card, player, evaluate) {
@@ -3141,6 +3165,9 @@
                 const value = this.getCardValue(card);
                 const targetCell = this.board[row][col];
                 const targetValue = targetCell ? this.getCardValue(targetCell.card) : 0;
+                const cheapestCapture = targetCell?.owner === opponent
+                    ? this.findLeastWinningCard(player, row, col, targetValue)
+                    : null;
                 const beforeSelf = this.getBoardMetrics(player);
                 const beforeOpponent = this.getBoardMetrics(opponent);
                 const phase = this.getMovePhaseProfile(player);
@@ -3166,6 +3193,8 @@
                     const ownSide = row === this.getHomeRow(player) || this.isOwnSideRow(row, player);
                     const opponentHome = row === this.getHomeRow(opponent);
                     const gap = capture ? value - targetValue : 0;
+                    const exactReply = capture ? this.findLeastWinningCard(opponent, row, col, value) : null;
+                    const overspend = capture && cheapestCapture ? Math.max(0, value - cheapestCapture.value) : 0;
                     const connectGain = afterSelf.connected.size - beforeSelf.connected.size;
                     const disconnectGain = afterOpponent.disconnectedValue - beforeOpponent.disconnectedValue;
                     const frontierSwing = (afterSelf.frontier.size - beforeSelf.frontier.size) + (beforeOpponent.frontier.size - afterOpponent.frontier.size);
@@ -3192,6 +3221,15 @@
 
                     if (capture) {
                         score += Math.max(0, weights.cleanCapture - Math.max(0, gap - 1) * weights.overkill);
+                        if (overspend === 0) score += weights.efficientCapture;
+                        score -= overspend * weights.captureEconomy;
+                        if (!phase.endgame && this.isPremiumCard(value) && !this.isPowerCard(targetValue)) {
+                            score -= weights.premiumCaptureTax;
+                        }
+                        if (exactReply) {
+                            score -= weights.exposedCapture + exactReply.gap * weights.captureEconomy;
+                            if (support >= 1) score += weights.supportShield;
+                        }
                         if (risk <= weights.safeRisk) score += weights.safeCapture;
                     } else if (support >= 1) {
                         score += weights.supportedClaim;
