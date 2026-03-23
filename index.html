@@ -912,6 +912,10 @@
             transition: transform 0.6s ease-in-out;
             transform-style: preserve-3d;
             box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            touch-action: none;
         }
 
         .board-card.face {
@@ -932,6 +936,7 @@
         }
 
         .board-card.back,
+        .board-card *,
         .card * {
             user-select: none;
             -webkit-user-select: none;
@@ -4476,6 +4481,7 @@
                                 back.style.cursor = 'grab';
                                 back.addEventListener('dragstart', (e) => this.handleBoardCardDragStart(e, r, c));
                                 back.addEventListener('dragend', (e) => this.handleBoardCardDragEnd(e));
+                                back.addEventListener('pointerdown', (e) => this.handleBoardCardPointerStart(e, r, c));
                             }
                         }
 
@@ -4728,6 +4734,21 @@
 
             handleBoardCardDragEnd(e) {
                 this.endDrag(e);
+            }
+
+            handleBoardCardPointerStart(e, row, col) {
+                const cellData = this.board[row][col];
+                const cellEl = e.currentTarget.closest('.cell');
+                this.beginPointerDrag(e, {
+                    card: cellData.card,
+                    slotIndex: cellData.fromSlot,
+                    fromBoard: { row, col }
+                });
+                requestAnimationFrame(() => {
+                    if (this.draggedFromBoard?.row === row && this.draggedFromBoard?.col === col) {
+                        this.showLiftedBoardSource(cellEl, cellData);
+                    }
+                });
             }
 
             handleDragOver(e, row, col) {
@@ -5115,7 +5136,7 @@
             if (!progress) {
                 ui.landing.kicker.textContent = `Daily Puzzle #${puzzleNumber}`;
                 ui.landing.title.textContent = 'Techu';
-                ui.landing.subtitle.textContent = 'Play the same daily duel as everyone else, then warm up in practice whenever you want.';
+                ui.landing.subtitle.textContent = 'Claim more spaces than the bot with one shared deck.';
                 ui.landing.play.textContent = 'Play Daily';
                 ui.landing.practice.textContent = 'Practice vs Bot';
                 ui.landing.previewWrap.hidden = true;
