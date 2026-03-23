@@ -153,21 +153,29 @@
             background: var(--landing-blank);
         }
 
-        .landing-mark-cell.accent {
+        .landing-mark-cell.accent,
+        .landing-mark-cell.suit-cell {
             position: relative;
+        }
+
+        .landing-mark-cell.accent {
             background: #d94a3a;
         }
 
-        .landing-mark-cell.accent::after {
-            content: '♦';
+        .landing-mark-cell.accent::after,
+        .landing-mark-cell.suit-cell::after {
             position: absolute;
             inset: 0;
             display: grid;
             place-items: center;
-            color: rgba(255, 255, 255, 0.92);
             font-size: 0.8rem;
             font-weight: 800;
             line-height: 1;
+        }
+
+        .landing-mark-cell.accent::after {
+            content: '♦';
+            color: rgba(255, 255, 255, 0.92);
         }
 
         .landing-mark-cell.techu-red {
@@ -176,6 +184,26 @@
 
         .landing-mark-cell.techu-black {
             background: #232428;
+        }
+
+        .landing-mark-cell.techu-red.suit-cell::after {
+            color: rgba(255, 255, 255, 0.94);
+        }
+
+        .landing-mark-cell.techu-black.suit-cell::after {
+            color: rgba(255, 255, 255, 0.92);
+        }
+
+        .landing-mark-cell.heart::after {
+            content: '♥';
+        }
+
+        .landing-mark-cell.club::after {
+            content: '♣';
+        }
+
+        .landing-mark-cell.spade::after {
+            content: '♠';
         }
 
         .landing-kicker {
@@ -1488,10 +1516,10 @@
                     <span class="landing-mark-cell"></span>
                     <span class="landing-mark-cell"></span>
                     <span class="landing-mark-cell accent"></span>
-                    <span class="landing-mark-cell techu-black"></span>
-                    <span class="landing-mark-cell techu-red"></span>
-                    <span class="landing-mark-cell techu-black"></span>
-                    <span class="landing-mark-cell techu-red"></span>
+                    <span class="landing-mark-cell techu-black suit-cell club"></span>
+                    <span class="landing-mark-cell techu-red suit-cell heart"></span>
+                    <span class="landing-mark-cell techu-black suit-cell spade"></span>
+                    <span class="landing-mark-cell techu-red suit-cell heart"></span>
                 </div>
 
                 <div class="landing-kicker" id="landingKicker">Daily Puzzle</div>
