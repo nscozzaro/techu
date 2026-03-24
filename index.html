@@ -5,12 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Techu</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@500;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap');
         :root {
             color-scheme: light dark;
-            --ui-display: "Shippori Mincho B1", "Hiragino Mincho ProN", "Yu Mincho", serif;
-            --ui-serif: "Shippori Mincho B1", "Hiragino Mincho ProN", "Yu Mincho", serif;
-            --ui-sans: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
+            --ui-display: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", "Noto Sans", sans-serif;
+            --ui-serif: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", "Noto Sans", sans-serif;
+            --ui-sans: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", "Noto Sans", sans-serif;
             --bg: #101218;
             --bg-accent: #171b24;
             --panel: rgba(24, 27, 38, 0.96);
@@ -62,15 +62,16 @@
             --card-back-accent: #252b57;
             --card-back-ivory: rgba(244, 239, 229, 0.86);
             --card-back-art: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20148%22%3E%0A%20%20%3Cdefs%3E%0A%20%20%20%20%3CradialGradient%20id%3D%22wave-bands%22%20cx%3D%2250%25%22%20cy%3D%2250%25%22%20r%3D%2250%25%22%20fx%3D%2250%25%22%20fy%3D%2250%25%22%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%229%25%22%20stop-color%3D%22%23f2ede1%22%20%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%2210%25%22%20stop-color%3D%22%231b2044%22%20%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%2219%25%22%20stop-color%3D%22%231b2044%22%20%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%2220%25%22%20stop-color%3D%22%23f2ede1%22%20%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%2229%25%22%20stop-color%3D%22%23f2ede1%22%20%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%2230%25%22%20stop-color%3D%22%231b2044%22%20%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%2239%25%22%20stop-color%3D%22%231b2044%22%20%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%2240%25%22%20stop-color%3D%22%23f2ede1%22%20%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%2249%25%22%20stop-color%3D%22%23f2ede1%22%20%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%2250%25%22%20stop-color%3D%22%231b2044%22%20%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%2259%25%22%20stop-color%3D%22%231b2044%22%20%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%2260%25%22%20stop-color%3D%22%23f2ede1%22%20%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%2269%25%22%20stop-color%3D%22%23f2ede1%22%20%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%2270%25%22%20stop-color%3D%22%231b2044%22%20%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%2279%25%22%20stop-color%3D%22%231b2044%22%20%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%2280%25%22%20stop-color%3D%22%23f2ede1%22%20%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%2289%25%22%20stop-color%3D%22%23f2ede1%22%20%2F%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%2290%25%22%20stop-color%3D%22%231b2044%22%20%2F%3E%0A%20%20%20%20%3C%2FradialGradient%3E%0A%20%20%20%20%3Cpattern%20id%3D%22seigaiha%22%20width%3D%2256%22%20height%3D%2233.6%22%20patternUnits%3D%22userSpaceOnUse%22%3E%0A%20%20%20%20%20%20%3Crect%20width%3D%2256%22%20height%3D%2233.6%22%20fill%3D%22%231b2044%22%20%2F%3E%0A%20%20%20%20%20%20%3Ccircle%20cy%3D%2215.12%22%20r%3D%2231.92%22%20fill%3D%22url%28%23wave-bands%29%22%20%2F%3E%0A%20%20%20%20%20%20%3Ccircle%20cx%3D%2256%22%20cy%3D%2215.12%22%20r%3D%2231.92%22%20fill%3D%22url%28%23wave-bands%29%22%20%2F%3E%0A%20%20%20%20%20%20%3Ccircle%20cx%3D%2228%22%20cy%3D%2231.92%22%20r%3D%2231.92%22%20fill%3D%22url%28%23wave-bands%29%22%20%2F%3E%0A%20%20%20%20%20%20%3Ccircle%20cy%3D%2248.72%22%20r%3D%2231.92%22%20fill%3D%22url%28%23wave-bands%29%22%20%2F%3E%0A%20%20%20%20%20%20%3Ccircle%20cx%3D%2256%22%20cy%3D%2248.72%22%20r%3D%2231.92%22%20fill%3D%22url%28%23wave-bands%29%22%20%2F%3E%0A%20%20%20%20%3C%2Fpattern%3E%0A%20%20%20%20%3Cfilter%20id%3D%22handmade%22%20x%3D%22-6%25%22%20y%3D%22-4%25%22%20width%3D%22112%25%22%20height%3D%22108%25%22%20color-interpolation-filters%3D%22sRGB%22%3E%0A%20%20%20%20%20%20%3CfeTurbulence%20type%3D%22fractalNoise%22%20baseFrequency%3D%220.055%200.11%22%20numOctaves%3D%222%22%20seed%3D%227%22%20result%3D%22noise%22%20%2F%3E%0A%20%20%20%20%20%20%3CfeDisplacementMap%20in%3D%22SourceGraphic%22%20in2%3D%22noise%22%20scale%3D%222.7%22%20xChannelSelector%3D%22R%22%20yChannelSelector%3D%22G%22%20%2F%3E%0A%20%20%20%20%3C%2Ffilter%3E%0A%20%20%3C%2Fdefs%3E%0A%20%20%3Crect%20width%3D%22100%22%20height%3D%22148%22%20fill%3D%22%231b2044%22%20%2F%3E%0A%20%20%3Crect%20width%3D%22100%22%20height%3D%22148%22%20fill%3D%22url%28%23seigaiha%29%22%20filter%3D%22url%28%23handmade%29%22%20%2F%3E%0A%3C%2Fsvg%3E");
-            --landing-bg: #efe8da;
-            --landing-panel: rgba(250, 249, 244, 0.82);
-            --landing-text: #151515;
-            --landing-muted: #57534c;
-            --landing-line: rgba(21, 21, 21, 0.14);
-            --landing-accent: #1b2044;
+            --landing-font: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", "Noto Sans", sans-serif;
+            --landing-bg: #121213;
+            --landing-panel: #1a1c1f;
+            --landing-text: #ece2cf;
+            --landing-muted: #9f957f;
+            --landing-line: rgba(236, 226, 207, 0.14);
+            --landing-accent: #c6aa72;
             --landing-green: #6aaa64;
             --landing-gold: #c9b458;
-            --landing-blank: #f4f1e8;
+            --landing-blank: #f2e8d6;
         }
         html {
             height: 100%;
@@ -82,10 +83,8 @@
         }
         body {
             font-family: var(--ui-sans);
-            background:
-                radial-gradient(circle at 50% -10%, rgba(255, 255, 255, 0.72), transparent 34%),
-                radial-gradient(circle at 12% 18%, rgba(208, 186, 141, 0.06), transparent 22%),
-                linear-gradient(180deg, #f7f2e7 0%, #efe5d4 100%);
+            font-weight: 300;
+            background: var(--landing-bg);
             min-height: 100dvh;
             color: var(--landing-text);
             padding: 0;
@@ -106,8 +105,8 @@
             position: absolute;
             inset: 0;
             pointer-events: none;
-            background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 42%);
-            opacity: 0.7;
+            background: none;
+            opacity: 0;
         }
         .app-shell > * {
             position: relative;
@@ -130,12 +129,14 @@
             position: absolute;
             inset: 0;
             display: none;
+            background: var(--landing-bg);
             padding:
                 max(36px, calc(env(safe-area-inset-top, 0px) + 24px))
                 clamp(24px, 4vw, 40px)
                 max(36px, calc(env(safe-area-inset-bottom, 0px) + 24px));
             overflow-y: auto;
             z-index: 5;
+            font-family: var(--landing-font);
         }
         .app-shell.show-landing .landing-screen {
             display: flex;
@@ -162,18 +163,16 @@
             gap: 3px;
             padding: 10px;
             border-radius: 18px;
-            border: 4px solid #1b2044;
-            background: rgba(249, 244, 235, 0.94);
-            box-shadow:
-                0 10px 24px rgba(27, 32, 68, 0.08),
-                inset 0 0 0 1px rgba(27, 32, 68, 0.08);
+            border: 2px solid rgba(236, 226, 207, 0.82);
+            background: #f2e8d6;
+            box-shadow: none;
         }
         .landing-mark-cell {
             width: 14px;
             height: 14px;
             border-radius: 3px;
-            border: 1px solid rgba(27, 32, 68, 0.8);
-            background: var(--landing-blank);
+            border: 1px solid rgba(27, 32, 68, 0.5);
+            background: rgba(242, 232, 214, 0.92);
             display: grid;
             place-items: center;
         }
@@ -182,11 +181,11 @@
             box-shadow: inset 0 0 0 1px rgba(17, 17, 17, 0.05);
         }
         .landing-mark-cell.face-card.player-red {
-            background: #e85743;
+            background: #964230;
             box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
         }
         .landing-mark-cell.face-card.player-black {
-            background: #232428;
+            background: #1b2044;
             box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
         }
         .landing-mark-suit {
@@ -196,29 +195,40 @@
             transform: translateY(0.5px);
         }
         .landing-kicker {
-            color: rgba(27, 32, 68, 0.72);
-            font-size: 0.82rem;
-            font-weight: 700;
-            letter-spacing: 0.16em;
-            text-transform: uppercase;
-            font-family: var(--ui-sans);
+            color: rgba(202, 176, 123, 0.96);
+            font-size: 0.92rem;
+            font-weight: 300;
+            letter-spacing: 0.12em;
+            font-family: var(--landing-font);
         }
         .landing-title {
-            font-family: var(--ui-display);
+            font-family: var(--landing-font);
             max-width: 11ch;
             font-size: clamp(3rem, 9vw, 5.8rem);
             line-height: 0.92;
-            font-weight: 900;
-            letter-spacing: -0.055em;
-            color: #16110d;
+            font-weight: 300;
+            letter-spacing: -0.02em;
+            color: var(--landing-text);
+        }
+        .landing-title.wordmark-techu {
+            display: inline-flex;
+            align-items: baseline;
+            gap: 0;
+            letter-spacing: -0.04em;
+        }
+        .landing-title.wordmark-techu .wordmark-te {
+            margin-right: -0.12em;
+        }
+        .landing-title.wordmark-techu .wordmark-rest {
+            letter-spacing: -0.03em;
         }
         .landing-subtitle {
-            font-family: var(--ui-display);
+            font-family: var(--landing-font);
             max-width: 17ch;
-            color: #231c15;
+            color: rgba(242, 232, 212, 0.95);
             font-size: clamp(1.34rem, 4.8vw, 2.18rem);
             line-height: 1.14;
-            font-weight: 600;
+            font-weight: 300;
             text-wrap: balance;
         }
         .landing-panel.has-progress .landing-title {
@@ -245,9 +255,9 @@
         .daily-preview-meta {
             display: grid;
             gap: 4px;
-            color: #6b5a40;
-            font-size: 0.88rem;
-            font-family: var(--ui-sans);
+            color: rgba(190, 176, 153, 0.94);
+            font-size: 0.92rem;
+            font-family: var(--landing-font);
         }
         .daily-preview-grid {
             display: grid;
@@ -255,30 +265,30 @@
             gap: 4px;
             padding: 14px;
             border-radius: 18px;
-            background: rgba(249, 244, 235, 0.94);
-            border: 1px solid rgba(27, 32, 68, 0.12);
-            box-shadow: 0 8px 20px rgba(27, 32, 68, 0.06);
+            background: #181a1f;
+            border: 1px solid rgba(236, 226, 207, 0.14);
+            box-shadow: none;
         }
         .daily-preview-cell {
             width: 24px;
             height: 24px;
             border-radius: 5px;
-            background: var(--landing-blank);
-            border: 1px solid rgba(185, 150, 86, 0.12);
+            background: #23262c;
+            border: 1px solid rgba(236, 226, 207, 0.12);
         }
         .daily-preview-cell.red {
-            background: var(--landing-green);
-            border-color: rgba(0, 0, 0, 0.08);
+            background: #a44d3a;
+            border-color: rgba(236, 226, 207, 0.22);
         }
         .daily-preview-cell.black {
-            background: #222;
-            border-color: rgba(255, 255, 255, 0.08);
+            background: #2d3566;
+            border-color: rgba(236, 226, 207, 0.2);
         }
         .daily-preview-caption {
-            color: #6f614c;
-            font-size: 0.94rem;
+            color: rgba(190, 176, 153, 0.9);
+            font-size: 0.96rem;
             line-height: 1.4;
-            font-family: var(--ui-sans);
+            font-family: var(--landing-font);
         }
         .landing-actions {
             width: min(100%, 520px);
@@ -288,19 +298,20 @@
         }
         .landing-btn {
             width: min(100%, 390px);
-            min-height: 56px;
+            min-height: 58px;
             padding: 14px 24px;
             position: relative;
             overflow: hidden;
             border-radius: 18px;
-            border: 1px solid rgba(27, 32, 68, 0.16);
+            border: 1px solid rgba(232, 220, 194, 0.14);
             font: inherit;
-            font-size: clamp(1.02rem, 0.98rem + 0.18vw, 1.12rem);
-            font-weight: 700;
-            font-family: var(--ui-display);
-            letter-spacing: 0.015em;
+            font-size: clamp(1.06rem, 1.02rem + 0.2vw, 1.18rem);
+            font-weight: 300;
+            font-family: var(--landing-font);
+            letter-spacing: 0.03em;
             line-height: 1;
-            box-shadow: 0 10px 20px rgba(27, 32, 68, 0.06);
+            box-shadow: none;
+            color: var(--landing-text);
             transition: transform 0.18s ease, background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
         }
         .landing-btn::before {
@@ -308,33 +319,38 @@
             position: absolute;
             inset: 4px;
             border-radius: 14px;
-            border: 1px solid rgba(27, 32, 68, 0.08);
+            border: 1px solid rgba(236, 226, 207, 0.08);
             pointer-events: none;
         }
         .landing-btn.primary {
-            background: #1b2044;
+            background: #2d3566;
             color: #f4edde;
-            border-color: rgba(27, 32, 68, 0.78);
-            box-shadow: 0 12px 24px rgba(27, 32, 68, 0.14);
+            border-color: rgba(236, 226, 207, 0.18);
         }
         .landing-btn.primary::before {
             border-color: rgba(244, 239, 229, 0.1);
         }
         .landing-btn.secondary {
-            background: linear-gradient(180deg, rgba(255, 252, 246, 0.98), rgba(243, 235, 221, 0.96));
-            color: #1b2044;
-            border-color: rgba(27, 32, 68, 0.18);
-            box-shadow: 0 10px 20px rgba(27, 32, 68, 0.06);
+            background: #17191d;
+            color: #ede2cf;
+            border-color: rgba(232, 220, 194, 0.18);
         }
         .landing-btn.tertiary,
         .landing-btn.ghost {
-            background: linear-gradient(180deg, rgba(255, 252, 246, 0.96), rgba(243, 235, 221, 0.92));
-            color: #5f574b;
-            border-color: rgba(27, 32, 68, 0.1);
+            background: #17191d;
+            color: rgba(226, 214, 193, 0.92);
+            border-color: rgba(232, 220, 194, 0.12);
             min-height: 48px;
             width: min(100%, 290px);
-            font-size: 0.92rem;
-            box-shadow: 0 8px 16px rgba(27, 32, 68, 0.04);
+            font-size: 0.96rem;
+        }
+        .landing-btn:hover {
+            transform: translateY(-1px);
+            border-color: rgba(232, 220, 194, 0.26);
+        }
+        .landing-btn:focus-visible {
+            outline: 2px solid rgba(202, 176, 123, 0.7);
+            outline-offset: 4px;
         }
         .landing-btn.ghost[hidden] {
             display: none;
@@ -342,16 +358,16 @@
         .landing-footer {
             display: grid;
             gap: 4px;
-            color: #625a4f;
-            font-size: 0.92rem;
+            color: rgba(187, 175, 154, 0.92);
+            font-size: 0.98rem;
             line-height: 1.4;
             justify-items: center;
             max-width: 42ch;
-            font-family: var(--ui-sans);
+            font-family: var(--landing-font);
         }
         .landing-footer strong {
-            color: #292119;
-            font-weight: 700;
+            color: var(--landing-text);
+            font-weight: 300;
         }
         .landing-footer[hidden] {
             display: none;
@@ -384,7 +400,7 @@
         .rotate-title {
             font-family: var(--ui-display);
             font-size: 1.5rem;
-            font-weight: 800;
+            font-weight: 500;
             letter-spacing: -0.04em;
         }
         .rotate-copy {
@@ -445,7 +461,7 @@
             background: rgba(35, 39, 56, 0.94);
             color: var(--status-neutral-text);
             font-size: clamp(0.8rem, 0.76rem + 0.16vw, 0.92rem);
-            font-weight: 700;
+            font-weight: 500;
             line-height: 1.18;
             letter-spacing: 0.04em;
             font-family: var(--ui-sans);
@@ -496,7 +512,7 @@
             font-family: var(--ui-display);
             color: var(--text);
             font-size: clamp(0.95rem, 0.9rem + 0.2vw, 1.08rem);
-            font-weight: 700;
+            font-weight: 500;
             letter-spacing: 0.03em;
             white-space: nowrap;
             font-variant-numeric: tabular-nums;
@@ -593,7 +609,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: bold;
+            font-weight: 500;
             transition: all 0.2s;
             position: relative;
             box-shadow: none;
@@ -838,7 +854,7 @@
             align-items: center;
             justify-content: center;
             padding: clamp(2px, calc(var(--card-width) * 0.04), 3px);
-            font-weight: bold;
+            font-weight: 500;
             cursor: grab;
             transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s ease, opacity 0.2s ease;
             box-shadow: 0 4px 10px rgba(34, 27, 18, 0.28);
@@ -909,7 +925,7 @@
         }
         .card-rank {
             font-size: clamp(0.96rem, calc(var(--card-height) * 0.175), 1.18rem);
-            font-weight: 700;
+            font-weight: 500;
             letter-spacing: -0.04em;
             font-family: var(--ui-serif);
             text-shadow: 0.025em 0.02em 0 rgba(69, 55, 39, 0.14);
@@ -1086,7 +1102,7 @@
             border: none;
             border-radius: 10px;
             font-size: 0.85em;
-            font-weight: 700;
+            font-weight: 500;
             cursor: pointer;
             transition: transform 0.18s ease, background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
             box-shadow: none;
@@ -1108,7 +1124,7 @@
             border: 1px solid rgba(244, 239, 229, 0.12);
             box-shadow: none;
             font-size: clamp(1rem, 0.95rem + 0.16vw, 1.1rem);
-            font-weight: 700;
+            font-weight: 500;
             font-family: var(--ui-sans);
         }
         .icon-btn::before {
@@ -1146,7 +1162,7 @@
         .setting-title {
             color: var(--text);
             font-size: 0.95em;
-            font-weight: 600;
+            font-weight: 500;
         }
         .setting-description {
             margin-top: 4px;
@@ -1185,7 +1201,7 @@
             margin-top: 4px;
             color: var(--muted);
             font-size: 0.76em;
-            font-weight: 500;
+            font-weight: 400;
             line-height: 1.35;
             font-family: var(--ui-sans);
         }
@@ -1294,11 +1310,11 @@
         }
         .choice-card.random .choice-glyph {
             font-size: 1.65em;
-            font-weight: 700;
+            font-weight: 500;
         }
         .choice-label {
             font-size: 0.76em;
-            font-weight: 600;
+            font-weight: 500;
             letter-spacing: 0.01em;
         }
         .modal {
@@ -1565,7 +1581,7 @@
             <div id="landingPanel" class="landing-panel">
                 <div id="landingMark" class="landing-mark" aria-hidden="true"></div>
                 <div class="landing-kicker" id="landingKicker">Daily Puzzle</div>
-                <h1 class="landing-title" id="landingTitle">てechu</h1>
+                <h1 class="landing-title wordmark-techu" id="landingTitle"><span class="wordmark-te">て</span><span class="wordmark-rest">echu</span></h1>
                 <p class="landing-subtitle" id="landingSubtitle">Cover more spaces than your opponent.</p>
                 <div id="dailyPreviewWrap" class="landing-preview-wrap" hidden>
                     <div class="daily-preview-meta">
@@ -1840,7 +1856,7 @@
             </button>
         `).join('');
         const renderRulesContent = () => `
-            <p><strong>Goal:</strong> Finish with more spaces than the bot when both players run out of cards.</p>
+            <p><strong>Goal:</strong> Finish with more spaces than your opponent when both players run out of cards.</p>
             ${RULE_SECTIONS.map(([title, items]) => `
                 <h3>${title}</h3>
                 <ul>${items.map((item) => `<li>${item}</li>`).join('')}</ul>
@@ -4824,7 +4840,13 @@
             ui.landing.previewWrap.hidden = false;
         };
         const setLandingCopy = ({ title, subtitle, playLabel, previewCaption = null }) => {
-            ui.landing.title.textContent = title;
+            if (title === 'てechu') {
+                ui.landing.title.classList.add('wordmark-techu');
+                ui.landing.title.innerHTML = '<span class="wordmark-te">て</span><span class="wordmark-rest">echu</span>';
+            } else {
+                ui.landing.title.classList.remove('wordmark-techu');
+                ui.landing.title.textContent = title;
+            }
             ui.landing.subtitle.textContent = subtitle;
             ui.landing.play.textContent = playLabel;
             if (previewCaption !== null) {
