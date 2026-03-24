@@ -1586,7 +1586,7 @@
 
                 <div class="landing-kicker" id="landingKicker">Daily Puzzle</div>
                 <h1 class="landing-title" id="landingTitle">Techu</h1>
-                <p class="landing-subtitle" id="landingSubtitle">Finish with more spaces than the bot in today’s daily deal.</p>
+                <p class="landing-subtitle" id="landingSubtitle">Finish with more spaces than the bot in today’s puzzle.</p>
 
                 <div id="dailyPreviewWrap" class="landing-preview-wrap" hidden>
                     <div class="daily-preview-meta">
@@ -1606,8 +1606,8 @@
 
                 <div id="landingFooter" class="landing-footer">
                     <strong id="landingFooterDate">March 23, 2026</strong>
-                    <span id="landingFooterPuzzle">Daily deal No. 1</span>
-                    <span>A new daily deal unlocks at local midnight. Practice mode is always random.</span>
+                    <span id="landingFooterPuzzle">Puzzle No. 1</span>
+                    <span>A new daily puzzle unlocks at local midnight. Practice mode is always random.</span>
                 </div>
             </div>
         </section>
@@ -1711,23 +1711,22 @@
             <button id="closeRulesBtn" class="modal-close" type="button" aria-label="Close rules">×</button>
             <h2>How to Play</h2>
             <div class="rules">
-                <p><strong>Daily vs Practice:</strong> Daily refreshes at your local midnight. Practice starts a fresh random deck against the Bot.</p>
-                <p><strong>Goal:</strong> Finish with more spaces than the Bot when both players are out of cards.</p>
+                <p><strong>Goal:</strong> Finish with more spaces than the bot when both players run out of cards.</p>
 
                 <h3>Core Rules</h3>
                 <ul>
                     <li>Higher cards outrank lower cards. Aces are highest.</li>
                     <li>Every card you play must connect back to your own home row.</li>
                     <li>Connections count only vertically and horizontally, never diagonally.</li>
-                    <li>You may play on your own card or the Bot's card if your rank is higher.</li>
+                    <li>You may cover your own card or the bot's card only if your rank is higher.</li>
                     <li>Same-rank cards cannot be played on each other.</li>
                 </ul>
 
                 <h3>Start</h3>
                 <ul>
-                    <li>Your home row depends on the color you choose: Red uses the bottom row and Black uses the top row.</li>
+                    <li>Your home row depends on your color: red uses the bottom row and black uses the top row.</li>
                     <li>Each side starts with 3 cards in hand.</li>
-                    <li>Both players place a card on the center space of their home row.</li>
+                    <li>Both sides place a card on the center space of their home row.</li>
                     <li>The lower revealed card takes the first turn.</li>
                     <li>If the opening cards tie, both players draw again and repeat the opening play.</li>
                 </ul>
@@ -1736,13 +1735,14 @@
                 <ul>
                     <li>Draw back up to 3 cards.</li>
                     <li>The first move of play must go on the board. After that, you may play 1 legal card or discard 1 card.</li>
-                    <li>Once a placed card is revealed, that turn is locked in.</li>
+                    <li>A face-down card can be repositioned before it is revealed.</li>
+                    <li>Once a placed card is revealed, that play is locked in.</li>
                 </ul>
 
                 <h3>Controls</h3>
                 <ul>
                     <li>Drag a card from your hand to a legal space, or to Discard.</li>
-                    <li>Click your face-down card on the board to reveal it.</li>
+                    <li>Tap or click your face-down card on the board to reveal it.</li>
                     <li>Use `+` for game options, `?` for rules, and `⚙` for settings.</li>
                 </ul>
 
@@ -5253,7 +5253,7 @@
             ui.landing.puzzleDate.textContent = displayDate;
             ui.landing.puzzleNumber.textContent = `Puzzle No. ${puzzleNumber}`;
             ui.landing.footerDate.textContent = displayDate;
-            ui.landing.footerPuzzle.textContent = `Daily deal No. ${puzzleNumber}`;
+            ui.landing.footerPuzzle.textContent = `Puzzle No. ${puzzleNumber}`;
             ui.landing.footer.hidden = Boolean(progress);
             ui.landing.share.dataset.baseLabel = 'Share Result';
             ui.landing.share.textContent = 'Share Result';
@@ -5264,7 +5264,7 @@
                 ui.landing.kicker.textContent = `Daily Puzzle #${puzzleNumber}`;
                 setLandingCopy({
                     title: 'Techu',
-                    subtitle: 'Use today’s daily deal to finish with more spaces than the bot.',
+                    subtitle: 'Use today’s puzzle to finish with more spaces than the bot.',
                     playLabel: 'Play Daily'
                 });
                 ui.landing.practice.textContent = 'Practice vs Bot';
