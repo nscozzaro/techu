@@ -44,11 +44,11 @@
             --slot-gap: 6px;
             --playfield-gap: 8px;
             --area-padding: 8px;
-            --card-back-base: #183654;
-            --card-back-deep: #0f2338;
-            --card-back-accent: #31597e;
-            --card-back-line: rgba(244, 239, 229, 0.32);
-            --card-back-line-soft: rgba(244, 239, 229, 0.08);
+            --card-back-base: #27435c;
+            --card-back-deep: #182a3a;
+            --card-back-accent: #567089;
+            --card-back-line: rgba(244, 239, 229, 0.22);
+            --card-back-line-soft: rgba(244, 239, 229, 0.06);
             --landing-bg: #ebe9e1;
             --landing-panel: rgba(250, 249, 244, 0.82);
             --landing-text: #151515;
@@ -673,20 +673,22 @@
         .card.card-back,
         .board-card.back {
             background:
-                linear-gradient(145deg, rgba(255, 255, 255, 0.12), transparent 24%),
-                linear-gradient(180deg, #2f5c89 0%, var(--card-back-accent) 18%, var(--card-back-base) 52%, var(--card-back-deep) 100%);
+                linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02) 22%, rgba(0, 0, 0, 0.08) 100%),
+                linear-gradient(180deg, #35516b 0%, var(--card-back-accent) 16%, var(--card-back-base) 56%, var(--card-back-deep) 100%);
             border: 1px solid rgba(255, 255, 255, 0.78);
             border-radius: var(--card-radius);
             position: relative;
             overflow: hidden;
-            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.16),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.2);
         }
 
         .deck-card {
             width: 100%;
             height: 100%;
             position: absolute;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.38);
         }
 
         .deck-card::before,
@@ -696,24 +698,15 @@
             position: absolute;
             inset: 5px;
             border-radius: 7px;
-            border: 1px solid rgba(244, 239, 229, 0.34);
+            border: 1px solid rgba(244, 239, 229, 0.22);
             background:
                 linear-gradient(var(--card-back-line), var(--card-back-line)) 50% 9px / calc(100% - 24px) 1px no-repeat,
                 linear-gradient(var(--card-back-line), var(--card-back-line)) 50% calc(100% - 9px) / calc(100% - 24px) 1px no-repeat,
-                linear-gradient(90deg, var(--card-back-line), var(--card-back-line)) 9px 50% / 1px calc(100% - 24px) no-repeat,
-                linear-gradient(90deg, var(--card-back-line), var(--card-back-line)) calc(100% - 9px) 50% / 1px calc(100% - 24px) no-repeat,
-                radial-gradient(circle, transparent 58%, rgba(244, 239, 229, 0.24) 60% 66%, transparent 68%) 50% 9px / 18px 18px no-repeat,
-                radial-gradient(circle, transparent 58%, rgba(244, 239, 229, 0.24) 60% 66%, transparent 68%) 50% calc(100% - 9px) / 18px 18px no-repeat,
-                radial-gradient(circle, transparent 58%, rgba(244, 239, 229, 0.18) 60% 66%, transparent 68%) 9px 50% / 18px 18px no-repeat,
-                radial-gradient(circle, transparent 58%, rgba(244, 239, 229, 0.18) 60% 66%, transparent 68%) calc(100% - 9px) 50% / 18px 18px no-repeat,
-                radial-gradient(circle at 12px 12px, rgba(244, 239, 229, 0.15) 0 1px, transparent 1.3px),
-                radial-gradient(circle at calc(100% - 12px) 12px, rgba(244, 239, 229, 0.15) 0 1px, transparent 1.3px),
-                radial-gradient(circle at 12px calc(100% - 12px), rgba(244, 239, 229, 0.15) 0 1px, transparent 1.3px),
-                radial-gradient(circle at calc(100% - 12px) calc(100% - 12px), rgba(244, 239, 229, 0.15) 0 1px, transparent 1.3px),
-                repeating-radial-gradient(circle, rgba(244, 239, 229, 0.045) 0 0.8px, transparent 0.9px 4.4px);
-            box-shadow:
-                inset 0 0 0 1px rgba(255, 255, 255, 0.03),
-                inset 0 0 26px rgba(126, 166, 201, 0.1);
+                linear-gradient(90deg, var(--card-back-line-soft), var(--card-back-line-soft)) 9px 50% / 1px calc(100% - 24px) no-repeat,
+                linear-gradient(90deg, var(--card-back-line-soft), var(--card-back-line-soft)) calc(100% - 9px) 50% / 1px calc(100% - 24px) no-repeat,
+                repeating-linear-gradient(0deg, rgba(244, 239, 229, 0.035) 0 1px, transparent 1px 6px),
+                linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.01));
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
         }
 
         .deck-card::after,
@@ -724,25 +717,21 @@
             inset: 12px 10px;
             border-radius: 12px;
             background:
-                radial-gradient(circle, transparent 61%, rgba(244, 239, 229, 0.28) 63% 66%, transparent 68%) 50% 24% / 58% 30% no-repeat,
-                radial-gradient(circle, transparent 61%, rgba(244, 239, 229, 0.28) 63% 66%, transparent 68%) 50% 76% / 58% 30% no-repeat,
-                repeating-radial-gradient(circle, rgba(244, 239, 229, 0.16) 0 0.8px, transparent 1px 4.2px) 50% 24% / 34% 18% no-repeat,
-                repeating-radial-gradient(circle, rgba(244, 239, 229, 0.16) 0 0.8px, transparent 1px 4.2px) 50% 76% / 34% 18% no-repeat,
+                radial-gradient(circle, transparent 61%, rgba(244, 239, 229, 0.16) 63% 65%, transparent 67%) 50% 24% / 58% 30% no-repeat,
+                radial-gradient(circle, transparent 61%, rgba(244, 239, 229, 0.16) 63% 65%, transparent 67%) 50% 76% / 58% 30% no-repeat,
                 linear-gradient(var(--card-back-line), var(--card-back-line)) 50% 50% / 42% 1px no-repeat,
                 linear-gradient(90deg, var(--card-back-line), var(--card-back-line)) 50% 50% / 1px 20% no-repeat,
-                radial-gradient(circle, rgba(244, 239, 229, 0.3) 0 18%, transparent 20%) 50% 50% / 12% 12% no-repeat,
-                linear-gradient(32deg, transparent 46%, rgba(244, 239, 229, 0.16) 48% 52%, transparent 54%) 50% 50% / 44% 14% no-repeat,
-                linear-gradient(-32deg, transparent 46%, rgba(244, 239, 229, 0.16) 48% 52%, transparent 54%) 50% 50% / 44% 14% no-repeat,
-                radial-gradient(circle, transparent 60%, rgba(244, 239, 229, 0.18) 62% 66%, transparent 68%) 18% 50% / 16% 10% no-repeat,
-                radial-gradient(circle, transparent 60%, rgba(244, 239, 229, 0.18) 62% 66%, transparent 68%) 82% 50% / 16% 10% no-repeat,
+                radial-gradient(circle, rgba(244, 239, 229, 0.18) 0 16%, transparent 17%) 50% 50% / 12% 12% no-repeat,
+                linear-gradient(32deg, transparent 46%, rgba(244, 239, 229, 0.1) 48% 52%, transparent 54%) 50% 50% / 44% 14% no-repeat,
+                linear-gradient(-32deg, transparent 46%, rgba(244, 239, 229, 0.1) 48% 52%, transparent 54%) 50% 50% / 44% 14% no-repeat,
                 linear-gradient(var(--card-back-line-soft), var(--card-back-line-soft)) 50% 24% / 1px 16% no-repeat,
                 linear-gradient(var(--card-back-line-soft), var(--card-back-line-soft)) 50% 76% / 1px 16% no-repeat,
-                linear-gradient(90deg, transparent 0, rgba(244, 239, 229, 0.16) 12%, transparent 24%, transparent 76%, rgba(244, 239, 229, 0.16) 88%, transparent 100%) 50% 50% / 100% 100% no-repeat;
-            border: 1px solid rgba(244, 239, 229, 0.18);
+                repeating-linear-gradient(90deg, transparent 0 11px, rgba(244, 239, 229, 0.03) 11px 12px) 50% 50% / 74% 70% no-repeat;
+            border: 1px solid rgba(244, 239, 229, 0.12);
             box-shadow:
                 inset 0 0 0 1px rgba(255, 255, 255, 0.03),
-                0 0 16px rgba(0, 0, 0, 0.14);
-            opacity: 0.96;
+                0 1px 0 rgba(255, 255, 255, 0.04);
+            opacity: 0.94;
         }
 
         .deck-card:nth-child(1) { top: 0; left: 0; }
@@ -1586,7 +1575,7 @@
 
                 <div class="landing-kicker" id="landingKicker">Daily Puzzle</div>
                 <h1 class="landing-title" id="landingTitle">Techu</h1>
-                <p class="landing-subtitle" id="landingSubtitle">Finish with more spaces than the bot in today’s puzzle.</p>
+                <p class="landing-subtitle" id="landingSubtitle">Cover more spaces than the bot.</p>
 
                 <div id="dailyPreviewWrap" class="landing-preview-wrap" hidden>
                     <div class="daily-preview-meta">
@@ -5264,7 +5253,7 @@
                 ui.landing.kicker.textContent = `Daily Puzzle #${puzzleNumber}`;
                 setLandingCopy({
                     title: 'Techu',
-                    subtitle: 'Use today’s puzzle to finish with more spaces than the bot.',
+                    subtitle: 'Cover more spaces than the bot.',
                     playLabel: 'Play Daily'
                 });
                 ui.landing.practice.textContent = 'Practice vs Bot';
