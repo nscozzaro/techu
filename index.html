@@ -11,8 +11,8 @@
             --ui-display: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", "Noto Sans", sans-serif;
             --ui-serif: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", "Noto Sans", sans-serif;
             --ui-sans: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", "Noto Sans", sans-serif;
-            --bg: #101218;
-            --bg-accent: #171b24;
+            --bg: #121213;
+            --bg-accent: #121213;
             --panel: rgba(24, 27, 38, 0.96);
             --panel-strong: rgba(17, 19, 28, 0.99);
             --line: rgba(145, 154, 181, 0.16);
@@ -114,16 +114,11 @@
         }
         .app-shell.in-game {
             place-items: stretch;
-            background:
-                radial-gradient(circle at top, rgba(111, 126, 171, 0.22), transparent 24%),
-                radial-gradient(circle at 84% 88%, rgba(200, 90, 61, 0.08), transparent 22%),
-                linear-gradient(180deg, #262a3d 0%, var(--bg) 34%, #0d0e12 100%);
+            background: var(--bg);
         }
         .app-shell.in-game::before {
-            background:
-                radial-gradient(circle at 16% 0%, rgba(93, 102, 148, 0.18), transparent 26%),
-                radial-gradient(circle at 84% 86%, rgba(185, 150, 86, 0.06), transparent 16%);
-            opacity: 1;
+            background: none;
+            opacity: 0;
         }
         .landing-screen {
             position: absolute;
@@ -242,6 +237,57 @@
         }
         .landing-panel.has-progress .landing-preview-wrap {
             width: min(100%, 300px);
+        }
+        .landing-panel.is-complete .landing-title {
+            max-width: 7ch;
+            font-size: clamp(2.7rem, 7vw, 5rem);
+            line-height: 0.96;
+        }
+        .landing-panel.is-complete .landing-subtitle {
+            max-width: 16ch;
+            font-size: clamp(1.08rem, 2.6vw, 1.5rem);
+        }
+        .landing-stats {
+            width: min(100%, 520px);
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px 18px;
+            align-items: start;
+        }
+        .landing-stat {
+            position: relative;
+            display: grid;
+            gap: 4px;
+            justify-items: center;
+            padding: 2px 10px;
+        }
+        .landing-stat::before {
+            content: '|';
+            position: absolute;
+            left: -10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(187, 175, 154, 0.58);
+            font-size: 1rem;
+            line-height: 1;
+            opacity: 0;
+        }
+        .landing-stat:nth-child(2n)::before {
+            opacity: 1;
+        }
+        .landing-stat-value {
+            color: var(--landing-text);
+            font-size: clamp(1.3rem, 2.8vw, 1.8rem);
+            line-height: 1;
+            font-weight: 400;
+            font-variant-numeric: tabular-nums;
+        }
+        .landing-stat-label {
+            color: rgba(187, 175, 154, 0.9);
+            font-size: 0.72rem;
+            line-height: 1.25;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
         }
         .landing-preview-wrap {
             width: min(100%, 320px);
@@ -410,9 +456,7 @@
         }
         .game-container {
             position: relative;
-            background:
-                radial-gradient(circle at top, rgba(83, 94, 132, 0.12), transparent 18%),
-                linear-gradient(180deg, rgba(19, 21, 31, 0.99), rgba(13, 15, 21, 1));
+            background: var(--bg);
             max-width: min(100vw, 980px);
             width: min(100vw, 980px);
             min-height: 100dvh;
@@ -590,6 +634,10 @@
             gap: var(--playfield-gap);
             margin: 0 auto;
         }
+        .app-shell.show-completed-board .playfield {
+            grid-template-rows: auto auto;
+            gap: 16px;
+        }
         .board {
             display: grid;
             grid-template-columns: repeat(5, var(--card-width));
@@ -675,6 +723,40 @@
             border: 1px solid var(--line);
             border-radius: 14px;
             box-shadow: 0 10px 22px rgba(8, 10, 14, 0.18);
+        }
+        .app-shell.show-completed-board .player-area {
+            display: none;
+        }
+        .completed-board-actions {
+            display: grid;
+            justify-items: center;
+            gap: 12px;
+        }
+        .completed-board-actions[hidden] {
+            display: none;
+        }
+        .completed-board-btn {
+            width: min(100%, 360px);
+            min-height: 52px;
+            padding: 14px 24px;
+            border-radius: 999px;
+            border: 1px solid rgba(236, 226, 207, 0.28);
+            background: transparent;
+            color: var(--text);
+            font-family: var(--ui-sans);
+            font-size: 1rem;
+            font-weight: 500;
+            letter-spacing: 0.01em;
+            transition: border-color 0.18s ease, transform 0.18s ease, background 0.18s ease;
+        }
+        .completed-board-btn:hover {
+            background: rgba(255, 255, 255, 0.02);
+            border-color: rgba(236, 226, 207, 0.42);
+            transform: translateY(-1px);
+        }
+        .completed-board-btn:focus-visible {
+            outline: 2px solid rgba(202, 176, 123, 0.7);
+            outline-offset: 4px;
         }
         .player-area::before {
             display: none;
@@ -1208,6 +1290,39 @@
         .menu-action:hover {
             background: rgba(31, 35, 50, 0.98);
         }
+        .menu-action-with-icon {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 14px;
+            align-items: center;
+        }
+        .menu-action-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 12px;
+            display: grid;
+            place-items: center;
+            color: rgba(237, 226, 207, 0.92);
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(236, 226, 207, 0.08);
+            flex: none;
+        }
+        .menu-action-icon svg {
+            width: 18px;
+            height: 18px;
+            display: block;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 1.9;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        .menu-action-copy {
+            min-width: 0;
+        }
+        .menu-action-copy span {
+            margin-top: 2px;
+        }
         .analysis-copy {
             margin-top: 6px;
             color: var(--muted);
@@ -1215,6 +1330,9 @@
             line-height: 1.4;
             text-align: left;
             font-family: var(--ui-sans);
+        }
+        .practice-copy {
+            max-width: 40ch;
         }
         .analysis-textarea {
             width: 100%;
@@ -1549,6 +1667,16 @@
             .landing-panel {
                 gap: 22px;
             }
+            .landing-stats {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+                gap: 12px;
+            }
+            .landing-stat::before {
+                opacity: 0;
+            }
+            .landing-stat:nth-child(n + 2)::before {
+                opacity: 1;
+            }
             .landing-subtitle {
                 max-width: 24ch;
                 font-size: clamp(1.45rem, 2.8vw, 2.2rem);
@@ -1583,6 +1711,24 @@
                 <div class="landing-kicker" id="landingKicker">Daily Puzzle</div>
                 <h1 class="landing-title wordmark-techu" id="landingTitle"><span class="wordmark-te">て</span><span class="wordmark-rest">echu</span></h1>
                 <p class="landing-subtitle" id="landingSubtitle">Cover more spaces than your opponent.</p>
+                <div id="landingStats" class="landing-stats" hidden>
+                    <div class="landing-stat">
+                        <span id="landingStatScore" class="landing-stat-value">12-11</span>
+                        <span class="landing-stat-label">Final Score</span>
+                    </div>
+                    <div class="landing-stat">
+                        <span id="landingStatStreak" class="landing-stat-value">1</span>
+                        <span class="landing-stat-label">Current Streak</span>
+                    </div>
+                    <div class="landing-stat">
+                        <span id="landingStatMaxStreak" class="landing-stat-value">3</span>
+                        <span class="landing-stat-label">Max Streak</span>
+                    </div>
+                    <div class="landing-stat">
+                        <span id="landingStatAvgMargin" class="landing-stat-value">+1.0</span>
+                        <span class="landing-stat-label">Avg Win Margin</span>
+                    </div>
+                </div>
                 <div id="dailyPreviewWrap" class="landing-preview-wrap" hidden>
                     <div class="daily-preview-meta">
                         <strong id="landingPuzzleDate">March 23, 2026</strong>
@@ -1593,7 +1739,7 @@
                 </div>
                 <div class="landing-actions">
                     <button id="landingPlayBtn" class="landing-btn primary" type="button">Play Daily</button>
-                    <button id="landingPracticeBtn" class="landing-btn secondary" type="button">Practice vs Bot</button>
+                    <button id="landingPracticeBtn" class="landing-btn secondary" type="button">Replay or Random Practice</button>
                     <button id="landingRulesBtn" class="landing-btn tertiary" type="button">Rules</button>
                     <button id="landingShareBtn" class="landing-btn ghost" type="button" hidden>Share Result</button>
                 </div>
@@ -1629,6 +1775,9 @@
                     <div id="topPlayerArea" class="player-area"></div>
                     <div id="board" class="board"></div>
                     <div id="bottomPlayerArea" class="player-area"></div>
+                    <div id="completedBoardActions" class="completed-board-actions" hidden>
+                        <button id="completedBoardResultsBtn" class="completed-board-btn" type="button">See Results</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1647,8 +1796,8 @@
                     <span id="menuDailyCopy">See today’s saved puzzle, continue it, or share your result.</span>
                 </button>
                 <button id="menuPracticeBtn" class="menu-action" type="button">
-                    <strong id="menuPracticeTitle">Start Practice Match</strong>
-                    <span id="menuPracticeCopy">Play a fresh random deck against the bot.</span>
+                    <strong id="menuPracticeTitle">Replay or Random Practice</strong>
+                    <span id="menuPracticeCopy">Replay today’s board in practice mode or deal a fresh random deck against the bot.</span>
                 </button>
                 <button id="menuShareBtn" class="menu-action" type="button" hidden>
                     <strong>Share Daily Result</strong>
@@ -1657,6 +1806,42 @@
                 <button id="openAnalysisBtn" class="menu-action" type="button">
                     <strong>Export Match Log</strong>
                     <span>Copy a full transcript of the current match to paste into chat for Bot review.</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    <div id="practiceModeModal" class="modal">
+        <div class="modal-content">
+            <button id="closePracticeModeBtn" class="modal-close" type="button" aria-label="Close practice options">×</button>
+            <h2>Practice</h2>
+            <p class="analysis-copy practice-copy">Practice never changes your daily result or sharing.</p>
+            <div class="menu-actions">
+                <button id="practiceReplayBtn" class="menu-action menu-action-with-icon" type="button">
+                    <div class="menu-action-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" focusable="false">
+                            <path d="M4 12a8 8 0 1 0 2.34-5.66"></path>
+                            <path d="M4 4v4h4"></path>
+                        </svg>
+                    </div>
+                    <div class="menu-action-copy">
+                        <strong>Replay Today’s Board</strong>
+                        <span>Same daily seed, just for practice.</span>
+                    </div>
+                </button>
+                <button id="practiceRandomBtn" class="menu-action menu-action-with-icon" type="button">
+                    <div class="menu-action-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" focusable="false">
+                            <path d="M16 4h4v4"></path>
+                            <path d="M4 20l16-16"></path>
+                            <path d="M20 16v4h-4"></path>
+                            <path d="M15 15l5 5"></path>
+                            <path d="M4 4l5 5"></path>
+                        </svg>
+                    </div>
+                    <div class="menu-action-copy">
+                        <strong>Random Practice</strong>
+                        <span>Fresh random deck against the bot.</span>
+                    </div>
                 </button>
             </div>
         </div>
@@ -1706,12 +1891,8 @@
         const PLAYER_SUITS = { red: ['♥', '♦'], black: ['♠', '♣'] };
         const MATCH_LOG_VERSION = 'TECHU_MATCH_LOG_V1';
         const TECHU_SETTINGS = { showAllowedMoves: true };
-        const TECHU_GAME_OPTIONS = { playerColor: 'red', seed: null };
-        const PRACTICE_COLOR_COPY = {
-            red: 'Play as Red with hearts and diamonds from the bottom row.',
-            random: 'Get Red or Black at random each time you start a game.',
-            black: 'Play as Black with spades and clubs from the bottom row.'
-        };
+        const PRACTICE_VARIANTS = { random: 'random', replay: 'replay' };
+        const TECHU_GAME_OPTIONS = { playerColor: 'red', seed: null, practiceVariant: PRACTICE_VARIANTS.random };
         const PLAYERS = ['red', 'black'];
         const APP_MODES = { landing: 'landing', daily: 'daily', practice: 'practice' };
         const DAILY_STORAGE_VERSION = 1;
@@ -1922,64 +2103,158 @@
                 year: 'numeric'
             }).format(new Date(year, month - 1, day));
         };
-        const getDailyStorageKey = (dateKey) => `${DAILY_STORAGE_PREFIX}${dateKey}`;
-        const safeLocalStorageGet = (key) => {
-            try {
-                return window.localStorage?.getItem(key) ?? null;
-            } catch (error) {
-                return null;
+        const getDateKeyUtcValue = (dateKey) => {
+            const [year, month, day] = dateKey.split('-').map(Number);
+            return Date.UTC(year, month - 1, day);
+        };
+        const storage = {
+            get(key) {
+                try {
+                    return window.localStorage?.getItem(key) ?? null;
+                } catch (error) {
+                    return null;
+                }
+            },
+            set(key, value, warning = 'Unable to persist Techu state.') {
+                try {
+                    window.localStorage?.setItem(key, value);
+                } catch (error) {
+                    console.warn(warning, error);
+                }
             }
         };
-        const safeLocalStorageSet = (key, value) => {
-            try {
-                window.localStorage?.setItem(key, value);
-            } catch (error) {
-                console.warn('Unable to persist Techu state.', error);
+        const dailyStore = {
+            key: (dateKey) => `${DAILY_STORAGE_PREFIX}${dateKey}`,
+            load(dateKey) {
+                const raw = storage.get(this.key(dateKey));
+                if (!raw) return null;
+                try {
+                    const parsed = JSON.parse(raw);
+                    return parsed?.version === DAILY_STORAGE_VERSION ? parsed : null;
+                } catch (error) {
+                    console.warn('Unable to load saved Techu daily state.', error);
+                    return null;
+                }
+            },
+            save(dateKey, payload) {
+                storage.set(this.key(dateKey), JSON.stringify(payload));
+            },
+            list() {
+                try {
+                    if (!window.localStorage) return [];
+                    const snapshots = [];
+                    for (let index = 0; index < window.localStorage.length; index += 1) {
+                        const key = window.localStorage.key(index);
+                        if (!key?.startsWith(DAILY_STORAGE_PREFIX)) continue;
+                        const raw = storage.get(key);
+                        if (!raw) continue;
+                        try {
+                            const parsed = JSON.parse(raw);
+                            if (parsed?.version === DAILY_STORAGE_VERSION && parsed?.dateKey) {
+                                snapshots.push(parsed);
+                            }
+                        } catch (error) {
+                            console.warn('Unable to parse stored Techu daily state.', error);
+                        }
+                    }
+                    return snapshots;
+                } catch (error) {
+                    console.warn('Unable to inspect saved Techu daily history.', error);
+                    return [];
+                }
+            },
+            createPayload(dateKey, state) {
+                return {
+                    version: DAILY_STORAGE_VERSION,
+                    dateKey,
+                    puzzleNumber: getDailyPuzzleNumber(dateKey),
+                    seed: getDailySeed(dateKey),
+                    status: state.gamePhase === 'ended' ? 'ended' : 'in_progress',
+                    updatedAt: new Date().toISOString(),
+                    game: state
+                };
             }
         };
-        const loadDailyProgress = (dateKey) => {
-            const raw = safeLocalStorageGet(getDailyStorageKey(dateKey));
-            if (!raw) return null;
-            try {
-                const parsed = JSON.parse(raw);
-                return parsed?.version === DAILY_STORAGE_VERSION ? parsed : null;
-            } catch (error) {
-                console.warn('Unable to load saved Techu daily state.', error);
-                return null;
+        const dailyHistory = {
+            owner: (cell) => cell?.owner ?? null,
+            count(board, owner) {
+                return board.reduce(
+                    (total, row) => total + row.reduce((rowTotal, cell) => rowTotal + (this.owner(cell) === owner ? 1 : 0), 0),
+                    0
+                );
+            },
+            scores(snapshot) {
+                const board = snapshot?.game?.board ?? [];
+                return {
+                    red: this.count(board, 'red'),
+                    black: this.count(board, 'black')
+                };
+            },
+            completed() {
+                return dailyStore.list().filter((snapshot) => snapshot?.status === 'ended' && snapshot?.game);
+            },
+            didUserWin(snapshot) {
+                if (snapshot?.status !== 'ended' || !snapshot?.game) return false;
+                const scores = this.scores(snapshot);
+                return scores.red > scores.black;
+            },
+            winMarginAverage() {
+                const winningMargins = this.completed()
+                    .map((snapshot) => this.scores(snapshot))
+                    .filter((scores) => scores.red > scores.black)
+                    .map((scores) => scores.red - scores.black);
+                if (!winningMargins.length) return null;
+                return winningMargins.reduce((sum, margin) => sum + margin, 0) / winningMargins.length;
+            },
+            streakStats(referenceDateKey) {
+                const snapshotsByDay = new Map(
+                    this.completed().map((snapshot) => [getDateKeyUtcValue(snapshot.dateKey), snapshot])
+                );
+                let current = 0;
+                for (let dayValue = getDateKeyUtcValue(referenceDateKey); snapshotsByDay.has(dayValue); dayValue -= 86400000) {
+                    if (!this.didUserWin(snapshotsByDay.get(dayValue))) break;
+                    current += 1;
+                }
+                let best = 0;
+                let run = 0;
+                let previousDayValue = null;
+                let previousWasWin = false;
+                Array.from(snapshotsByDay.keys()).sort((a, b) => a - b).forEach((dayValue) => {
+                    const isWin = this.didUserWin(snapshotsByDay.get(dayValue));
+                    if (!isWin) {
+                        run = 0;
+                    } else {
+                        run = previousWasWin && previousDayValue !== null && dayValue - previousDayValue === 86400000 ? run + 1 : 1;
+                        best = Math.max(best, run);
+                    }
+                    previousDayValue = dayValue;
+                    previousWasWin = isWin;
+                });
+                return { current, best };
+            },
+            outcomeSummary(snapshot) {
+                const scores = this.scores(snapshot);
+                if (scores.red > scores.black) return 'You beat your opponent today.';
+                if (scores.black > scores.red) return 'Your opponent wins today.';
+                return 'Today ends in a draw.';
+            },
+            shareGrid(board) {
+                return board.map((row) => row.map((cell) => {
+                    const owner = this.owner(cell);
+                    return owner ? SHARE_EMOJI[owner] : SHARE_EMOJI.empty;
+                }).join('')).join('\n');
+            },
+            shareText(snapshot) {
+                if (!snapshot?.game) return '';
+                const puzzleNumber = snapshot.puzzleNumber ?? getDailyPuzzleNumber(snapshot.dateKey);
+                const scores = this.scores(snapshot);
+                const outcome = scores.red > scores.black ? 'W' : scores.red < scores.black ? 'L' : 'T';
+                return [
+                    `Techu Daily #${puzzleNumber} ${outcome} ${scores.red}-${scores.black}`,
+                    this.shareGrid(snapshot.game.board),
+                    'https://techu.vercel.app/'
+                ].join('\n');
             }
-        };
-        const getSnapshotOwner = (cell) => cell?.owner ?? null;
-        const countSnapshotCells = (board, owner) => board.reduce(
-            (total, row) => total + row.reduce((rowTotal, cell) => rowTotal + (getSnapshotOwner(cell) === owner ? 1 : 0), 0),
-            0
-        );
-        const getDailyResultLabel = (snapshot) => {
-            if (!snapshot?.game) return '';
-            const scores = {
-                red: countSnapshotCells(snapshot.game.board, 'red'),
-                black: countSnapshotCells(snapshot.game.board, 'black')
-            };
-            if (scores.red > scores.black) return `You win ${scores.red}-${scores.black}`;
-            if (scores.black > scores.red) return `Bot wins ${scores.black}-${scores.red}`;
-            return `Draw ${scores.red}-${scores.black}`;
-        };
-        const buildShareGrid = (board) => board.map((row) => row.map((cell) => {
-            const owner = getSnapshotOwner(cell);
-            return owner ? SHARE_EMOJI[owner] : SHARE_EMOJI.empty;
-        }).join('')).join('\n');
-        const buildDailyShareText = (snapshot) => {
-            if (!snapshot?.game) return '';
-            const puzzleNumber = snapshot.puzzleNumber ?? getDailyPuzzleNumber(snapshot.dateKey);
-            const scores = {
-                red: countSnapshotCells(snapshot.game.board, 'red'),
-                black: countSnapshotCells(snapshot.game.board, 'black')
-            };
-            const outcome = scores.red > scores.black ? 'W' : scores.red < scores.black ? 'L' : 'T';
-            return [
-                `Techu Daily #${puzzleNumber} ${outcome} ${scores.red}-${scores.black}`,
-                buildShareGrid(snapshot.game.board),
-                'https://techu.vercel.app/'
-            ].join('\n');
         };
         const createDeck = (player) => PLAYER_SUITS[player].flatMap((suit) => (
             CARD_RANKS.map((rank) => ({ rank, suit, color: player }))
@@ -4672,6 +4947,11 @@
                 practice: 'landingPracticeBtn',
                 rules: 'landingRulesBtn',
                 share: 'landingShareBtn',
+                stats: 'landingStats',
+                statScore: 'landingStatScore',
+                statStreak: 'landingStatStreak',
+                statMaxStreak: 'landingStatMaxStreak',
+                statAvgMargin: 'landingStatAvgMargin',
                 previewWrap: 'dailyPreviewWrap',
                 previewGrid: 'dailyPreviewGrid',
                 previewCaption: 'landingPreviewCaption',
@@ -4683,6 +4963,7 @@
             }),
             modals: pickIds({
                 game: 'gameMenuModal',
+                practice: 'practiceModeModal',
                 rules: 'rulesModal',
                 settings: 'settingsModal',
                 analysis: 'analysisModal'
@@ -4691,6 +4972,7 @@
                 openGame: 'gameMenuBtn',
                 openAnalysis: 'openAnalysisBtn',
                 closeGame: 'closeGameMenuIconBtn',
+                closePracticeMode: 'closePracticeModeBtn',
                 openRules: 'rulesBtn',
                 closeRules: 'closeRulesBtn',
                 openSettings: 'settingsBtn',
@@ -4699,7 +4981,10 @@
                 copyAnalysis: 'copyAnalysisBtn',
                 menuDaily: 'menuDailyBtn',
                 menuPractice: 'menuPracticeBtn',
-                menuShare: 'menuShareBtn'
+                menuShare: 'menuShareBtn',
+                completedBoardResults: 'completedBoardResultsBtn',
+                practiceReplay: 'practiceReplayBtn',
+                practiceRandom: 'practiceRandomBtn'
             }),
             colorButtons: [...document.querySelectorAll('[data-player-color]')],
             ...pickIds({
@@ -4709,6 +4994,7 @@
                 menuDailyCopy: 'menuDailyCopy',
                 menuPracticeTitle: 'menuPracticeTitle',
                 menuPracticeCopy: 'menuPracticeCopy',
+                completedBoardActions: 'completedBoardActions',
                 showAllowedMovesToggle: 'showAllowedMovesToggle',
                 analysisExport: 'analysisExport'
             }),
@@ -4718,7 +5004,7 @@
         const app = {
             mode: APP_MODES.landing,
             dailyKey: getLocalDateKey(),
-            dailyProgress: loadDailyProgress(getLocalDateKey()),
+            dailyProgress: dailyStore.load(getLocalDateKey()),
             game: null
         };
         let analysisCopyTimer = null;
@@ -4738,6 +5024,13 @@
             document.title = mode === APP_MODES.landing ? 'Techu Daily' : `Techu ${mode === APP_MODES.daily ? 'Daily' : 'Practice'}`;
             syncRotateOverlay();
         };
+        const syncCompletedBoardView = () => {
+            const showCompletedBoard = app.mode === APP_MODES.daily
+                && app.dailyProgress?.status === 'ended'
+                && Boolean(app.game);
+            ui.appShell.classList.toggle('show-completed-board', showCompletedBoard);
+            ui.completedBoardActions.hidden = !showCompletedBoard;
+        };
         const shouldShowRotateOverlay = () => {
             return false;
         };
@@ -4754,190 +5047,230 @@
                 button.setAttribute('aria-pressed', String(selected));
             });
         };
-        const setAnalysisCopyState = (title, body) => {
-            ui.copyAnalysisTitle.textContent = title;
-            ui.copyAnalysisBody.textContent = body;
-        };
-        const resetAnalysisCopyState = () => {
-            setAnalysisCopyState(...ANALYSIS_COPY_DEFAULT);
-        };
-        const flashLandingShareState = (text) => {
-            clearTimeout(landingShareTimer);
-            const previous = ui.landing.share.dataset.baseLabel || 'Share Result';
-            ui.landing.share.textContent = text;
-            landingShareTimer = setTimeout(() => {
-                ui.landing.share.textContent = previous;
-            }, 1800);
-        };
-        const flashMenuShareState = (title, body) => {
-            clearTimeout(menuShareTimer);
-            const titleEl = ui.buttons.menuShare.querySelector('strong');
-            const bodyEl = ui.buttons.menuShare.querySelector('span');
-            titleEl.textContent = title;
-            bodyEl.textContent = body;
-            menuShareTimer = setTimeout(() => {
-                [titleEl.textContent, bodyEl.textContent] = MENU_SHARE_DEFAULT;
-            }, 1800);
-        };
-        const fallbackCopyText = (text) => {
-            const textarea = document.createElement('textarea');
-            textarea.value = text;
-            textarea.setAttribute('readonly', '');
-            textarea.style.position = 'absolute';
-            textarea.style.left = '-9999px';
-            document.body.appendChild(textarea);
-            textarea.select();
-            textarea.setSelectionRange(0, textarea.value.length);
-            const copied = document.execCommand?.('copy') ?? false;
-            textarea.remove();
-            return copied;
-        };
-        const copyTextToClipboard = async (text) => {
-            if (!text) return false;
-            try {
-                if (navigator.clipboard?.writeText) {
-                    await navigator.clipboard.writeText(text);
-                    return true;
-                }
-            } catch (error) {
-                console.warn('Clipboard copy failed, falling back to manual copy.', error);
+        const feedback = {
+            setAnalysisCopy(title, body) {
+                ui.copyAnalysisTitle.textContent = title;
+                ui.copyAnalysisBody.textContent = body;
+            },
+            resetAnalysisCopy() {
+                this.setAnalysisCopy(...ANALYSIS_COPY_DEFAULT);
+            },
+            flashLandingShare(text) {
+                clearTimeout(landingShareTimer);
+                const previous = ui.landing.share.dataset.baseLabel || 'Share Result';
+                ui.landing.share.textContent = text;
+                landingShareTimer = setTimeout(() => {
+                    ui.landing.share.textContent = previous;
+                }, 1800);
+            },
+            flashMenuShare(title, body) {
+                clearTimeout(menuShareTimer);
+                const titleEl = ui.buttons.menuShare.querySelector('strong');
+                const bodyEl = ui.buttons.menuShare.querySelector('span');
+                titleEl.textContent = title;
+                bodyEl.textContent = body;
+                menuShareTimer = setTimeout(() => {
+                    [titleEl.textContent, bodyEl.textContent] = MENU_SHARE_DEFAULT;
+                }, 1800);
+            },
+            flashAnalysisCopy(title, body) {
+                clearTimeout(analysisCopyTimer);
+                this.setAnalysisCopy(title, body);
+                analysisCopyTimer = setTimeout(() => this.resetAnalysisCopy(), 1800);
             }
-            return fallbackCopyText(text);
         };
-        const shareText = async (text) => {
-            if (!text) return null;
-            if (navigator.share) {
+        const clipboard = {
+            fallbackCopy(text) {
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                textarea.setAttribute('readonly', '');
+                textarea.style.position = 'absolute';
+                textarea.style.left = '-9999px';
+                document.body.appendChild(textarea);
+                textarea.select();
+                textarea.setSelectionRange(0, textarea.value.length);
+                const copied = document.execCommand?.('copy') ?? false;
+                textarea.remove();
+                return copied;
+            },
+            async copy(text) {
+                if (!text) return false;
                 try {
-                    await navigator.share({ text });
-                    return 'shared';
+                    if (navigator.clipboard?.writeText) {
+                        await navigator.clipboard.writeText(text);
+                        return true;
+                    }
                 } catch (error) {
-                    if (error?.name === 'AbortError') {
-                        return null;
-                    }
-                    console.warn('Web Share failed, falling back to clipboard.', error);
+                    console.warn('Clipboard copy failed, falling back to manual copy.', error);
                 }
-            }
-            return (await copyTextToClipboard(text)) ? 'copied' : null;
-        };
-        const renderPreviewGrid = (progress) => {
-            ui.landing.previewGrid.innerHTML = '';
-            const board = progress?.game?.board;
-            if (!board) {
-                ui.landing.previewWrap.hidden = true;
-                return;
-            }
-            board.forEach((row) => {
-                row.forEach((cell) => {
-                    const previewCell = document.createElement('div');
-                    previewCell.className = 'daily-preview-cell';
-                    const owner = getSnapshotOwner(cell);
-                    if (owner) {
-                        previewCell.classList.add(owner);
+                return this.fallbackCopy(text);
+            },
+            async share(text) {
+                if (!text) return null;
+                if (navigator.share) {
+                    try {
+                        await navigator.share({ text });
+                        return 'shared';
+                    } catch (error) {
+                        if (error?.name === 'AbortError') {
+                            return null;
+                        }
+                        console.warn('Web Share failed, falling back to clipboard.', error);
                     }
-                    ui.landing.previewGrid.appendChild(previewCell);
-                });
-            });
-            ui.landing.previewWrap.hidden = false;
-        };
-        const setLandingCopy = ({ title, subtitle, playLabel, previewCaption = null }) => {
-            if (title === 'てechu') {
-                ui.landing.title.classList.add('wordmark-techu');
-                ui.landing.title.innerHTML = '<span class="wordmark-te">て</span><span class="wordmark-rest">echu</span>';
-            } else {
-                ui.landing.title.classList.remove('wordmark-techu');
-                ui.landing.title.textContent = title;
-            }
-            ui.landing.subtitle.textContent = subtitle;
-            ui.landing.play.textContent = playLabel;
-            if (previewCaption !== null) {
-                ui.landing.previewCaption.textContent = previewCaption;
+                }
+                return (await this.copy(text)) ? 'copied' : null;
             }
         };
-        const renderLanding = () => {
-            clearTimeout(landingShareTimer);
-            app.dailyProgress = loadDailyProgress(app.dailyKey);
-            const progress = app.dailyProgress;
-            const puzzleNumber = getDailyPuzzleNumber(app.dailyKey);
-            const displayDate = formatDailyDate(app.dailyKey);
-            const activePuzzleNumber = progress?.puzzleNumber ?? puzzleNumber;
-            ui.landing.panel.classList.toggle('has-progress', Boolean(progress));
-            ui.landing.panel.classList.toggle('is-complete', progress?.status === 'ended');
-            ui.landing.puzzleDate.textContent = displayDate;
-            ui.landing.puzzleNumber.textContent = `Puzzle No. ${puzzleNumber}`;
-            ui.landing.footerDate.textContent = displayDate;
-            ui.landing.footerPuzzle.textContent = `Puzzle No. ${puzzleNumber}`;
-            ui.landing.footer.hidden = Boolean(progress);
-            ui.landing.share.dataset.baseLabel = 'Share Result';
-            ui.landing.share.textContent = 'Share Result';
-            ui.landing.share.hidden = true;
-            ui.landing.rules.hidden = false;
-            if (!progress) {
-                ui.landing.kicker.textContent = `Daily Puzzle #${puzzleNumber}`;
-                setLandingCopy({
-                    title: 'てechu',
-                    subtitle: 'Cover more spaces than your opponent.',
-                    playLabel: 'Play Daily'
-                });
-                ui.landing.practice.textContent = 'Practice vs Bot';
-                ui.landing.previewWrap.hidden = true;
-                ui.landing.footer.hidden = false;
-                return;
-            }
-            renderPreviewGrid(progress);
-            ui.landing.kicker.textContent = `Daily Puzzle #${activePuzzleNumber}`;
-            const redScore = countSnapshotCells(progress.game.board, 'red');
-            const blackScore = countSnapshotCells(progress.game.board, 'black');
-            if (progress.status === 'ended') {
-                setLandingCopy({
-                    title: 'Daily Complete',
-                    subtitle: getDailyResultLabel(progress),
-                    playLabel: 'View Today’s Board',
-                    previewCaption: `Final score • ${redScore}-${blackScore}`
-                });
-                ui.landing.share.hidden = false;
-                ui.landing.rules.hidden = true;
-                return;
-            }
-            setLandingCopy({
+        const LANDING_COPY = {
+            fresh: {
+                title: 'てechu',
+                subtitle: 'Cover more spaces than your opponent.',
+                playLabel: 'Play Daily'
+            },
+            inProgress: {
                 title: 'Welcome Back',
                 subtitle: 'Resume today’s match from your last move.',
-                playLabel: 'Continue Daily',
-                previewCaption: `Score so far • ${redScore}-${blackScore}`
-            });
+                playLabel: 'Continue Daily'
+            },
+            complete: {
+                title: 'Daily Complete',
+                playLabel: 'View Today’s Board'
+            }
         };
-        const syncGameMenuUI = () => {
-            clearTimeout(menuShareTimer);
-            syncPracticeColorUI();
-            const dailyEnded = app.dailyProgress?.status === 'ended';
-            const inPractice = app.mode === APP_MODES.practice;
-            ui.practiceColorSection.hidden = !inPractice;
-            ui.gameMenuTitle.textContent = inPractice ? 'Practice Options' : 'Daily Options';
-            ui.menuDailyTitle.textContent = inPractice ? 'Go to Daily Home' : 'Return to Daily Home';
-            ui.menuDailyCopy.textContent = inPractice
-                ? 'Leave practice and go back to today’s saved daily puzzle screen.'
-                : 'See today’s saved puzzle, continue it later, or share your result.';
-            ui.menuPracticeTitle.textContent = inPractice ? 'Restart Practice Match' : 'Start Practice Match';
-            ui.menuPracticeCopy.textContent = inPractice
-                ? PRACTICE_COLOR_COPY[TECHU_GAME_OPTIONS.playerColor]
-                : 'Play a fresh random deck against the bot.';
-            ui.buttons.menuShare.hidden = !dailyEnded;
-            const titleEl = ui.buttons.menuShare.querySelector('strong');
-            const bodyEl = ui.buttons.menuShare.querySelector('span');
-            [titleEl.textContent, bodyEl.textContent] = MENU_SHARE_DEFAULT;
+        const landingView = {
+            renderPreview(progress) {
+                ui.landing.previewGrid.innerHTML = '';
+                const board = progress?.game?.board;
+                if (!board) {
+                    ui.landing.previewWrap.hidden = true;
+                    return;
+                }
+                board.forEach((row) => {
+                    row.forEach((cell) => {
+                        const previewCell = document.createElement('div');
+                        previewCell.className = 'daily-preview-cell';
+                        const owner = dailyHistory.owner(cell);
+                        if (owner) {
+                            previewCell.classList.add(owner);
+                        }
+                        ui.landing.previewGrid.appendChild(previewCell);
+                    });
+                });
+                ui.landing.previewWrap.hidden = false;
+            },
+            setCopy({ title, subtitle, playLabel, previewCaption = null }) {
+                if (title === LANDING_COPY.fresh.title) {
+                    ui.landing.title.classList.add('wordmark-techu');
+                    ui.landing.title.innerHTML = '<span class="wordmark-te">て</span><span class="wordmark-rest">echu</span>';
+                } else {
+                    ui.landing.title.classList.remove('wordmark-techu');
+                    ui.landing.title.textContent = title;
+                }
+                ui.landing.subtitle.textContent = subtitle;
+                ui.landing.play.textContent = playLabel;
+                if (previewCaption !== null) {
+                    ui.landing.previewCaption.textContent = previewCaption;
+                }
+            },
+            resetBase(progress, puzzleNumber, displayDate) {
+                ui.landing.panel.classList.toggle('has-progress', Boolean(progress));
+                ui.landing.panel.classList.toggle('is-complete', progress?.status === 'ended');
+                ui.landing.stats.hidden = true;
+                ui.landing.puzzleDate.textContent = displayDate;
+                ui.landing.puzzleNumber.textContent = `Puzzle No. ${puzzleNumber}`;
+                ui.landing.footerDate.textContent = displayDate;
+                ui.landing.footerPuzzle.textContent = `Puzzle No. ${puzzleNumber}`;
+                ui.landing.footer.hidden = Boolean(progress);
+                ui.landing.share.dataset.baseLabel = 'Share Result';
+                ui.landing.share.textContent = 'Share Result';
+                ui.landing.share.hidden = true;
+                ui.landing.rules.hidden = false;
+                ui.landing.practice.textContent = 'Replay or Random Practice';
+            },
+            renderFresh(puzzleNumber) {
+                ui.landing.kicker.textContent = `Daily Puzzle #${puzzleNumber}`;
+                this.setCopy(LANDING_COPY.fresh);
+                ui.landing.previewWrap.hidden = true;
+                ui.landing.previewCaption.hidden = false;
+                ui.landing.footer.hidden = false;
+            },
+            renderInProgress(progress, activePuzzleNumber) {
+                const { red, black } = dailyHistory.scores(progress);
+                this.setCopy({
+                    ...LANDING_COPY.inProgress,
+                    previewCaption: `Score so far • ${red}-${black}`
+                });
+                this.renderPreview(progress);
+                ui.landing.kicker.textContent = `Daily Puzzle #${activePuzzleNumber}`;
+                ui.landing.previewCaption.hidden = false;
+            },
+            renderComplete(progress, activePuzzleNumber) {
+                const { red, black } = dailyHistory.scores(progress);
+                const streakStats = dailyHistory.streakStats(progress.dateKey ?? app.dailyKey);
+                const avgWinMargin = dailyHistory.winMarginAverage();
+                this.setCopy({
+                    ...LANDING_COPY.complete,
+                    subtitle: dailyHistory.outcomeSummary(progress),
+                    previewCaption: ''
+                });
+                this.renderPreview(progress);
+                ui.landing.kicker.textContent = `Daily Puzzle #${activePuzzleNumber}`;
+                ui.landing.stats.hidden = false;
+                ui.landing.statScore.textContent = `${red}-${black}`;
+                ui.landing.statStreak.textContent = String(streakStats.current);
+                ui.landing.statMaxStreak.textContent = String(streakStats.best);
+                ui.landing.statAvgMargin.textContent = avgWinMargin === null ? '—' : `+${avgWinMargin.toFixed(1)}`;
+                ui.landing.previewCaption.hidden = true;
+                ui.landing.share.hidden = false;
+                ui.landing.rules.hidden = true;
+            },
+            render() {
+                clearTimeout(landingShareTimer);
+                app.dailyProgress = dailyStore.load(app.dailyKey);
+                const progress = app.dailyProgress;
+                const puzzleNumber = getDailyPuzzleNumber(app.dailyKey);
+                const displayDate = formatDailyDate(app.dailyKey);
+                const activePuzzleNumber = progress?.puzzleNumber ?? puzzleNumber;
+                this.resetBase(progress, puzzleNumber, displayDate);
+                if (!progress) {
+                    this.renderFresh(puzzleNumber);
+                    return;
+                }
+                if (progress.status === 'ended') {
+                    this.renderComplete(progress, activePuzzleNumber);
+                    return;
+                }
+                this.renderInProgress(progress, activePuzzleNumber);
+            }
+        };
+        const menuView = {
+            sync() {
+                clearTimeout(menuShareTimer);
+                syncPracticeColorUI();
+                const dailyEnded = app.dailyProgress?.status === 'ended';
+                const inPractice = app.mode === APP_MODES.practice;
+                const replayPractice = TECHU_GAME_OPTIONS.practiceVariant === PRACTICE_VARIANTS.replay;
+                ui.practiceColorSection.hidden = !inPractice || replayPractice;
+                ui.gameMenuTitle.textContent = inPractice ? 'Practice Options' : 'Daily Options';
+                ui.menuDailyTitle.textContent = inPractice ? 'Go to Daily Home' : 'Return to Daily Home';
+                ui.menuDailyCopy.textContent = inPractice
+                    ? 'Leave practice and go back to today’s saved daily puzzle screen.'
+                    : 'See today’s saved puzzle, continue it later, or share your result.';
+                ui.menuPracticeTitle.textContent = inPractice ? 'Replay or New Practice' : 'Replay or Random Practice';
+                ui.menuPracticeCopy.textContent = replayPractice
+                    ? 'Replay today’s board again or switch to a fresh random practice match. Practice never affects the daily result.'
+                    : 'Replay today’s board in practice mode or deal a fresh random deck against the bot.';
+                ui.buttons.menuShare.hidden = !dailyEnded;
+                const titleEl = ui.buttons.menuShare.querySelector('strong');
+                const bodyEl = ui.buttons.menuShare.querySelector('span');
+                [titleEl.textContent, bodyEl.textContent] = MENU_SHARE_DEFAULT;
+            }
         };
         const persistDailyProgress = (state) => {
-            const payload = {
-                version: DAILY_STORAGE_VERSION,
-                dateKey: app.dailyKey,
-                puzzleNumber: getDailyPuzzleNumber(app.dailyKey),
-                seed: getDailySeed(app.dailyKey),
-                status: state.gamePhase === 'ended' ? 'ended' : 'in_progress',
-                updatedAt: new Date().toISOString(),
-                game: state
-            };
+            const payload = dailyStore.createPayload(app.dailyKey, state);
             app.dailyProgress = payload;
-            safeLocalStorageSet(getDailyStorageKey(app.dailyKey), JSON.stringify(payload));
-            syncGameMenuUI();
+            dailyStore.save(app.dailyKey, payload);
+            menuView.sync();
         };
         const populateAnalysisExport = () => {
             const text = app.game?.getMatchLogText?.() ?? '';
@@ -4950,21 +5283,16 @@
             ui.analysisExport.select();
             ui.analysisExport.setSelectionRange(0, ui.analysisExport.value.length);
         };
-        const flashAnalysisCopyState = (title, body) => {
-            clearTimeout(analysisCopyTimer);
-            setAnalysisCopyState(title, body);
-            analysisCopyTimer = setTimeout(resetAnalysisCopyState, 1800);
-        };
         const copyAnalysisExport = async () => {
             const text = populateAnalysisExport();
-            const copied = await copyTextToClipboard(text);
+            const copied = await clipboard.copy(text);
             if (copied) {
-                flashAnalysisCopyState('Copied Match Log', 'Paste it into chat and ask me why the Bot lost.');
+                feedback.flashAnalysisCopy('Copied Match Log', 'Paste it into chat and ask me why the Bot lost.');
                 return;
             }
             selectAnalysisExport();
             const manualCopy = document.execCommand?.('copy') ?? false;
-            flashAnalysisCopyState(
+            feedback.flashAnalysisCopy(
                 manualCopy ? 'Copied Match Log' : 'Use Cmd/Ctrl+C',
                 manualCopy
                     ? 'Paste it into chat and ask me why the Bot lost.'
@@ -4974,74 +5302,100 @@
         const shareDailyResult = async () => {
             const progress = app.dailyProgress;
             if (!progress?.game || progress.status !== 'ended') return;
-            const method = await shareText(buildDailyShareText(progress));
+            const method = await clipboard.share(dailyHistory.shareText(progress));
             if (method === 'shared') {
-                flashLandingShareState('Shared Result');
-                flashMenuShareState('Shared Daily Result', 'Your system share sheet sent the finished board.');
+                feedback.flashLandingShare('Shared Result');
+                feedback.flashMenuShare('Shared Daily Result', 'Your system share sheet sent the finished board.');
             } else if (method === 'copied') {
-                flashLandingShareState('Copied Result');
-                flashMenuShareState('Copied Daily Result', 'Paste the finished board anywhere you want.');
+                feedback.flashLandingShare('Copied Result');
+                feedback.flashMenuShare('Copied Daily Result', 'Paste the finished board anywhere you want.');
             }
         };
-        const destroyCurrentGame = () => {
-            clearTimeout(analysisCopyTimer);
-            if (app.game) {
-                app.game.destroy();
-                app.game = null;
+        const shell = {
+            destroyGame() {
+                clearTimeout(analysisCopyTimer);
+                if (app.game) {
+                    app.game.destroy();
+                    app.game = null;
+                }
+                window.exportTechuMatchLog = () => '';
+            },
+            createGame(mode) {
+                if (mode === APP_MODES.daily) {
+                    return new TechuGame(TECHU_SETTINGS, {
+                        mode: APP_MODES.daily,
+                        playerColor: DAILY_PLAYER_COLOR,
+                        seed: getDailySeed(app.dailyKey),
+                        initialState: app.dailyProgress?.game ?? null,
+                        onStateChange: persistDailyProgress,
+                        onGameOver: () => {
+                            setTimeout(() => {
+                                if (app.mode === APP_MODES.daily) {
+                                    shell.enterLanding();
+                                }
+                            }, 900);
+                        }
+                    });
+                }
+                return new TechuGame(TECHU_SETTINGS, {
+                    mode: APP_MODES.practice,
+                    playerColor: TECHU_GAME_OPTIONS.practiceVariant === PRACTICE_VARIANTS.replay
+                        ? DAILY_PLAYER_COLOR
+                        : TECHU_GAME_OPTIONS.playerColor,
+                    seed: TECHU_GAME_OPTIONS.practiceVariant === PRACTICE_VARIANTS.replay
+                        ? getDailySeed(app.dailyKey)
+                        : null
+                });
+            },
+            enterLanding() {
+                closeAllModals();
+                this.destroyGame();
+                setShellMode(APP_MODES.landing);
+                syncCompletedBoardView();
+                landingView.render();
+                feedback.resetAnalysisCopy();
+            },
+            enterGame(mode) {
+                closeAllModals();
+                this.destroyGame();
+                setShellMode(mode);
+                feedback.resetAnalysisCopy();
+                app.game = this.createGame(mode);
+                window.exportTechuMatchLog = () => app.game?.getMatchLogText?.() ?? '';
+                syncCompletedBoardView();
+                menuView.sync();
             }
-            window.exportTechuMatchLog = () => '';
         };
-        const enterLandingView = () => {
-            closeAllModals();
-            destroyCurrentGame();
-            setShellMode(APP_MODES.landing);
-            renderLanding();
-            resetAnalysisCopyState();
-        };
-        const createDailyGame = () => new TechuGame(TECHU_SETTINGS, {
-            mode: APP_MODES.daily,
-            playerColor: DAILY_PLAYER_COLOR,
-            seed: getDailySeed(app.dailyKey),
-            initialState: app.dailyProgress?.game ?? null,
-            onStateChange: persistDailyProgress,
-            onGameOver: () => {
-                setTimeout(() => {
-                    if (app.mode === APP_MODES.daily) {
-                        enterLandingView();
-                    }
-                }, 900);
+        const practiceController = {
+            open() {
+                menuView.sync();
+                setModalOpen(ui.modals.game, false);
+                setModalOpen(ui.modals.practice, true);
+            },
+            start(variant) {
+                TECHU_GAME_OPTIONS.practiceVariant = variant;
+                setModalOpen(ui.modals.practice, false);
+                shell.enterGame(APP_MODES.practice);
             }
-        });
-        const createPracticeGame = () => new TechuGame(TECHU_SETTINGS, {
-            mode: APP_MODES.practice,
-            playerColor: TECHU_GAME_OPTIONS.playerColor,
-            seed: null
-        });
-        const enterGameView = (mode) => {
-            closeAllModals();
-            destroyCurrentGame();
-            setShellMode(mode);
-            resetAnalysisCopyState();
-            app.game = mode === APP_MODES.daily ? createDailyGame() : createPracticeGame();
-            window.exportTechuMatchLog = () => app.game?.getMatchLogText?.() ?? '';
-            syncGameMenuUI();
         };
         syncSettingsUI();
-        syncGameMenuUI();
-        resetAnalysisCopyState();
+        menuView.sync();
+        feedback.resetAnalysisCopy();
         setShellMode(APP_MODES.landing);
-        renderLanding();
+        syncCompletedBoardView();
+        landingView.render();
         window.exportTechuMatchLog = () => '';
         window.addEventListener('resize', syncRotateOverlay);
         window.addEventListener('orientationchange', syncRotateOverlay);
         const modalOpeners = [
-            [ui.buttons.openGame, ui.modals.game, syncGameMenuUI],
+            [ui.buttons.openGame, ui.modals.game, () => menuView.sync()],
             [ui.buttons.openRules, ui.modals.rules],
             [ui.buttons.openSettings, ui.modals.settings, syncSettingsUI],
             [ui.landing.rules, ui.modals.rules]
         ];
         const modalClosers = [
             [ui.buttons.closeGame, ui.modals.game],
+            [ui.buttons.closePracticeMode, ui.modals.practice],
             [ui.buttons.closeRules, ui.modals.rules],
             [ui.buttons.closeSettings, ui.modals.settings],
             [ui.buttons.closeAnalysis, ui.modals.analysis]
@@ -5054,7 +5408,7 @@
         });
         bindClick(ui.buttons.openAnalysis, () => {
             clearTimeout(analysisCopyTimer);
-            resetAnalysisCopyState();
+            feedback.resetAnalysisCopy();
             populateAnalysisExport();
             setModalOpen(ui.modals.game, false);
             setModalOpen(ui.modals.analysis, true);
@@ -5065,22 +5419,32 @@
         ui.colorButtons.forEach((button) => {
             button.addEventListener('click', () => {
                 TECHU_GAME_OPTIONS.playerColor = button.dataset.playerColor;
-                syncGameMenuUI();
+                menuView.sync();
             });
         });
-        bindClick(ui.landing.play, () => enterGameView(APP_MODES.daily));
-        bindClick(ui.landing.practice, () => enterGameView(APP_MODES.practice));
+        bindClick(ui.landing.play, () => shell.enterGame(APP_MODES.daily));
+        bindClick(ui.landing.practice, () => practiceController.open());
         bindClick(ui.landing.share, shareDailyResult);
-        bindClick(ui.buttons.menuDaily, enterLandingView);
-        bindClick(ui.buttons.menuPractice, () => enterGameView(APP_MODES.practice));
+        bindClick(ui.buttons.completedBoardResults, () => shell.enterLanding());
+        bindClick(ui.buttons.menuDaily, () => shell.enterLanding());
+        bindClick(ui.buttons.menuPractice, () => practiceController.open());
         bindClick(ui.buttons.menuShare, shareDailyResult);
         bindClick(ui.buttons.copyAnalysis, copyAnalysisExport);
+        bindClick(ui.buttons.practiceReplay, () => practiceController.start(PRACTICE_VARIANTS.replay));
+        bindClick(ui.buttons.practiceRandom, () => practiceController.start(PRACTICE_VARIANTS.random));
         Object.values(ui.modals).forEach((modal) => {
             modal.addEventListener('click', (e) => {
                 if (e.target === modal) {
                     setModalOpen(modal, false);
                 }
             });
+        });
+        window.addEventListener('keydown', (e) => {
+            if (e.key !== 'Escape') return;
+            const hasOpenModal = Object.values(ui.modals).some((modal) => modal.classList.contains('show'));
+            if (!hasOpenModal) return;
+            e.preventDefault();
+            closeAllModals();
         });
         ui.showAllowedMovesToggle.addEventListener('change', (e) => {
             TECHU_SETTINGS.showAllowedMoves = e.target.checked;
