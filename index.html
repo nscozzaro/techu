@@ -48,6 +48,8 @@
             --card-width: 66px;
             --card-height: 92px;
             --card-radius: 14px;
+            --card-frame-radius: calc(var(--card-radius) - 4px);
+            --card-art-radius: calc(var(--card-radius) - 5px);
             --board-gap: 5px;
             --slot-gap: 6px;
             --playfield-gap: 8px;
@@ -876,7 +878,7 @@
             content: '';
             position: absolute;
             inset: 4px;
-            border-radius: 10px;
+            border-radius: var(--card-frame-radius);
             border: 1px solid rgba(244, 239, 229, 0.3);
             pointer-events: none;
             z-index: 1;
@@ -887,7 +889,7 @@
             content: '';
             position: absolute;
             inset: 6px;
-            border-radius: 9px;
+            border-radius: var(--card-art-radius);
             background-color: var(--card-back-base);
             background-image: var(--card-back-art);
             background-position: center center;
@@ -1016,7 +1018,7 @@
             content: '';
             position: absolute;
             inset: 4px;
-            border-radius: 10px;
+            border-radius: var(--card-frame-radius);
             border: 1px solid rgba(166, 134, 81, 0.14);
             pointer-events: none;
             z-index: 0;
@@ -1625,6 +1627,7 @@
         }
         @media (max-width: 400px), (max-height: 780px) {
             :root {
+                --card-radius: 8px;
                 --card-back-art-size: 116% 116%;
             }
             .header {
@@ -1659,12 +1662,6 @@
             }
             .game-main {
                 padding: 8px 10px calc(10px + env(safe-area-inset-bottom, 0px));
-            }
-            .cell,
-            .discard-pile,
-            .deck,
-            .hand-slot {
-                border-radius: 8px;
             }
             .setting-row {
                 padding: 12px 14px;
@@ -2218,6 +2215,13 @@
                     0
                 );
             },
+            isOfficialSnapshot(snapshot, referenceDateKey = null) {
+                if (snapshot?.status !== 'ended' || !snapshot?.game || !snapshot?.dateKey) return false;
+                const dayValue = getDateKeyUtcValue(snapshot.dateKey);
+                if (!Number.isFinite(dayValue) || dayValue < DAILY_EPOCH_UTC) return false;
+                if (!referenceDateKey) return true;
+                return dayValue <= getDateKeyUtcValue(referenceDateKey);
+            },
             scores(snapshot) {
                 const board = snapshot?.game?.board ?? [];
                 return {
@@ -2225,16 +2229,16 @@
                     black: this.count(board, 'black')
                 };
             },
-            completed() {
-                return dailyStore.list().filter((snapshot) => snapshot?.status === 'ended' && snapshot?.game);
+            completed(referenceDateKey = null) {
+                return dailyStore.list().filter((snapshot) => this.isOfficialSnapshot(snapshot, referenceDateKey));
             },
             didUserWin(snapshot) {
                 if (snapshot?.status !== 'ended' || !snapshot?.game) return false;
                 const scores = this.scores(snapshot);
                 return scores.red > scores.black;
             },
-            winMarginAverage() {
-                const winningMargins = this.completed()
+            winMarginAverage(referenceDateKey = null) {
+                const winningMargins = this.completed(referenceDateKey)
                     .map((snapshot) => this.scores(snapshot))
                     .filter((scores) => scores.red > scores.black)
                     .map((scores) => scores.red - scores.black);
@@ -2243,7 +2247,7 @@
             },
             streakStats(referenceDateKey) {
                 const snapshotsByDay = new Map(
-                    this.completed().map((snapshot) => [getDateKeyUtcValue(snapshot.dateKey), snapshot])
+                    this.completed(referenceDateKey).map((snapshot) => [getDateKeyUtcValue(snapshot.dateKey), snapshot])
                 );
                 let current = 0;
                 for (let dayValue = getDateKeyUtcValue(referenceDateKey); snapshotsByDay.has(dayValue); dayValue -= 86400000) {
@@ -5042,7 +5046,8 @@
             mode: APP_MODES.landing,
             dailyKey: getLocalDateKey(),
             dailyProgress: dailyStore.load(getLocalDateKey()),
-            game: null
+            game: null,
+            showDailyResults: false
         };
         let analysisCopyTimer = null;
         let landingShareTimer = null;
@@ -5243,8 +5248,6 @@
             },
             renderComplete(progress, activePuzzleNumber) {
                 const { red, black } = dailyHistory.scores(progress);
-                const streakStats = dailyHistory.streakStats(progress.dateKey ?? app.dailyKey);
-                const avgWinMargin = dailyHistory.winMarginAverage();
                 this.setCopy({
                     ...LANDING_COPY.complete,
                     subtitle: dailyHistory.outcomeSummary(progress),
@@ -5252,13 +5255,16 @@
                 });
                 this.renderPreview(progress);
                 ui.landing.kicker.textContent = `Daily Puzzle #${activePuzzleNumber}`;
+                ui.landing.previewCaption.hidden = true;
+                ui.landing.share.hidden = false;
+                if (!app.showDailyResults) return;
+                const streakStats = dailyHistory.streakStats(progress.dateKey ?? app.dailyKey);
+                const avgWinMargin = dailyHistory.winMarginAverage(progress.dateKey ?? app.dailyKey);
                 ui.landing.stats.hidden = false;
                 ui.landing.statScore.textContent = `${red}-${black}`;
                 ui.landing.statStreak.textContent = String(streakStats.current);
                 ui.landing.statMaxStreak.textContent = String(streakStats.best);
                 ui.landing.statAvgMargin.textContent = avgWinMargin === null ? '—' : `+${avgWinMargin.toFixed(1)}`;
-                ui.landing.previewCaption.hidden = true;
-                ui.landing.share.hidden = false;
             },
             render() {
                 clearTimeout(landingShareTimer);
@@ -5367,7 +5373,7 @@
                         onGameOver: () => {
                             setTimeout(() => {
                                 if (app.mode === APP_MODES.daily) {
-                                    shell.enterLanding();
+                                    shell.enterLanding({ showResults: true });
                                 }
                             }, 900);
                         }
@@ -5383,9 +5389,10 @@
                         : null
                 });
             },
-            enterLanding() {
+            enterLanding({ showResults = false } = {}) {
                 closeAllModals();
                 this.destroyGame();
+                app.showDailyResults = showResults;
                 setShellMode(APP_MODES.landing);
                 syncCompletedBoardView();
                 landingView.render();
@@ -5394,6 +5401,7 @@
             enterGame(mode) {
                 closeAllModals();
                 this.destroyGame();
+                app.showDailyResults = false;
                 setShellMode(mode);
                 feedback.resetAnalysisCopy();
                 app.game = this.createGame(mode);
@@ -5471,7 +5479,7 @@
         });
         bindClick(ui.landing.practice, () => practiceController.open());
         bindClick(ui.landing.share, shareDailyResult);
-        bindClick(ui.buttons.completedBoardResults, () => shell.enterLanding());
+        bindClick(ui.buttons.completedBoardResults, () => shell.enterLanding({ showResults: true }));
         bindClick(ui.buttons.menuDaily, () => shell.enterLanding());
         bindClick(ui.buttons.menuPractice, () => practiceController.open());
         bindClick(ui.buttons.menuShare, shareDailyResult);
