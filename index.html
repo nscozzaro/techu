@@ -117,7 +117,7 @@
         }
 
         .landing-panel {
-            width: min(100%, 760px);
+            width: min(100%, 840px);
             min-height: calc(100dvh - max(72px, calc(env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px) + 48px)));
             display: grid;
             align-content: center;
@@ -127,7 +127,7 @@
         }
 
         .landing-panel.has-progress {
-            width: min(100%, 760px);
+            width: min(100%, 820px);
             gap: clamp(12px, 1.6vh, 18px);
         }
 
@@ -227,21 +227,23 @@
         }
 
         .landing-subtitle {
-            max-width: 16ch;
+            max-width: 22ch;
             color: #1e1b18;
             font-size: clamp(1.35rem, 4.8vw, 2.35rem);
-            line-height: 1.16;
+            line-height: 1.18;
             font-weight: 500;
+            text-wrap: balance;
         }
 
         .landing-panel.has-progress .landing-title {
-            max-width: 7ch;
+            max-width: 8.5ch;
             font-size: clamp(2.6rem, 6.8vw, 4.6rem);
         }
 
         .landing-panel.has-progress .landing-subtitle {
-            max-width: 10ch;
-            font-size: clamp(1.1rem, 2.9vw, 1.9rem);
+            max-width: 18ch;
+            font-size: clamp(1.2rem, 2.9vw, 1.85rem);
+            line-height: 1.22;
         }
 
         .landing-panel.has-progress .landing-preview-wrap {
@@ -351,6 +353,8 @@
             color: var(--landing-muted);
             font-size: 0.92rem;
             line-height: 1.4;
+            justify-items: center;
+            max-width: 42ch;
         }
 
         .landing-footer strong {
@@ -1509,6 +1513,26 @@
             }
         }
 
+        @media (min-width: 980px) {
+            .landing-panel {
+                gap: 22px;
+            }
+
+            .landing-subtitle {
+                max-width: 24ch;
+                font-size: clamp(1.45rem, 2.8vw, 2.2rem);
+            }
+
+            .landing-panel.has-progress .landing-subtitle {
+                max-width: 20ch;
+                font-size: clamp(1.25rem, 2.1vw, 1.75rem);
+            }
+
+            .landing-panel.has-progress .landing-preview-wrap {
+                width: min(100%, 336px);
+            }
+        }
+
         @media (max-height: 880px) {
             .landing-panel {
                 min-height: auto;
@@ -1579,8 +1603,8 @@
 
                 <div id="landingFooter" class="landing-footer">
                     <strong id="landingFooterDate">March 23, 2026</strong>
-                    <span id="landingFooterPuzzle">Shared seed No. 1</span>
-                    <span>Daily puzzles use one worldwide UTC seed. Practice stays random.</span>
+                    <span id="landingFooterPuzzle">Daily deal No. 1</span>
+                    <span>One worldwide daily deal. Practice mode is always random.</span>
                 </div>
             </div>
         </section>
@@ -1931,9 +1955,9 @@
                 red: countSnapshotCells(snapshot.game.board, 'red'),
                 black: countSnapshotCells(snapshot.game.board, 'black')
             };
-            if (scores.red > scores.black) return `You won ${scores.red}-${scores.black}`;
-            if (scores.black > scores.red) return `Bot won ${scores.black}-${scores.red}`;
-            return `Tie game ${scores.red}-${scores.black}`;
+            if (scores.red > scores.black) return `You win ${scores.red}-${scores.black}`;
+            if (scores.black > scores.red) return `Bot wins ${scores.black}-${scores.red}`;
+            return `Draw ${scores.red}-${scores.black}`;
         };
         const buildShareGrid = (board) => board.map((row) => row.map((cell) => {
             const owner = getSnapshotOwner(cell);
@@ -5176,7 +5200,7 @@
             ui.landing.puzzleDate.textContent = displayDate;
             ui.landing.puzzleNumber.textContent = `Puzzle No. ${puzzleNumber}`;
             ui.landing.footerDate.textContent = displayDate;
-            ui.landing.footerPuzzle.textContent = `Shared seed No. ${puzzleNumber}`;
+            ui.landing.footerPuzzle.textContent = `Daily deal No. ${puzzleNumber}`;
             ui.landing.footer.hidden = Boolean(progress);
             ui.landing.share.dataset.baseLabel = 'Share Result';
             ui.landing.share.textContent = 'Share Result';
@@ -5187,7 +5211,7 @@
                 ui.landing.kicker.textContent = `Daily Puzzle #${puzzleNumber}`;
                 setLandingCopy({
                     title: 'Techu',
-                    subtitle: 'Claim more spaces than the bot with one shared deck.',
+                    subtitle: 'Use the shared daily deal to finish with more spaces than the bot.',
                     playLabel: 'Play Daily'
                 });
                 ui.landing.practice.textContent = 'Practice vs Bot';
@@ -5206,7 +5230,7 @@
                     title: 'Daily Complete',
                     subtitle: getDailyResultLabel(progress),
                     playLabel: 'View Today’s Board',
-                    previewCaption: `Final board • ${redScore}-${blackScore}`
+                    previewCaption: `Final score • ${redScore}-${blackScore}`
                 });
                 ui.landing.share.hidden = false;
                 ui.landing.rules.hidden = true;
@@ -5215,9 +5239,9 @@
 
             setLandingCopy({
                 title: 'Welcome Back',
-                subtitle: 'Your duel is saved exactly where you left it.',
+                subtitle: 'Resume today’s match from your last move.',
                 playLabel: 'Continue Daily',
-                previewCaption: `Current board • ${redScore}-${blackScore}`
+                previewCaption: `Score so far • ${redScore}-${blackScore}`
             });
         };
 
