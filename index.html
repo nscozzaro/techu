@@ -160,28 +160,6 @@
             box-shadow: inset 0 0 0 1px rgba(17, 17, 17, 0.05);
         }
 
-        .landing-mark-cell.covered-card {
-            position: relative;
-            background: linear-gradient(180deg, #3d5978, #29445f);
-        }
-
-        .landing-mark-cell.covered-card::before {
-            content: '';
-            position: absolute;
-            inset: 2px;
-            border-radius: 2px;
-            border: 1px solid rgba(255, 255, 255, 0.36);
-        }
-
-        .landing-mark-cell.covered-card::after {
-            content: '';
-            position: absolute;
-            inset: 4px 3px;
-            border-top: 1px solid rgba(255, 255, 255, 0.46);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.46);
-            opacity: 0.85;
-        }
-
         .landing-mark-cell.face-card.player-red {
             background: #e85743;
             box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
@@ -1580,9 +1558,9 @@
             <div id="landingPanel" class="landing-panel">
                 <div class="landing-mark" aria-hidden="true">
                     <span class="landing-mark-cell"></span>
-                    <span class="landing-mark-cell covered-card"></span>
+                    <span class="landing-mark-cell face-card player-black"><span class="landing-mark-suit">♣</span></span>
+                    <span class="landing-mark-cell"></span>
                     <span class="landing-mark-cell face-card player-black"><span class="landing-mark-suit">♠</span></span>
-                    <span class="landing-mark-cell covered-card"></span>
                     <span class="landing-mark-cell"></span>
                     <span class="landing-mark-cell"></span>
                     <span class="landing-mark-cell"></span>
@@ -1600,9 +1578,9 @@
                     <span class="landing-mark-cell"></span>
                     <span class="landing-mark-cell"></span>
                     <span class="landing-mark-cell"></span>
-                    <span class="landing-mark-cell covered-card"></span>
                     <span class="landing-mark-cell face-card player-red"><span class="landing-mark-suit">♥</span></span>
-                    <span class="landing-mark-cell covered-card"></span>
+                    <span class="landing-mark-cell"></span>
+                    <span class="landing-mark-cell face-card player-red"><span class="landing-mark-suit">♦</span></span>
                     <span class="landing-mark-cell"></span>
                 </div>
 
