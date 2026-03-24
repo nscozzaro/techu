@@ -556,6 +556,9 @@
             gap: 8px;
         }
         .scores {
+            display: flex;
+            align-items: center;
+            gap: 0.5em;
             font-family: var(--ui-display);
             color: var(--text);
             font-size: clamp(0.95rem, 0.9rem + 0.2vw, 1.08rem);
@@ -568,6 +571,11 @@
             display: inline-flex;
             align-items: center;
             gap: 0.38em;
+        }
+        .scores > span:first-child::after {
+            content: '|';
+            color: rgba(221, 213, 200, 0.7);
+            margin-left: 0.28em;
         }
         .score-red,
         .score-black {
@@ -1598,14 +1606,22 @@
                 grid-template-columns: auto minmax(0, 1fr) auto;
             }
             .scores {
+                display: grid;
+                gap: 2px;
                 font-size: 0.84em;
+                line-height: 1.05;
+                white-space: normal;
+            }
+            .scores > span:first-child::after {
+                display: none;
             }
             .header-status {
-                height: 40px;
-                max-height: 40px;
-                padding: 5px 8px;
-                font-size: 0.68em;
-                line-height: 1.1;
+                height: 48px;
+                max-height: 48px;
+                padding: 4px 5px;
+                font-size: 0.64em;
+                line-height: 1.08;
+                letter-spacing: 0.02em;
             }
             .icon-btn {
                 width: 40px;
@@ -1766,10 +1782,10 @@
                 <p class="rotate-copy">Techu is tuned for landscape play so the header, board, hands, and decks all stay visible at once.</p>
             </div>
         </div>
-        <div class="game-container">
+            <div class="game-container">
             <div class="header">
                 <div class="scores">
-                    <span id="botScoreWrap" class="score-black">Bot: <span id="blackScore">0</span></span> |
+                    <span id="botScoreWrap" class="score-black">Bot: <span id="blackScore">0</span></span>
                     <span id="userScoreWrap" class="score-red">You: <span id="redScore">0</span></span>
                 </div>
                 <div class="header-status neutral" id="statusBar">Setting up...</div>
@@ -2506,7 +2522,7 @@
             getSetupInstructionText() {
                 return this.setupWidePlacement
                     ? 'Drag a card anywhere on your home row'
-                    : 'Drag a card to the center of your row';
+                    : 'Drag to the center of your row';
             }
             getPreferredSetupColumns() {
                 return this.setupWidePlacement ? [2, 1, 3, 0, 4] : [2];
@@ -4428,7 +4444,7 @@
                     return {
                         text: this.canDiscard(this.userPlayer)
                             ? 'Your turn: play or discard'
-                            : 'Your turn: opening move goes on the board',
+                            : 'Your turn: first move goes on the board',
                         tone: 'player-turn'
                     };
                 }
