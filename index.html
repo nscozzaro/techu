@@ -1908,6 +1908,7 @@
             const utcValue = Date.UTC(year, month - 1, day);
             return Math.max(1, Math.floor((utcValue - DAILY_EPOCH_UTC) / 86400000) + 1);
         };
+        const TOUCH_DRAG_THRESHOLD = 10;
         const formatDailyDate = (dateKey) => {
             const [year, month, day] = dateKey.split('-').map(Number);
             return new Intl.DateTimeFormat(undefined, {
@@ -2022,6 +2023,7 @@
                 this.dragPointerOffset = null;
                 this.lastDragPoint = null;
                 this.pointerDragId = null;
+                this.pendingPointerDrag = null;
                 this.pointerDragGhost = null;
                 this.pointerGhostMetrics = null;
                 this.pointerDragFrame = null;
@@ -2646,6 +2648,7 @@
                 this.dragPointerOffset = null;
                 this.lastDragPoint = null;
                 this.pointerDragId = null;
+                this.pendingPointerDrag = null;
                 this.dropResolved = false;
                 this.pendingReturnAnimation = false;
                 this.clearTimer('returnAnimationTimer');
@@ -4709,30 +4712,55 @@
 
                 const sourceEl = e.currentTarget;
                 const rect = sourceEl.getBoundingClientRect();
+                this.activeDragElement = sourceEl;
+                this.pointerDragId = e.pointerId;
+                this.pendingPointerDrag = {
+                    card,
+                    slotIndex,
+                    fromBoard,
+                    sourceEl,
+                    startX: e.clientX,
+                    startY: e.clientY,
+                    offsetX: e.clientX - rect.left,
+                    offsetY: e.clientY - rect.top,
+                    onActivate: null
+                };
+                this.draggedCard = null;
+                this.draggedSlot = null;
+                this.draggedFromBoard = null;
+                this.dragPointerOffset = null;
+                this.lastDragPoint = { x: e.clientX, y: e.clientY };
+                this.dropResolved = false;
+                this.pendingReturnAnimation = false;
+                e.preventDefault();
+                sourceEl.setPointerCapture?.(e.pointerId);
+            }
+
+            activatePointerDrag(clientX, clientY) {
+                const pending = this.pendingPointerDrag;
+                if (!pending || this.draggedCard) return;
+
+                const { card, slotIndex, fromBoard, sourceEl, offsetX, offsetY, onActivate } = pending;
                 this.draggedCard = card;
                 this.draggedSlot = slotIndex;
                 this.draggedFromBoard = fromBoard;
                 this.activeDragElement = sourceEl;
-                this.dragPointerOffset = {
-                    x: e.clientX - rect.left,
-                    y: e.clientY - rect.top
-                };
-                this.lastDragPoint = { x: e.clientX, y: e.clientY };
-                this.pointerDragId = e.pointerId;
+                this.dragPointerOffset = { x: offsetX, y: offsetY };
+                this.lastDragPoint = { x: clientX, y: clientY };
                 this.dropResolved = false;
                 this.pendingReturnAnimation = false;
-                e.preventDefault();
                 sourceEl.classList.add('dragging');
 
                 if (!fromBoard) {
                     sourceEl.closest('.hand-slot')?.classList.add('drag-source');
                 }
 
-                sourceEl.setPointerCapture?.(e.pointerId);
                 this.createPointerGhost(sourceEl);
-                this.positionPointerGhost(e.clientX, e.clientY);
+                this.positionPointerGhost(clientX, clientY);
                 this.refreshAllowedMoveHighlights();
-                this.schedulePointerDragFrame(e.clientX, e.clientY);
+                onActivate?.();
+                this.pendingPointerDrag = null;
+                this.schedulePointerDragFrame(clientX, clientY);
             }
 
             endDrag(e) {
@@ -4757,9 +4785,18 @@
             }
 
             handlePointerMove(e) {
-                if (e.pointerId !== this.pointerDragId || !this.draggedCard) return;
+                if (e.pointerId !== this.pointerDragId) return;
 
                 this.lastDragPoint = { x: e.clientX, y: e.clientY };
+                if (!this.draggedCard) {
+                    const pending = this.pendingPointerDrag;
+                    if (!pending) return;
+                    const dx = e.clientX - pending.startX;
+                    const dy = e.clientY - pending.startY;
+                    if (Math.hypot(dx, dy) < TOUCH_DRAG_THRESHOLD) return;
+                    this.activatePointerDrag(e.clientX, e.clientY);
+                }
+                if (!this.draggedCard) return;
                 this.schedulePointerDragFrame(e.clientX, e.clientY);
                 e.preventDefault();
             }
@@ -4768,10 +4805,15 @@
                 if (e.pointerId !== this.pointerDragId) return;
 
                 this.activeDragElement?.releasePointerCapture?.(e.pointerId);
+                if (!this.draggedCard) {
+                    this.finishDragCleanup();
+                    return;
+                }
+
                 this.pointerDragId = null;
                 this.clearDropFeedback();
 
-                if (!this.draggedCard || this.pendingReturnAnimation) {
+                if (this.pendingReturnAnimation) {
                     this.finishDragCleanup();
                     return;
                 }
@@ -4824,7 +4866,7 @@
                     card: cellData.card,
                     slotIndex: cellData.fromSlot,
                     fromBoard: { row, col }
-                });
+                }, cellData, cellEl);
                 requestAnimationFrame(() => {
                     if (this.draggedFromBoard?.row === row && this.draggedFromBoard?.col === col) {
                         this.showLiftedBoardSource(cellEl, cellData);
@@ -4841,7 +4883,14 @@
             }
 
             handleBoardCardPointerStart(e, row, col) {
-                this.startBoardCardDrag(row, col, e.currentTarget, (dragState) => this.beginPointerDrag(e, dragState));
+                this.startBoardCardDrag(row, col, e.currentTarget, (dragState, cellData, cellEl) => {
+                    this.beginPointerDrag(e, dragState);
+                    this.pendingPointerDrag.onActivate = () => {
+                        if (this.draggedFromBoard?.row === row && this.draggedFromBoard?.col === col) {
+                            this.showLiftedBoardSource(cellEl, cellData);
+                        }
+                    };
+                });
             }
 
             handleDragOver(e, row, col) {
