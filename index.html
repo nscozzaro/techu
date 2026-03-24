@@ -2843,6 +2843,47 @@
                 return true;
             }
 
+            resolveDraggedCellDrop(row, col) {
+                if (this.draggedFromBoard) {
+                    const sameCell = row === this.draggedFromBoard.row && col === this.draggedFromBoard.col;
+                    if (!sameCell && !this.movePendingBoardCard(row, col)) {
+                        return false;
+                    }
+                    this.dropResolved = true;
+                    return true;
+                }
+
+                if (!this.isValidMove(row, col, this.draggedCard, this.currentPlayer)) {
+                    return false;
+                }
+
+                this.dropResolved = true;
+                this.placeCard(row, col, this.draggedCard, this.currentPlayer);
+                return true;
+            }
+
+            returnPendingCardToHand() {
+                if (!this.draggedFromBoard) return false;
+
+                const { row, col } = this.draggedFromBoard;
+                const cellData = this.board[row][col];
+                if (!cellData || cellData.fromSlot === null) {
+                    return false;
+                }
+
+                this.dropResolved = true;
+                this.getPlayerState(this.userPlayer).hand[cellData.fromSlot] = cellData.card;
+                this.board[row][col] = cellData.coveredCell ?? null;
+                this.logGameEvent('return-pending', {
+                    player: this.userPlayer,
+                    card: this.cardToCode(cellData.card),
+                    from: { row, col },
+                    toSlot: cellData.fromSlot
+                });
+                this.updateUI();
+                return true;
+            }
+
             refreshAllowedMoveHighlights() {
                 this.clearAllowedMoveHighlights();
 
@@ -4712,41 +4753,14 @@
                 }
 
                 if (target?.type === 'hand' && this.draggedFromBoard) {
-                    const { row, col } = this.draggedFromBoard;
-                    const cellData = this.board[row][col];
-                    if (cellData && cellData.fromSlot !== null) {
-                        this.dropResolved = true;
-                        this.getPlayerState(this.userPlayer).hand[cellData.fromSlot] = cellData.card;
-                        this.board[row][col] = cellData.coveredCell ?? null;
-                        this.logGameEvent('return-pending', {
-                            player: this.userPlayer,
-                            card: this.cardToCode(cellData.card),
-                            from: { row, col },
-                            toSlot: cellData.fromSlot
-                        });
-                        this.updateUI();
+                    if (this.returnPendingCardToHand()) {
                         this.finishDragCleanup();
                         return;
                     }
                 }
 
                 if (target?.type === 'cell') {
-                    if (this.draggedFromBoard) {
-                        const sameCell = target.row === this.draggedFromBoard.row && target.col === this.draggedFromBoard.col;
-                        if (!sameCell && !this.movePendingBoardCard(target.row, target.col)) {
-                            this.removePointerGhost();
-                            this.animateCardReturn(e.clientX, e.clientY, 'Must connect to home row');
-                            return;
-                        }
-
-                        this.dropResolved = true;
-                        this.finishDragCleanup();
-                        return;
-                    }
-
-                    if (this.isValidMove(target.row, target.col, this.draggedCard, this.currentPlayer)) {
-                        this.dropResolved = true;
-                        this.placeCard(target.row, target.col, this.draggedCard, this.currentPlayer);
+                    if (this.resolveDraggedCellDrop(target.row, target.col)) {
                         this.finishDragCleanup();
                         return;
                     }
@@ -4760,10 +4774,10 @@
                 this.animateCardReturn(e.clientX, e.clientY);
             }
 
-            handleBoardCardDragStart(e, row, col) {
+            startBoardCardDrag(row, col, sourceEl, startDrag) {
                 const cellData = this.board[row][col];
-                const cellEl = e.target.closest('.cell');
-                this.beginDrag(e, {
+                const cellEl = sourceEl.closest('.cell');
+                startDrag({
                     card: cellData.card,
                     slotIndex: cellData.fromSlot,
                     fromBoard: { row, col }
@@ -4773,6 +4787,10 @@
                         this.showLiftedBoardSource(cellEl, cellData);
                     }
                 });
+            }
+
+            handleBoardCardDragStart(e, row, col) {
+                this.startBoardCardDrag(row, col, e.target, (dragState) => this.beginDrag(e, dragState));
             }
 
             handleBoardCardDragEnd(e) {
@@ -4780,18 +4798,7 @@
             }
 
             handleBoardCardPointerStart(e, row, col) {
-                const cellData = this.board[row][col];
-                const cellEl = e.currentTarget.closest('.cell');
-                this.beginPointerDrag(e, {
-                    card: cellData.card,
-                    slotIndex: cellData.fromSlot,
-                    fromBoard: { row, col }
-                });
-                requestAnimationFrame(() => {
-                    if (this.draggedFromBoard?.row === row && this.draggedFromBoard?.col === col) {
-                        this.showLiftedBoardSource(cellEl, cellData);
-                    }
-                });
+                this.startBoardCardDrag(row, col, e.currentTarget, (dragState) => this.beginPointerDrag(e, dragState));
             }
 
             handleDragOver(e, row, col) {
@@ -4825,21 +4832,7 @@
 
                 if (!this.draggedCard) return;
 
-                if (this.draggedFromBoard) {
-                    const sameCell = row === this.draggedFromBoard.row && col === this.draggedFromBoard.col;
-                    if (!sameCell && !this.movePendingBoardCard(row, col)) {
-                        this.animateCardReturn(e.clientX, e.clientY, 'Must connect to home row');
-                        return;
-                    }
-                    this.dropResolved = true;
-                    this.finishDragCleanup();
-                    return;
-                }
-
-                if (this.isValidMove(row, col, this.draggedCard, this.currentPlayer)) {
-                    this.dropResolved = true;
-                    this.placeCard(row, col, this.draggedCard, this.currentPlayer);
-                } else {
+                if (!this.resolveDraggedCellDrop(row, col)) {
                     this.animateCardReturn(e.clientX, e.clientY, 'Must connect to home row');
                     return;
                 }
@@ -4860,24 +4853,8 @@
             handleHandDrop(e) {
                 e.preventDefault();
                 e.currentTarget.style.background = '';
-                
-                if (!this.draggedCard || !this.draggedFromBoard) return;
 
-                const { row, col } = this.draggedFromBoard;
-                const cellData = this.board[row][col];
-                
-                if (cellData && cellData.fromSlot !== null) {
-                    this.dropResolved = true;
-                    this.getPlayerState(this.userPlayer).hand[cellData.fromSlot] = cellData.card;
-                    this.board[row][col] = cellData.coveredCell ?? null;
-                    this.logGameEvent('return-pending', {
-                        player: this.userPlayer,
-                        card: this.cardToCode(cellData.card),
-                        from: { row, col },
-                        toSlot: cellData.fromSlot
-                    });
-                    this.updateUI();
-                }
+                if (!this.draggedCard || !this.returnPendingCardToHand()) return;
 
                 this.finishDragCleanup();
             }
@@ -5158,12 +5135,22 @@
             ui.landing.previewWrap.hidden = false;
         };
 
+        const setLandingCopy = ({ title, subtitle, playLabel, previewCaption = null }) => {
+            ui.landing.title.textContent = title;
+            ui.landing.subtitle.textContent = subtitle;
+            ui.landing.play.textContent = playLabel;
+            if (previewCaption !== null) {
+                ui.landing.previewCaption.textContent = previewCaption;
+            }
+        };
+
         const renderLanding = () => {
             clearTimeout(landingShareTimer);
             app.dailyProgress = loadDailyProgress(app.dailyKey);
             const progress = app.dailyProgress;
             const puzzleNumber = getDailyPuzzleNumber(app.dailyKey);
             const displayDate = formatDailyDate(app.dailyKey);
+            const activePuzzleNumber = progress?.puzzleNumber ?? puzzleNumber;
             ui.landing.panel.classList.toggle('has-progress', Boolean(progress));
             ui.landing.panel.classList.toggle('is-complete', progress?.status === 'ended');
             ui.landing.puzzleDate.textContent = displayDate;
@@ -5178,9 +5165,11 @@
 
             if (!progress) {
                 ui.landing.kicker.textContent = `Daily Puzzle #${puzzleNumber}`;
-                ui.landing.title.textContent = 'Techu';
-                ui.landing.subtitle.textContent = 'Claim more spaces than the bot with one shared deck.';
-                ui.landing.play.textContent = 'Play Daily';
+                setLandingCopy({
+                    title: 'Techu',
+                    subtitle: 'Claim more spaces than the bot with one shared deck.',
+                    playLabel: 'Play Daily'
+                });
                 ui.landing.practice.textContent = 'Practice vs Bot';
                 ui.landing.previewWrap.hidden = true;
                 ui.landing.footer.hidden = false;
@@ -5188,25 +5177,28 @@
             }
 
             renderPreviewGrid(progress);
+            ui.landing.kicker.textContent = `Daily Puzzle #${activePuzzleNumber}`;
             const redScore = countSnapshotCells(progress.game.board, 'red');
             const blackScore = countSnapshotCells(progress.game.board, 'black');
 
             if (progress.status === 'ended') {
-                ui.landing.kicker.textContent = `Daily Puzzle #${progress.puzzleNumber ?? puzzleNumber}`;
-                ui.landing.title.textContent = 'Daily Complete';
-                ui.landing.subtitle.textContent = getDailyResultLabel(progress);
-                ui.landing.previewCaption.textContent = `Final board • ${redScore}-${blackScore}`;
-                ui.landing.play.textContent = 'View Today’s Board';
+                setLandingCopy({
+                    title: 'Daily Complete',
+                    subtitle: getDailyResultLabel(progress),
+                    playLabel: 'View Today’s Board',
+                    previewCaption: `Final board • ${redScore}-${blackScore}`
+                });
                 ui.landing.share.hidden = false;
                 ui.landing.rules.hidden = true;
                 return;
             }
 
-            ui.landing.kicker.textContent = `Daily Puzzle #${progress.puzzleNumber ?? puzzleNumber}`;
-            ui.landing.title.textContent = 'Welcome Back';
-            ui.landing.subtitle.textContent = 'Your duel is saved exactly where you left it.';
-            ui.landing.previewCaption.textContent = `Current board • ${redScore}-${blackScore}`;
-            ui.landing.play.textContent = 'Continue Daily';
+            setLandingCopy({
+                title: 'Welcome Back',
+                subtitle: 'Your duel is saved exactly where you left it.',
+                playLabel: 'Continue Daily',
+                previewCaption: `Current board • ${redScore}-${blackScore}`
+            });
         };
 
         const syncGameMenuUI = () => {
