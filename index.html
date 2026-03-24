@@ -261,6 +261,9 @@
             gap: 12px 18px;
             align-items: start;
         }
+        .landing-stats[hidden] {
+            display: none;
+        }
         .landing-stat {
             position: relative;
             display: grid;
@@ -1763,19 +1766,19 @@
                 <p class="landing-subtitle" id="landingSubtitle">Cover more spaces than your opponent.</p>
                 <div id="landingStats" class="landing-stats" hidden>
                     <div class="landing-stat">
-                        <span id="landingStatScore" class="landing-stat-value">12-11</span>
+                        <span id="landingStatScore" class="landing-stat-value">—</span>
                         <span class="landing-stat-label">Final Score</span>
                     </div>
                     <div class="landing-stat">
-                        <span id="landingStatStreak" class="landing-stat-value">1</span>
+                        <span id="landingStatStreak" class="landing-stat-value">0</span>
                         <span class="landing-stat-label">Current Streak</span>
                     </div>
                     <div class="landing-stat">
-                        <span id="landingStatMaxStreak" class="landing-stat-value">3</span>
+                        <span id="landingStatMaxStreak" class="landing-stat-value">0</span>
                         <span class="landing-stat-label">Max Streak</span>
                     </div>
                     <div class="landing-stat">
-                        <span id="landingStatAvgMargin" class="landing-stat-value">+1.0</span>
+                        <span id="landingStatAvgMargin" class="landing-stat-value">—</span>
                         <span class="landing-stat-label">Avg Win Margin</span>
                     </div>
                 </div>
