@@ -1547,34 +1547,30 @@
             font-size: 1.35em;
             letter-spacing: 0.04em;
         }
-        .rules {
+        .how-to-play {
             text-align: left;
-            margin: 12px 0;
-            font-size: 0.85em;
-            line-height: 1.5;
-            color: var(--muted);
-        }
-        .rules h3 {
-            color: #f1ddc6;
-            margin-top: 8px;
-            font-size: 1em;
-        }
-        .rules strong {
+            margin: 10px 0 0;
             color: var(--text);
         }
-        .rules p {
-            margin: 6px 0;
+        .how-to-play-lead {
+            margin: 0 0 16px;
+            color: #f1ddc6;
+            font-size: 1.02rem;
+            line-height: 1.45;
         }
-        .rules ul {
-            margin: 6px 0 10px 18px;
-            padding: 0;
+        .how-to-play-list {
+            margin: 0;
+            padding-left: 22px;
+            color: var(--muted);
+            font-size: 0.98rem;
+            line-height: 1.55;
         }
-        .rules li + li {
-            margin-top: 6px;
+        .how-to-play-list li + li {
+            margin-top: 10px;
         }
-        .rules-note {
-            padding-top: 6px;
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        .how-to-play-list strong {
+            color: var(--text);
+            font-weight: 600;
         }
         .returning-card {
             position: fixed;
@@ -1791,9 +1787,9 @@
                     <div id="landingPreviewCaption" class="daily-preview-caption">Your saved board so far.</div>
                 </div>
                 <div class="landing-actions">
-                    <button id="landingPlayBtn" class="landing-btn primary" type="button">Play Daily</button>
+                    <button id="landingPlayBtn" class="landing-btn primary" type="button">Play</button>
                     <button id="landingPracticeBtn" class="landing-btn secondary" type="button">Replay or Random Practice</button>
-                    <button id="landingRulesBtn" class="landing-btn tertiary" type="button">Rules</button>
+                    <button id="landingRulesBtn" class="landing-btn tertiary" type="button">How to Play</button>
                     <button id="landingShareBtn" class="landing-btn ghost" type="button" hidden>Share Result</button>
                 </div>
                 <div id="landingFooter" class="landing-footer">
@@ -1819,7 +1815,7 @@
                 <div class="header-status neutral" id="statusBar">Setting up...</div>
                 <div class="header-actions">
                     <button id="gameMenuBtn" class="icon-btn" type="button" aria-label="Open game options">+</button>
-                    <button id="rulesBtn" class="icon-btn" type="button" aria-label="Open rules">?</button>
+                    <button id="rulesBtn" class="icon-btn" type="button" aria-label="Open how to play">?</button>
                     <button id="settingsBtn" class="icon-btn" type="button" aria-label="Open settings">⚙</button>
                 </div>
             </div>
@@ -1901,9 +1897,9 @@
     </div>
     <div id="rulesModal" class="modal">
         <div class="modal-content">
-            <button id="closeRulesBtn" class="modal-close" type="button" aria-label="Close rules">×</button>
+            <button id="closeRulesBtn" class="modal-close" type="button" aria-label="Close how to play">×</button>
             <h2>How to Play</h2>
-            <div id="rulesContent" class="rules"></div>
+            <div id="rulesContent" class="how-to-play"></div>
         </div>
     </div>
     <div id="settingsModal" class="modal">
@@ -1950,6 +1946,7 @@
         const APP_MODES = { landing: 'landing', daily: 'daily', practice: 'practice' };
         const DAILY_STORAGE_VERSION = 1;
         const DAILY_STORAGE_PREFIX = 'techu-daily:';
+        const HOW_TO_PLAY_STORAGE_KEY = 'techu-how-to-play-seen';
         const DAILY_PLAYER_COLOR = 'red';
         const DAILY_EPOCH_UTC = Date.UTC(2026, 2, 23);
         const SHARE_EMOJI = { red: '🟩', black: '⬛', empty: '⬜' };
@@ -1965,33 +1962,6 @@
             ['red', '♥', 'Red'],
             ['random', '?', 'Random'],
             ['black', '♠', 'Black']
-        ];
-        const RULE_SECTIONS = [
-            ['Core Rules', [
-                'Higher cards outrank lower cards. Aces are highest.',
-                'Every card you play must connect back to your own home row.',
-                'Connections count only vertically and horizontally, never diagonally.',
-                'You may cover your own card or the bot\'s card only if your rank is higher.',
-                'Same-rank cards cannot be played on each other.'
-            ]],
-            ['Start', [
-                'Your home row depends on your color: red uses the bottom row and black uses the top row.',
-                'Each side starts with 3 cards in hand.',
-                'Both sides place a card on the center space of their home row.',
-                'The lower revealed card takes the first turn.',
-                'If the opening cards tie, both players draw again and repeat the opening play.'
-            ]],
-            ['On Your Turn', [
-                'Draw back up to 3 cards.',
-                'The first move of play must go on the board. After that, you may play 1 legal card or discard 1 card.',
-                'A face-down card can be repositioned before it is revealed.',
-                'Once a placed card is revealed, that play is locked in.'
-            ]],
-            ['Controls', [
-                'Drag a card from your hand to a legal space, or to Discard.',
-                'Tap or click your face-down card on the board to reveal it.',
-                'Use `+` for game options, `?` for rules, and `⚙` for settings.'
-            ]]
         ];
         const MENU_SHARE_DEFAULT = ['Share Daily Result', 'Copy a Wordle-style summary of today’s finished board.'];
         const ANALYSIS_COPY_DEFAULT = ['Copy Match Log', 'Copies the full transcript so you can paste it directly into this chat.'];
@@ -2090,12 +2060,12 @@
             </button>
         `).join('');
         const renderRulesContent = () => `
-            <p><strong>Goal:</strong> Finish with more spaces than your opponent when both players run out of cards.</p>
-            ${RULE_SECTIONS.map(([title, items]) => `
-                <h3>${title}</h3>
-                <ul>${items.map((item) => `<li>${item}</li>`).join('')}</ul>
-            `).join('')}
-            <p class="rules-note"><strong>Techu:</strong> A Techu is a winning finish with a 3 on an opponent's 2, or a 2 on an empty space.</p>
+            <p class="how-to-play-lead">Claim more spaces than your opponent on the 5×5 board.</p>
+            <ul class="how-to-play-list">
+                <li><strong>Higher covers lower.</strong> Aces are highest, and equal ranks do not cover each other.</li>
+                <li><strong>Stay connected to home.</strong> Every card you place must connect back to your home row through vertical or horizontal spaces, not diagonally.</li>
+                <li><strong>One move per turn.</strong> Choose 1 card from your 3-card hand to place or discard. Played cards stay face down until you tap to reveal them.</li>
+            </ul>
         `;
         const mountStaticMarkup = () => {
             byId('landingMark').innerHTML = renderLandingMark();
@@ -2174,6 +2144,14 @@
                 } catch (error) {
                     console.warn(warning, error);
                 }
+            }
+        };
+        const onboarding = {
+            hasSeenHowToPlay() {
+                return storage.get(HOW_TO_PLAY_STORAGE_KEY) === '1';
+            },
+            markHowToPlaySeen() {
+                storage.set(HOW_TO_PLAY_STORAGE_KEY, '1', 'Unable to persist Techu onboarding state.');
             }
         };
         const dailyStore = {
@@ -5180,7 +5158,7 @@
             fresh: {
                 title: 'てechu',
                 subtitle: 'Cover more spaces than your opponent.',
-                playLabel: 'Play Daily'
+                playLabel: 'Play'
             },
             inProgress: {
                 title: 'Welcome Back',
@@ -5277,7 +5255,6 @@
                 ui.landing.statAvgMargin.textContent = avgWinMargin === null ? '—' : `+${avgWinMargin.toFixed(1)}`;
                 ui.landing.previewCaption.hidden = true;
                 ui.landing.share.hidden = false;
-                ui.landing.rules.hidden = true;
             },
             render() {
                 clearTimeout(landingShareTimer);
@@ -5433,6 +5410,13 @@
                 shell.enterGame(APP_MODES.practice);
             }
         };
+        const openHowToPlay = () => setModalOpen(ui.modals.rules, true);
+        const maybeShowFirstPlayHowToPlay = () => {
+            const shouldShow = !onboarding.hasSeenHowToPlay() && app.dailyProgress?.status !== 'ended';
+            if (!shouldShow) return;
+            onboarding.markHowToPlaySeen();
+            requestAnimationFrame(openHowToPlay);
+        };
         syncSettingsUI();
         menuView.sync();
         feedback.resetAnalysisCopy();
@@ -5477,7 +5461,10 @@
                 menuView.sync();
             });
         });
-        bindClick(ui.landing.play, () => shell.enterGame(APP_MODES.daily));
+        bindClick(ui.landing.play, () => {
+            shell.enterGame(APP_MODES.daily);
+            maybeShowFirstPlayHowToPlay();
+        });
         bindClick(ui.landing.practice, () => practiceController.open());
         bindClick(ui.landing.share, shareDailyResult);
         bindClick(ui.buttons.completedBoardResults, () => shell.enterLanding());
