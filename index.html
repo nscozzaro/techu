@@ -1586,7 +1586,7 @@
 
                 <div class="landing-kicker" id="landingKicker">Daily Puzzle</div>
                 <h1 class="landing-title" id="landingTitle">Techu</h1>
-                <p class="landing-subtitle" id="landingSubtitle">A shared daily duel with one shuffled deck for everyone.</p>
+                <p class="landing-subtitle" id="landingSubtitle">Finish with more spaces than the bot in today’s daily deal.</p>
 
                 <div id="dailyPreviewWrap" class="landing-preview-wrap" hidden>
                     <div class="daily-preview-meta">
@@ -1607,7 +1607,7 @@
                 <div id="landingFooter" class="landing-footer">
                     <strong id="landingFooterDate">March 23, 2026</strong>
                     <span id="landingFooterPuzzle">Daily deal No. 1</span>
-                    <span>One worldwide daily deal. Practice mode is always random.</span>
+                    <span>A new daily deal unlocks at local midnight. Practice mode is always random.</span>
                 </div>
             </div>
         </section>
@@ -1711,7 +1711,7 @@
             <button id="closeRulesBtn" class="modal-close" type="button" aria-label="Close rules">×</button>
             <h2>How to Play</h2>
             <div class="rules">
-                <p><strong>Daily vs Practice:</strong> Daily uses one shared worldwide UTC shuffle each day. Practice starts a fresh random deck against the Bot.</p>
+                <p><strong>Daily vs Practice:</strong> Daily refreshes at your local midnight. Practice starts a fresh random deck against the Bot.</p>
                 <p><strong>Goal:</strong> Finish with more spaces than the Bot when both players are out of cards.</p>
 
                 <h3>Core Rules</h3>
@@ -1900,10 +1900,10 @@
             const color = PLAYER_SUITS.red.includes(suit) ? 'red' : 'black';
             return { rank, suit, color };
         };
-        const getUtcDateKey = (date = new Date()) => {
-            const year = date.getUTCFullYear();
-            const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-            const day = String(date.getUTCDate()).padStart(2, '0');
+        const getLocalDateKey = (date = new Date()) => {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
             return `${year}-${month}-${day}`;
         };
         const getDailySeed = (dateKey) => `daily:${dateKey}`;
@@ -1918,9 +1918,8 @@
             return new Intl.DateTimeFormat(undefined, {
                 month: 'long',
                 day: 'numeric',
-                year: 'numeric',
-                timeZone: 'UTC'
-            }).format(new Date(Date.UTC(year, month - 1, day)));
+                year: 'numeric'
+            }).format(new Date(year, month - 1, day));
         };
         const getDailyStorageKey = (dateKey) => `${DAILY_STORAGE_PREFIX}${dateKey}`;
         const safeLocalStorageGet = (key) => {
@@ -5088,8 +5087,8 @@
 
         const app = {
             mode: APP_MODES.landing,
-            dailyKey: getUtcDateKey(),
-            dailyProgress: loadDailyProgress(getUtcDateKey()),
+            dailyKey: getLocalDateKey(),
+            dailyProgress: loadDailyProgress(getLocalDateKey()),
             game: null
         };
 
@@ -5265,7 +5264,7 @@
                 ui.landing.kicker.textContent = `Daily Puzzle #${puzzleNumber}`;
                 setLandingCopy({
                     title: 'Techu',
-                    subtitle: 'Use the shared daily deal to finish with more spaces than the bot.',
+                    subtitle: 'Use today’s daily deal to finish with more spaces than the bot.',
                     playLabel: 'Play Daily'
                 });
                 ui.landing.practice.textContent = 'Practice vs Bot';
