@@ -1001,9 +1001,18 @@
             pointer-events: none;
             z-index: 2000;
             opacity: 0.98;
-            transform: translate3d(0, 0, 0) scale(1.02);
+            transform: translate3d(0, 0, 0);
+            transform-origin: top left;
             will-change: transform;
+            transition: none !important;
+            animation: none !important;
             box-shadow: 0 16px 36px rgba(0, 0, 0, 0.28);
+        }
+
+        .touch-drag-ghost,
+        .touch-drag-ghost * {
+            transition: none !important;
+            animation: none !important;
         }
 
         .cell.flipped .board-card.face {
@@ -2655,17 +2664,19 @@
             }
 
             createPointerGhost(sourceEl) {
+                const sourceRect = sourceEl.getBoundingClientRect();
                 const ghost = sourceEl.cloneNode(true);
                 ghost.classList.remove('dragging');
                 ghost.classList.add('touch-drag-ghost');
-                document.body.appendChild(ghost);
-                this.pointerDragGhost = ghost;
                 this.pointerGhostMetrics = {
-                    width: sourceEl.offsetWidth,
-                    height: sourceEl.offsetHeight
+                    width: sourceRect.width,
+                    height: sourceRect.height
                 };
                 ghost.style.width = `${this.pointerGhostMetrics.width}px`;
                 ghost.style.height = `${this.pointerGhostMetrics.height}px`;
+                ghost.style.transform = `translate3d(${sourceRect.left}px, ${sourceRect.top}px, 0)`;
+                document.body.appendChild(ghost);
+                this.pointerDragGhost = ghost;
                 return ghost;
             }
 
@@ -2675,7 +2686,7 @@
                 const height = this.pointerGhostMetrics?.height ?? this.pointerDragGhost.offsetHeight;
                 const offsetX = this.dragPointerOffset?.x ?? (width / 2);
                 const offsetY = this.dragPointerOffset?.y ?? (height / 2);
-                this.pointerDragGhost.style.transform = `translate3d(${clientX - offsetX}px, ${clientY - offsetY}px, 0) scale(1.02)`;
+                this.pointerDragGhost.style.transform = `translate3d(${clientX - offsetX}px, ${clientY - offsetY}px, 0)`;
             }
 
             getPointerDropTarget(clientX, clientY) {
