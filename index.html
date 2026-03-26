@@ -1815,7 +1815,6 @@
                 <div class="landing-actions">
                     <button id="landingPlayBtn" class="landing-btn primary" type="button">Play</button>
                     <button id="landingPracticeBtn" class="landing-btn secondary" type="button">Replay or Random Practice</button>
-                    <button id="landingRulesBtn" class="landing-btn tertiary" type="button">How to Play</button>
                     <button id="landingShareBtn" class="landing-btn ghost" type="button" hidden>Share Result</button>
                 </div>
                 <div id="landingFooter" class="landing-footer">
@@ -5010,7 +5009,6 @@
                 subtitle: 'landingSubtitle',
                 play: 'landingPlayBtn',
                 practice: 'landingPracticeBtn',
-                rules: 'landingRulesBtn',
                 share: 'landingShareBtn',
                 stats: 'landingStats',
                 statScore: 'landingStatScore',
@@ -5250,7 +5248,6 @@
                 ui.landing.share.dataset.baseLabel = 'Share Result';
                 ui.landing.share.textContent = 'Share Result';
                 ui.landing.share.hidden = true;
-                ui.landing.rules.hidden = Boolean(progress);
                 ui.landing.practice.textContent = 'Replay or Random Practice';
             },
             renderFresh(puzzleNumber) {
@@ -5465,8 +5462,7 @@
         const modalOpeners = [
             [ui.buttons.openGame, ui.modals.game, () => menuView.sync()],
             [ui.buttons.openRules, ui.modals.rules],
-            [ui.buttons.openSettings, ui.modals.settings, syncSettingsUI],
-            [ui.landing.rules, ui.modals.rules]
+            [ui.buttons.openSettings, ui.modals.settings, syncSettingsUI]
         ];
         const modalClosers = [
             [ui.buttons.closeGame, ui.modals.game],
