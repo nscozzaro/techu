@@ -228,17 +228,54 @@
             font-weight: 300;
             text-wrap: balance;
         }
+        .landing-small-title {
+            display: none;
+        }
+        .landing-logo-lockup {
+            display: grid;
+            justify-items: center;
+            gap: 6px;
+        }
+        .landing-panel.has-progress .landing-logo-lockup {
+            margin-bottom: 2.5vh;
+        }
+        .landing-panel.has-progress .landing-mark {
+            transform: scale(0.65);
+            margin: -20px 0 -15px 0;
+        }
+        .landing-panel.has-progress .landing-small-title {
+            display: block;
+            font-family: var(--ui-display);
+            font-size: 1.45rem;
+            font-weight: 800;
+            letter-spacing: -0.01em;
+            color: var(--landing-text);
+        }
+        .landing-panel.has-progress .landing-kicker {
+            display: none;
+        }
         .landing-panel.has-progress .landing-title {
-            max-width: 8.5ch;
-            font-size: clamp(2.75rem, 6.9vw, 4.8rem);
+            max-width: none;
+            font-size: clamp(2.4rem, 6.5vw, 3.6rem);
+            font-family: var(--ui-display);
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: var(--landing-text);
+            margin-bottom: 0.35rem;
         }
         .landing-panel.has-progress .landing-subtitle {
-            max-width: 18ch;
-            font-size: clamp(1.18rem, 2.8vw, 1.76rem);
-            line-height: 1.18;
+            max-width: 24ch;
+            font-size: clamp(1.2rem, 3.5vw, 1.6rem);
+            line-height: 1.35;
+            font-weight: 400;
+            color: var(--landing-text);
+            margin-bottom: 5vh;
         }
-        .landing-panel.has-progress .landing-preview-wrap {
-            width: min(100%, 300px);
+        .landing-panel.has-progress:not(.is-complete) .landing-preview-wrap {
+            display: none !important;
+        }
+        .landing-panel.has-progress .landing-footer span:last-child {
+            display: none;
         }
         .landing-panel.is-complete .landing-title {
             max-width: 7ch;
@@ -1742,7 +1779,10 @@
     <div id="appShell" class="app-shell show-landing">
         <section id="landingScreen" class="landing-screen" aria-label="Flood landing">
             <div id="landingPanel" class="landing-panel">
-                <div id="landingMark" class="landing-mark" aria-hidden="true"></div>
+                <div class="landing-logo-lockup">
+                    <div id="landingMark" class="landing-mark" aria-hidden="true"></div>
+                    <div id="landingSmallTitle" class="landing-small-title" aria-hidden="true">Flood</div>
+                </div>
                 <div class="landing-kicker" id="landingKicker">Daily Puzzle</div>
                 <h1 class="landing-title wordmark-flood" id="landingTitle">Flood</h1>
                 <p class="landing-subtitle" id="landingSubtitle">Cover more spaces than your opponent.</p>
@@ -5206,11 +5246,11 @@
                 ui.landing.puzzleNumber.textContent = `Puzzle No. ${puzzleNumber}`;
                 ui.landing.footerDate.textContent = displayDate;
                 ui.landing.footerPuzzle.textContent = `Puzzle No. ${puzzleNumber}`;
-                ui.landing.footer.hidden = Boolean(progress);
+                ui.landing.footer.hidden = false;
                 ui.landing.share.dataset.baseLabel = 'Share Result';
                 ui.landing.share.textContent = 'Share Result';
                 ui.landing.share.hidden = true;
-                ui.landing.rules.hidden = false;
+                ui.landing.rules.hidden = Boolean(progress);
                 ui.landing.practice.textContent = 'Replay or Random Practice';
             },
             renderFresh(puzzleNumber) {
