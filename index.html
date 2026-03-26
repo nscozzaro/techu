@@ -1114,19 +1114,15 @@
         }
         .lifted-board-preview.face-up .board-card.face {
             transform: rotateY(0deg) !important;
-            opacity: 1 !important;
         }
         .lifted-board-preview.face-up .board-card.back {
             transform: rotateY(180deg) !important;
-            opacity: 0 !important;
         }
         .lifted-board-preview.face-down .board-card.face {
             transform: rotateY(180deg) !important;
-            opacity: 0 !important;
         }
         .lifted-board-preview.face-down .board-card.back {
             transform: rotateY(0deg) !important;
-            opacity: 1 !important;
         }
         .board-card {
             width: 100%;
@@ -1154,10 +1150,8 @@
             overflow: hidden;
         }
         .board-card.face {
-            opacity: 0;
-            transition:
-                transform 0.62s cubic-bezier(0.22, 1, 0.36, 1),
-                opacity 0s linear 0.3s;
+            transform: rotateY(180deg);
+            transition: transform 0.62s cubic-bezier(0.22, 1, 0.36, 1);
         }
         .board-card.face.red {
             color: var(--ink-red);
@@ -1166,11 +1160,8 @@
             color: var(--ink);
         }
         .board-card.back {
-            transform: rotateY(180deg);
-            opacity: 1;
-            transition:
-                transform 0.62s cubic-bezier(0.22, 1, 0.36, 1),
-                opacity 0s linear 0.3s;
+            transform: rotateY(0deg);
+            transition: transform 0.62s cubic-bezier(0.22, 1, 0.36, 1);
         }
         .board-card.back,
         .board-card *,
@@ -1201,19 +1192,15 @@
         }
         .cell.flipped .board-card.face {
             transform: rotateY(0deg);
-            opacity: 1;
         }
         .cell.flipped .board-card.back {
-            transform: rotateY(180deg);
-            opacity: 0;
+            transform: rotateY(-180deg);
         }
         .cell.unflipped .board-card.face {
             transform: rotateY(180deg);
-            opacity: 0;
         }
         .cell.unflipped .board-card.back {
             transform: rotateY(0deg);
-            opacity: 1;
         }
         .cell.can-flip {
             cursor: pointer;
