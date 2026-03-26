@@ -2406,10 +2406,6 @@
                 this.updateUI();
             }
             resetSetupTieState(redPlacement, blackPlacement) {
-                [redPlacement, blackPlacement].forEach((placement) => {
-                    if (!placement) return;
-                    this.board[placement.row][placement.col] = null;
-                });
                 this.animatingMove = null;
                 this.waitingForFlip = null;
                 this.setupWidePlacement = true;
