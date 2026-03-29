@@ -285,6 +285,40 @@
         .landing-panel.is-complete .landing-subtitle {
             max-width: 16ch;
             font-size: clamp(1.08rem, 2.6vw, 1.5rem);
+            margin-bottom: 1rem;
+        }
+        .landing-quick-stats {
+            width: min(100%, 540px);
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            margin-top: -4px;
+        }
+        .landing-quick-stats[hidden] {
+            display: none;
+        }
+        .landing-quick-stat {
+            display: grid;
+            gap: 4px;
+            padding: 12px 10px;
+            border-radius: 16px;
+            border: 1px solid rgba(236, 226, 207, 0.12);
+            background: rgba(255, 255, 255, 0.035);
+            justify-items: center;
+        }
+        .landing-quick-value {
+            color: var(--landing-text);
+            font-size: clamp(1.08rem, 2vw, 1.35rem);
+            line-height: 1;
+            font-weight: 500;
+            font-variant-numeric: tabular-nums;
+        }
+        .landing-quick-label {
+            color: rgba(187, 175, 154, 0.88);
+            font-size: 0.7rem;
+            line-height: 1.2;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
         }
         .landing-stats {
             width: min(100%, 520px);
@@ -384,6 +418,12 @@
             gap: 12px;
             justify-items: center;
         }
+        .landing-secondary-actions {
+            width: min(100%, 390px);
+            display: grid;
+            gap: 10px;
+            justify-items: center;
+        }
         .landing-btn {
             width: min(100%, 390px);
             min-height: 58px;
@@ -443,6 +483,55 @@
         .landing-btn.ghost[hidden] {
             display: none;
         }
+        .landing-link-btn {
+            border: 0;
+            background: transparent;
+            color: rgba(202, 176, 123, 0.96);
+            font: inherit;
+            font-family: var(--landing-font);
+            font-size: 0.95rem;
+            letter-spacing: 0.04em;
+            line-height: 1.2;
+            padding: 2px 4px;
+            cursor: pointer;
+            transition: color 0.18s ease, transform 0.18s ease;
+        }
+        .landing-link-btn:hover {
+            color: #e7d2a2;
+            transform: translateY(-1px);
+        }
+        .landing-link-btn:focus-visible {
+            outline: 2px solid rgba(202, 176, 123, 0.7);
+            outline-offset: 4px;
+            border-radius: 8px;
+        }
+        .landing-link-btn[hidden] {
+            display: none;
+        }
+        .landing-btn.attention {
+            animation: landing-cta-nudge 5.5s ease-in-out infinite;
+            box-shadow: 0 12px 26px rgba(27, 32, 68, 0.26);
+        }
+        @keyframes landing-cta-nudge {
+            0%, 82%, 100% {
+                transform: translateX(0) scale(1);
+            }
+            84% {
+                transform: translateX(-1px) scale(1.01);
+            }
+            87% {
+                transform: translateX(2px) scale(1.015);
+            }
+            90% {
+                transform: translateX(-2px) scale(1.015);
+            }
+            93% {
+                transform: translateX(1px) scale(1.01);
+            }
+            96% {
+                transform: translateX(0) scale(1);
+            }
+        }
         .landing-footer {
             display: grid;
             gap: 4px;
@@ -460,6 +549,628 @@
         .landing-footer[hidden] {
             display: none;
         }
+        .landing-main-content {
+            width: min(100%, 980px);
+            display: grid;
+            gap: clamp(18px, 2.4vw, 28px);
+            justify-items: center;
+        }
+        .landing-summary {
+            width: min(100%, 540px);
+            display: grid;
+            gap: clamp(12px, 1.8vh, 18px);
+            justify-items: center;
+            text-align: center;
+        }
+        .landing-footer-meta {
+            display: none;
+        }
+        .landing-board-wrap {
+            width: min(100%, 352px);
+            display: grid;
+            gap: 10px;
+            padding: 12px;
+            border-radius: 22px;
+            border: 1px solid rgba(236, 226, 207, 0.14);
+            background: linear-gradient(180deg, rgba(25, 28, 36, 0.96) 0%, rgba(17, 19, 25, 0.96) 100%);
+            box-shadow: 0 18px 40px rgba(5, 7, 12, 0.28);
+        }
+        .landing-board-wrap[hidden] {
+            display: none;
+        }
+        .landing-board-header {
+            width: 100%;
+            display: flex;
+            align-items: end;
+            justify-content: space-between;
+            gap: 12px;
+            text-align: left;
+        }
+        .landing-board-title-wrap {
+            display: grid;
+            gap: 3px;
+        }
+        .landing-board-eyebrow {
+            color: rgba(202, 176, 123, 0.92);
+            font-size: 0.68rem;
+            line-height: 1.2;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+        .landing-board-title {
+            color: var(--landing-text);
+            font-size: 0.98rem;
+            line-height: 1.2;
+            font-weight: 500;
+        }
+        .landing-board-number {
+            color: rgba(190, 176, 153, 0.88);
+            font-size: 0.78rem;
+            line-height: 1.3;
+            text-align: right;
+        }
+        .landing-board-grid {
+            display: grid;
+            grid-template-columns: repeat(5, var(--card-width));
+            grid-auto-rows: var(--card-height);
+            gap: var(--board-gap);
+            justify-content: center;
+            width: 100%;
+            --card-width: 56px;
+            --card-height: 78px;
+            --card-radius: 12px;
+            --board-gap: 4px;
+        }
+        .landing-board-grid .cell {
+            width: var(--card-width);
+            height: var(--card-height);
+            pointer-events: none;
+        }
+        .landing-board-grid .board-card-stack {
+            pointer-events: none;
+        }
+        .landing-board-grid .board-card {
+            box-shadow: 0 6px 14px rgba(15, 13, 11, 0.24);
+        }
+        .landing-board-caption {
+            color: rgba(190, 176, 153, 0.9);
+            font-size: 0.9rem;
+            line-height: 1.4;
+            text-align: left;
+        }
+        .landing-panel.is-complete {
+            width: min(100%, 1080px);
+            gap: 18px;
+        }
+        .landing-panel.is-complete .landing-logo-lockup {
+            width: min(100%, 980px);
+            justify-items: start;
+        }
+        .landing-panel.is-complete .landing-mark {
+            transform: scale(0.62);
+            margin: -14px 0 -10px -18px;
+        }
+        .landing-panel.is-complete .landing-small-title {
+            margin-top: -6px;
+        }
+        .landing-panel.is-complete .landing-main-content {
+            width: min(100%, 980px);
+            grid-template-columns: minmax(0, 1fr) minmax(320px, 390px);
+            align-items: center;
+            justify-items: stretch;
+            column-gap: clamp(28px, 4vw, 56px);
+        }
+        .landing-panel.is-complete .landing-summary {
+            width: 100%;
+            justify-items: start;
+            text-align: left;
+            align-content: center;
+        }
+        .landing-panel.is-complete .landing-kicker,
+        .landing-panel.is-complete .landing-subtitle,
+        .landing-panel.is-complete .landing-quick-stats,
+        .landing-panel.is-complete .landing-stats,
+        .landing-panel.is-complete .landing-actions,
+        .landing-panel.is-complete .landing-secondary-actions,
+        .landing-panel.is-complete .landing-footer {
+            width: 100%;
+        }
+        .landing-panel.is-complete .landing-title {
+            max-width: 8ch;
+            margin-bottom: 0;
+            font-size: clamp(2.6rem, 6vw, 4.6rem);
+            line-height: 0.94;
+        }
+        .landing-panel.is-complete .landing-subtitle {
+            max-width: 26ch;
+            margin-bottom: 0.2rem;
+            font-size: clamp(1.02rem, 1.6vw, 1.3rem);
+        }
+        .landing-panel.is-complete .landing-quick-stats {
+            max-width: 520px;
+        }
+        .landing-panel.is-complete .landing-actions {
+            justify-items: stretch;
+            max-width: 420px;
+        }
+        .landing-panel.is-complete .landing-secondary-actions {
+            width: 100%;
+            justify-items: stretch;
+        }
+        .landing-panel.is-complete .landing-btn,
+        .landing-panel.is-complete .landing-btn.ghost {
+            width: 100%;
+        }
+        .landing-panel.is-complete .landing-btn.primary {
+            min-height: 64px;
+            font-size: 1.15rem;
+        }
+        .landing-panel.is-complete .landing-link-btn {
+            justify-self: start;
+            padding-left: 2px;
+        }
+        .landing-panel.is-complete .landing-footer {
+            max-width: 40ch;
+            justify-items: start;
+            text-align: left;
+        }
+        @media (max-width: 900px) {
+            .landing-panel.is-complete .landing-logo-lockup {
+                width: auto;
+                justify-items: center;
+            }
+            .landing-panel.is-complete .landing-main-content {
+                grid-template-columns: 1fr;
+                justify-items: center;
+            }
+            .landing-panel.is-complete .landing-summary {
+                justify-items: center;
+                text-align: center;
+            }
+            .landing-panel.is-complete .landing-kicker,
+            .landing-panel.is-complete .landing-subtitle,
+            .landing-panel.is-complete .landing-quick-stats,
+            .landing-panel.is-complete .landing-stats,
+            .landing-panel.is-complete .landing-actions,
+            .landing-panel.is-complete .landing-secondary-actions,
+            .landing-panel.is-complete .landing-footer {
+                width: min(100%, 520px);
+            }
+            .landing-panel.is-complete .landing-actions {
+                justify-items: center;
+            }
+            .landing-panel.is-complete .landing-secondary-actions {
+                justify-items: center;
+            }
+            .landing-panel.is-complete .landing-btn,
+            .landing-panel.is-complete .landing-btn.ghost {
+                width: min(100%, 390px);
+            }
+            .landing-panel.is-complete .landing-link-btn {
+                justify-self: center;
+            }
+            .landing-panel.is-complete .landing-footer {
+                justify-items: center;
+                text-align: center;
+            }
+            .landing-panel.is-complete .landing-board-wrap {
+                width: min(100%, 390px);
+            }
+        }
+        @media (max-width: 640px) {
+            .landing-board-wrap {
+                padding: 14px;
+                border-radius: 20px;
+            }
+            .landing-board-grid {
+                gap: 5px;
+            }
+            .landing-board-number {
+                font-size: 0.76rem;
+            }
+            .landing-board-caption {
+                font-size: 0.9rem;
+            }
+        }
+
+        .landing-panel.is-complete {
+            width: min(100%, 940px);
+            min-height: auto;
+            gap: 8px;
+            align-content: start;
+        }
+        .landing-panel.is-complete .landing-logo-lockup {
+            width: min(100%, 940px);
+            justify-items: start;
+            gap: 0;
+            margin-bottom: -2px;
+        }
+        .landing-panel.is-complete .landing-main-content {
+            width: min(100%, 940px);
+            grid-template-columns: minmax(0, 352px) minmax(300px, 352px);
+            align-items: start;
+            justify-items: stretch;
+            column-gap: clamp(20px, 3vw, 34px);
+        }
+        .landing-panel.is-complete .landing-summary {
+            gap: 10px;
+            padding-top: 0;
+        }
+        .landing-panel.is-complete .landing-mark {
+            transform: scale(0.44);
+            margin: -34px 0 -30px -30px;
+        }
+        .landing-panel.is-complete .landing-kicker {
+            display: block;
+            color: rgba(202, 176, 123, 0.92);
+            font-size: 0.82rem;
+            letter-spacing: 0.08em;
+        }
+        .landing-panel.is-complete .landing-title {
+            display: none;
+        }
+        .landing-panel.is-complete .landing-subtitle {
+            max-width: 10ch;
+            font-size: clamp(1.7rem, 3.2vw, 2.45rem);
+            line-height: 0.98;
+            margin-bottom: 0;
+            font-weight: 400;
+        }
+        .landing-panel.is-complete .landing-quick-stats {
+            max-width: 352px;
+            gap: 8px;
+        }
+        .landing-panel.is-complete .landing-quick-stat {
+            padding: 10px 8px;
+            border-radius: 14px;
+        }
+        .landing-panel.is-complete .landing-quick-value {
+            font-size: clamp(1rem, 1.7vw, 1.2rem);
+        }
+        .landing-panel.is-complete .landing-actions {
+            max-width: 352px;
+            gap: 8px;
+        }
+        .landing-panel.is-complete .landing-secondary-actions {
+            gap: 8px;
+        }
+        .landing-panel.is-complete .landing-btn.primary {
+            min-height: 54px;
+            font-size: 1.02rem;
+        }
+        .landing-panel.is-complete .landing-btn.secondary {
+            min-height: 48px;
+        }
+        .landing-panel.is-complete .landing-btn.ghost {
+            width: 100%;
+            min-height: 44px;
+        }
+        .landing-panel.is-complete .landing-board-wrap {
+            width: min(100%, 352px);
+            gap: 8px;
+            padding: 12px;
+            border-radius: 20px;
+            align-self: start;
+        }
+        .landing-panel.is-complete .landing-board-header {
+            align-items: start;
+        }
+        .landing-panel.is-complete .landing-board-grid {
+            --card-width: 56px;
+            --card-height: 78px;
+            --card-radius: 12px;
+            --board-gap: 4px;
+        }
+        .landing-panel.is-complete .landing-board-title {
+            font-size: 0.98rem;
+        }
+        .landing-panel.is-complete .landing-board-number {
+            font-size: 0.76rem;
+        }
+        .landing-panel.is-complete .landing-board-caption {
+            font-size: 0.84rem;
+            line-height: 1.3;
+        }
+        .landing-panel.is-complete .landing-footer {
+            display: none;
+        }
+        @media (max-width: 900px) {
+            .landing-panel.is-complete {
+                align-content: start;
+            }
+            .landing-panel.is-complete .landing-logo-lockup {
+                width: auto;
+                justify-items: center;
+            }
+            .landing-panel.is-complete .landing-main-content {
+                grid-template-columns: 1fr;
+                width: min(100%, 520px);
+                gap: 18px;
+                justify-items: center;
+            }
+            .landing-panel.is-complete .landing-summary {
+                width: 100%;
+                justify-items: center;
+                text-align: center;
+                padding-top: 0;
+            }
+            .landing-panel.is-complete .landing-title {
+                max-width: none;
+                font-size: clamp(2.15rem, 9vw, 3.6rem);
+            }
+            .landing-panel.is-complete .landing-subtitle,
+            .landing-panel.is-complete .landing-quick-stats,
+            .landing-panel.is-complete .landing-stats,
+            .landing-panel.is-complete .landing-actions,
+            .landing-panel.is-complete .landing-secondary-actions {
+                width: 100%;
+                max-width: 390px;
+            }
+            .landing-panel.is-complete .landing-btn,
+            .landing-panel.is-complete .landing-btn.ghost {
+                width: 100%;
+            }
+            .landing-panel.is-complete .landing-link-btn {
+                justify-self: center;
+            }
+            .landing-panel.is-complete .landing-board-wrap {
+                width: min(100%, 390px);
+            }
+        }
+        @media (max-width: 640px) {
+            .landing-panel.is-complete .landing-quick-stats {
+                grid-template-columns: 1fr;
+            }
+        }
+
+
+        .landing-mark {
+            padding: 9px;
+            border-radius: 18px;
+            border: 1px solid rgba(190, 201, 235, 0.22);
+            background: linear-gradient(180deg, rgba(18, 22, 38, 0.98) 0%, rgba(11, 13, 24, 0.98) 100%);
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        }
+        .landing-mark-cell {
+            border-color: rgba(196, 207, 238, 0.24);
+            background: rgba(242, 232, 214, 0.08);
+        }
+        .landing-mark-cell.face-card {
+            background: rgba(244, 237, 222, 0.12);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+        }
+        .landing-mark-cell.face-card.player-red {
+            background: #a9513d;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+        }
+        .landing-mark-cell.face-card.player-black {
+            background: #313d77;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+        }
+        .landing-logo-lockup {
+            justify-items: center;
+        }
+        .landing-panel.has-progress .landing-mark {
+            transform: scale(0.62);
+            margin: -18px 0 -12px 0;
+        }
+
+        .landing-modes-btn {
+            width: 100%;
+            min-height: 44px;
+            padding: 12px 18px;
+            font-size: 0.94rem;
+            letter-spacing: 0.04em;
+        }
+
+        .landing-panel.is-complete {
+            width: min(100%, 460px);
+            min-height: auto;
+            gap: 8px;
+            align-content: start;
+            justify-items: center;
+        }
+        .landing-panel.is-complete .landing-logo-lockup {
+            width: auto;
+            justify-items: center;
+            gap: 2px;
+            margin-bottom: 0;
+        }
+        .landing-panel.is-complete .landing-mark {
+            transform: scale(0.56);
+            margin: -20px 0 -16px 0;
+        }
+        .landing-panel.is-complete .landing-small-title {
+            margin-top: -4px;
+            font-size: 1.15rem;
+        }
+        .landing-panel.is-complete .landing-main-content {
+            width: min(100%, 420px);
+            grid-template-columns: 1fr;
+            gap: 10px;
+            justify-items: center;
+            align-items: start;
+        }
+        .landing-panel.is-complete .landing-summary {
+            width: 100%;
+            gap: 8px;
+            justify-items: center;
+            text-align: center;
+            align-content: start;
+            padding-top: 0;
+        }
+        .landing-panel.is-complete .landing-kicker,
+        .landing-panel.is-complete .landing-title,
+        .landing-panel.is-complete .landing-footer,
+        .landing-panel.is-complete .landing-board-caption {
+            display: none;
+        }
+        .landing-panel.is-complete .landing-subtitle {
+            width: 100%;
+            max-width: none;
+            font-size: clamp(1.1rem, 2vw, 1.7rem);
+            line-height: 1.05;
+            margin: 0;
+            font-weight: 500;
+            text-wrap: balance;
+        }
+        .landing-panel.is-complete .landing-quick-stats {
+            width: 100%;
+            max-width: none;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+            margin-top: 0;
+        }
+        .landing-panel.is-complete .landing-quick-stat {
+            padding: 8px 6px 7px;
+            border-radius: 14px;
+            gap: 3px;
+        }
+        .landing-panel.is-complete .landing-quick-value {
+            font-size: clamp(0.96rem, 1.6vw, 1.18rem);
+        }
+        .landing-panel.is-complete .landing-quick-label {
+            font-size: 0.62rem;
+            letter-spacing: 0.07em;
+        }
+        .landing-panel.is-complete .landing-stats {
+            width: 100%;
+        }
+        .landing-panel.is-complete .landing-actions {
+            width: 100%;
+            max-width: none;
+            gap: 8px;
+            justify-items: stretch;
+        }
+        .landing-panel.is-complete .landing-secondary-actions {
+            width: 100%;
+            gap: 8px;
+            justify-items: stretch;
+        }
+        .landing-panel.is-complete .landing-btn,
+        .landing-panel.is-complete .landing-btn.ghost,
+        .landing-panel.is-complete .landing-modes-btn {
+            width: 100%;
+        }
+        .landing-panel.is-complete .landing-btn.primary {
+            min-height: 50px;
+            font-size: 1.02rem;
+        }
+        .landing-panel.is-complete .landing-btn.secondary,
+        .landing-panel.is-complete .landing-modes-btn,
+        .landing-panel.is-complete .landing-btn.ghost {
+            min-height: 44px;
+            font-size: 0.96rem;
+        }
+        .landing-panel.is-complete .landing-board-wrap {
+            width: min(100%, 360px);
+            gap: 6px;
+            padding: 10px;
+            border-radius: 18px;
+            align-self: start;
+        }
+        .landing-panel.is-complete .landing-board-header {
+            align-items: start;
+            margin-bottom: 0;
+        }
+        .landing-panel.is-complete .landing-board-eyebrow {
+            font-size: 0.72rem;
+            letter-spacing: 0.08em;
+        }
+        .landing-panel.is-complete .landing-board-title {
+            font-size: 0.92rem;
+            line-height: 1.05;
+        }
+        .landing-panel.is-complete .landing-board-number {
+            font-size: 0.72rem;
+            line-height: 1.1;
+        }
+        .landing-panel.is-complete .landing-board-grid {
+            --card-width: 54px;
+            --card-height: 74px;
+            --card-radius: 12px;
+            --board-gap: 4px;
+        }
+        .landing-screen {
+            padding:
+                max(18px, calc(env(safe-area-inset-top, 0px) + 14px))
+                clamp(14px, 3vw, 22px)
+                max(18px, calc(env(safe-area-inset-bottom, 0px) + 14px));
+        }
+        .app-shell.show-landing .landing-screen {
+            align-items: flex-start;
+        }
+
+        @media (max-width: 640px) {
+            .landing-panel.is-complete {
+                width: min(100%, 392px);
+                gap: 6px;
+            }
+            .landing-panel.is-complete .landing-logo-lockup {
+                gap: 0;
+            }
+            .landing-panel.is-complete .landing-mark {
+                transform: scale(0.5);
+                margin: -24px 0 -22px 0;
+            }
+            .landing-panel.is-complete .landing-small-title {
+                font-size: 1.02rem;
+                margin-top: -6px;
+            }
+            .landing-panel.is-complete .landing-main-content {
+                width: 100%;
+                gap: 8px;
+            }
+            .landing-panel.is-complete .landing-summary {
+                gap: 7px;
+            }
+            .landing-panel.is-complete .landing-subtitle {
+                font-size: 0.98rem;
+                line-height: 1.05;
+            }
+            .landing-panel.is-complete .landing-quick-stats {
+                gap: 6px;
+            }
+            .landing-panel.is-complete .landing-quick-stat {
+                padding: 7px 4px 6px;
+                border-radius: 12px;
+            }
+            .landing-panel.is-complete .landing-quick-value {
+                font-size: 0.9rem;
+            }
+            .landing-panel.is-complete .landing-quick-label {
+                font-size: 0.54rem;
+                letter-spacing: 0.05em;
+            }
+            .landing-panel.is-complete .landing-actions {
+                gap: 6px;
+            }
+            .landing-panel.is-complete .landing-secondary-actions {
+                gap: 6px;
+            }
+            .landing-panel.is-complete .landing-btn.primary {
+                min-height: 46px;
+            }
+            .landing-panel.is-complete .landing-btn.secondary,
+            .landing-panel.is-complete .landing-modes-btn,
+            .landing-panel.is-complete .landing-btn.ghost {
+                min-height: 40px;
+            }
+            .landing-panel.is-complete .landing-board-wrap {
+                width: 100%;
+                max-width: 340px;
+                padding: 9px;
+                gap: 5px;
+                border-radius: 16px;
+            }
+            .landing-panel.is-complete .landing-board-grid {
+                --card-width: calc((100vw - 68px) / 5);
+                --card-height: calc((100vw - 68px) / 5 * 1.34);
+                --card-radius: 10px;
+                --board-gap: 3px;
+            }
+        }
+
         .rotate-overlay {
             display: none;
             position: absolute;
@@ -1214,18 +1925,36 @@
             margin: 0;
             pointer-events: none;
             z-index: 2000;
-            opacity: 0.98;
+            opacity: 0.97;
             transform: translate3d(0, 0, 0);
             transform-origin: top left;
             will-change: transform;
             transition: none !important;
             animation: none !important;
-            box-shadow: 0 18px 38px rgba(33, 26, 18, 0.28);
+            box-shadow: 0 22px 44px rgba(12, 10, 6, 0.44), 0 6px 14px rgba(12, 10, 6, 0.22);
+            /* Critical: override backface-visibility so board-card.back ghosts render on iOS */
+            backface-visibility: visible !important;
+            -webkit-backface-visibility: visible !important;
         }
         .touch-drag-ghost,
         .touch-drag-ghost * {
             transition: none !important;
             animation: none !important;
+        }
+        /* Board card ghost needs correct 3D context preserved */
+        .touch-drag-ghost.board-ghost {
+            transform-style: preserve-3d;
+            -webkit-transform-style: preserve-3d;
+        }
+        .touch-drag-ghost.board-ghost .board-card {
+            backface-visibility: hidden !important;
+            -webkit-backface-visibility: hidden !important;
+        }
+        .touch-drag-ghost.board-ghost .board-card.back {
+            transform: rotateY(0deg) !important;
+        }
+        .touch-drag-ghost.board-ghost .board-card.face {
+            transform: rotateY(180deg) !important;
         }
         .cell.flipped .board-card.face {
             transform: rotateY(0deg);
@@ -1399,6 +2128,24 @@
         }
         .practice-copy {
             max-width: 40ch;
+        }
+        .mode-groups {
+            display: grid;
+            gap: 16px;
+            margin-top: 16px;
+        }
+        .mode-group {
+            display: grid;
+            gap: 8px;
+        }
+        .mode-group .menu-label {
+            color: var(--text);
+            font-size: 0.78rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+        .mode-group .menu-actions {
+            margin: 0;
         }
         .analysis-textarea {
             width: 100%;
@@ -1607,34 +2354,51 @@
             z-index: 2200;
             transform-origin: center center;
             box-shadow: 0 16px 36px rgba(34, 27, 18, 0.28);
+            will-change: transform, opacity;
+            backface-visibility: visible !important;
+            -webkit-backface-visibility: visible !important;
             transition:
-                transform 0.42s cubic-bezier(0.18, 1, 0.32, 1),
-                opacity 0.38s ease-out,
-                box-shadow 0.38s ease-out;
+                transform 0.46s cubic-bezier(0.2, 1.1, 0.3, 1),
+                opacity 0.36s ease-out,
+                box-shadow 0.36s ease-out;
+        }
+        .returning-card.board-ghost {
+            transform-style: preserve-3d;
+            -webkit-transform-style: preserve-3d;
+        }
+        .returning-card.board-ghost .board-card {
+            backface-visibility: hidden !important;
+            -webkit-backface-visibility: hidden !important;
+        }
+        .returning-card.board-ghost .board-card.back {
+            transform: rotateY(0deg) !important;
+        }
+        .returning-card.board-ghost .board-card.face {
+            transform: rotateY(180deg) !important;
         }
         @keyframes deal-card {
             from {
-                transform: translate(var(--deal-x), var(--deal-y)) scale(0.76) rotate(-7deg);
+                transform: translate3d(var(--deal-x), var(--deal-y), 0) scale(0.76) rotate(-7deg);
                 opacity: 0;
             }
             72% {
-                transform: translate(0, 0) scale(1.04) rotate(1.5deg);
+                transform: translate3d(0, 0, 0) scale(1.04) rotate(1.5deg);
                 opacity: 1;
             }
             to {
-                transform: translate(0, 0) scale(1) rotate(0deg);
+                transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
                 opacity: 1;
             }
         }
         @keyframes move-from-hand {
             from {
-                transform: translate(var(--move-x), var(--move-y)) rotate(-5deg) scale(0.94) rotateY(0deg);
+                transform: translate3d(var(--move-x), var(--move-y), 0) rotate(-5deg) scale(0.94) rotateY(0deg);
             }
             70% {
-                transform: translate(0, 0) rotate(1deg) scale(1.02) rotateY(0deg);
+                transform: translate3d(0, 0, 0) rotate(1deg) scale(1.02) rotateY(0deg);
             }
             to {
-                transform: translate(0, 0) rotate(0deg) scale(1) rotateY(0deg);
+                transform: translate3d(0, 0, 0) rotate(0deg) scale(1) rotateY(0deg);
             }
         }
         .card.pre-deal {
@@ -1758,7 +2522,7 @@
                 font-size: clamp(1.25rem, 2.1vw, 1.75rem);
             }
             .landing-panel.has-progress .landing-preview-wrap {
-                width: min(100%, 336px);
+                width: min(100%, 390px);
             }
         }
         @media (max-height: 880px) {
@@ -1773,6 +2537,625 @@
         .app-shell.in-game.show-rotate-overlay .game-container {
             visibility: hidden;
         }
+
+        /* Final completed-screen overrides */
+        #landingStatsBtn,
+        .landing-stats {
+            display: none !important;
+        }
+        .landing-board-eyebrow {
+            display: none !important;
+        }
+        .landing-panel.is-complete {
+            width: min(100%, 430px);
+            min-height: 0;
+            gap: 8px;
+        }
+        .landing-panel.is-complete .landing-logo-lockup {
+            width: 100%;
+            justify-items: center;
+            gap: 2px;
+            margin-bottom: 0;
+        }
+        .landing-panel.is-complete .landing-mark {
+            transform: scale(0.54);
+            transform-origin: top center;
+            margin: -20px 0 -18px 0;
+        }
+        .landing-panel.is-complete .landing-small-title {
+            width: 100%;
+            text-align: center;
+            margin-top: -4px;
+        }
+        .landing-panel.is-complete .landing-main-content {
+            width: 100%;
+            max-width: 430px;
+            grid-template-columns: 1fr;
+            justify-items: center;
+            gap: 8px;
+        }
+        .landing-panel.is-complete .landing-summary {
+            width: 100%;
+            align-items: center;
+            text-align: center;
+            gap: 8px;
+        }
+        .landing-panel.is-complete .landing-kicker {
+            display: none !important;
+        }
+        .landing-panel.is-complete .landing-subtitle {
+            width: 100%;
+            max-width: 12ch;
+            margin: 0;
+            font-size: clamp(1.2rem, 3.3vw, 1.95rem);
+            line-height: 1.02;
+            font-weight: 600;
+            text-align: center;
+        }
+        .landing-panel.is-complete .landing-quick-stats {
+            width: 100%;
+            max-width: 430px;
+            display: grid !important;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 6px;
+            margin-top: 0;
+        }
+        .landing-panel.is-complete .landing-quick-stat {
+            min-width: 0;
+            padding: 8px 4px 7px;
+            border-radius: 14px;
+            gap: 3px;
+        }
+        .landing-panel.is-complete .landing-quick-value {
+            font-size: clamp(0.88rem, 2vw, 1.2rem);
+            line-height: 1;
+        }
+        .landing-panel.is-complete .landing-quick-label {
+            font-size: 0.54rem;
+            line-height: 1.12;
+            letter-spacing: 0.05em;
+        }
+        .landing-panel.is-complete .landing-actions {
+            width: 100%;
+            max-width: 430px;
+            gap: 8px;
+            justify-items: stretch;
+        }
+        .landing-panel.is-complete .landing-secondary-actions {
+            width: 100%;
+            grid-template-columns: 1fr;
+            gap: 8px;
+            justify-items: stretch;
+        }
+        .landing-panel.is-complete .landing-btn,
+        .landing-panel.is-complete .landing-btn.ghost,
+        .landing-panel.is-complete .landing-modes-btn {
+            width: 100%;
+            margin: 0;
+        }
+        .landing-panel.is-complete .landing-btn.primary {
+            min-height: 48px;
+        }
+        .landing-panel.is-complete .landing-btn.secondary,
+        .landing-panel.is-complete .landing-btn.ghost,
+        .landing-panel.is-complete .landing-modes-btn {
+            min-height: 42px;
+        }
+        .landing-panel.is-complete .landing-board-wrap {
+            width: min(100%, 398px);
+            max-width: 398px;
+            padding: 10px;
+            gap: 6px;
+            border-radius: 18px;
+        }
+        .landing-panel.is-complete .landing-board-header {
+            align-items: center;
+            margin-bottom: 0;
+        }
+        .landing-panel.is-complete .landing-board-title {
+            font-size: 0.9rem;
+            line-height: 1.05;
+        }
+        .landing-panel.is-complete .landing-board-number {
+            font-size: 0.76rem;
+            line-height: 1.05;
+        }
+        .landing-panel.is-complete .landing-board-grid {
+            --card-width: 62px;
+            --card-height: 84px;
+            --card-radius: 12px;
+            --board-gap: 4px;
+        }
+        @media (max-width: 640px) {
+            .landing-screen {
+                padding:
+                    max(12px, calc(env(safe-area-inset-top, 0px) + 10px))
+                    12px
+                    max(14px, calc(env(safe-area-inset-bottom, 0px) + 10px));
+            }
+            .landing-panel.is-complete {
+                width: 100%;
+                max-width: 360px;
+                gap: 6px;
+            }
+            .landing-panel.is-complete .landing-mark {
+                transform: scale(0.48);
+                margin: -24px 0 -22px 0;
+            }
+            .landing-panel.is-complete .landing-small-title {
+                font-size: 0.98rem;
+            }
+            .landing-panel.is-complete .landing-subtitle {
+                max-width: 11ch;
+                font-size: 0.98rem;
+            }
+            .landing-panel.is-complete .landing-quick-stats {
+                gap: 4px;
+            }
+            .landing-panel.is-complete .landing-quick-stat {
+                padding: 6px 2px 5px;
+                border-radius: 12px;
+            }
+            .landing-panel.is-complete .landing-quick-value {
+                font-size: 0.82rem;
+            }
+            .landing-panel.is-complete .landing-quick-label {
+                font-size: 0.47rem;
+                letter-spacing: 0.03em;
+            }
+            .landing-panel.is-complete .landing-actions,
+            .landing-panel.is-complete .landing-secondary-actions {
+                gap: 6px;
+            }
+            .landing-panel.is-complete .landing-btn.primary {
+                min-height: 44px;
+                font-size: 0.98rem;
+            }
+            .landing-panel.is-complete .landing-btn.secondary,
+            .landing-panel.is-complete .landing-btn.ghost,
+            .landing-panel.is-complete .landing-modes-btn {
+                min-height: 38px;
+                font-size: 0.9rem;
+            }
+            .landing-panel.is-complete .landing-board-wrap {
+                width: 100%;
+                max-width: 332px;
+                padding: 8px;
+                gap: 4px;
+            }
+            .landing-panel.is-complete .landing-board-grid {
+                --card-width: min(56px, calc((100vw - 56px) / 5));
+                --card-height: calc(var(--card-width) * 1.34);
+                --card-radius: 10px;
+                --board-gap: 3px;
+            }
+            .landing-panel.is-complete .landing-board-title {
+                font-size: 0.84rem;
+            }
+            .landing-panel.is-complete .landing-board-number {
+                font-size: 0.7rem;
+            }
+        }
+
+
+        /* V7 cleanup overrides */
+        .landing-subtitle[hidden] { display: none !important; }
+        .landing-board-caption { display: none !important; }
+
+        .landing-mark {
+            grid-template-columns: repeat(5, 10px) !important;
+            gap: 2px !important;
+            padding: 3px !important;
+            border-radius: 12px !important;
+            border: 1px solid rgba(86, 101, 147, 0.55) !important;
+            background: #0c1122 !important;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.03) !important;
+            margin-inline: auto;
+        }
+        .landing-mark-cell {
+            width: 10px !important;
+            height: 10px !important;
+            border-radius: 2px !important;
+            border: 1px solid rgba(157, 170, 209, 0.14) !important;
+            background: rgba(40, 49, 82, 0.85) !important;
+        }
+        .landing-mark-cell.face-card.player-red {
+            background: #c96a4b !important;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08) !important;
+        }
+        .landing-mark-cell.face-card.player-black {
+            background: #6f79bd !important;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1) !important;
+        }
+        .landing-mark-cell:nth-child(1) { border-top-left-radius: 4px !important; }
+        .landing-mark-cell:nth-child(5) { border-top-right-radius: 4px !important; }
+        .landing-mark-cell:nth-child(21) { border-bottom-left-radius: 4px !important; }
+        .landing-mark-cell:nth-child(25) { border-bottom-right-radius: 4px !important; }
+        .landing-mark-suit {
+            font-size: 0.34rem !important;
+            transform: none !important;
+        }
+
+        .landing-panel.is-complete {
+            width: min(100%, 430px) !important;
+            max-width: 430px !important;
+            gap: 8px !important;
+            align-content: start !important;
+            justify-items: center !important;
+            padding-top: 0 !important;
+        }
+        .landing-panel.is-complete .landing-logo-lockup {
+            gap: 6px !important;
+            margin-bottom: 2px !important;
+        }
+        .landing-panel.is-complete .landing-small-title {
+            display: block !important;
+            font-size: clamp(1.65rem, 5.8vw, 2.15rem) !important;
+            line-height: 1 !important;
+            font-weight: 700 !important;
+        }
+        .landing-panel.is-complete .landing-main-content,
+        .landing-panel.is-complete .landing-summary,
+        .landing-panel.is-complete .landing-actions,
+        .landing-panel.is-complete .landing-secondary-actions,
+        .landing-panel.is-complete .landing-board-wrap {
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+        .landing-panel.is-complete .landing-summary {
+            gap: 8px !important;
+        }
+        .landing-panel.is-complete .landing-title,
+        .landing-panel.is-complete .landing-kicker,
+        .landing-panel.is-complete #landingFooter {
+            display: none !important;
+        }
+        .landing-panel.is-complete .landing-quick-stats {
+            display: grid !important;
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            gap: 8px !important;
+            width: 100% !important;
+            align-items: stretch !important;
+        }
+        #landingQuickScoreStat[hidden] {
+            display: none !important;
+        }
+        .landing-panel.is-complete .landing-quick-stat {
+            min-width: 0 !important;
+            padding: 10px 8px !important;
+            border-radius: 16px !important;
+        }
+        .landing-panel.is-complete .landing-quick-value {
+            font-size: clamp(1.1rem, 4.8vw, 1.55rem) !important;
+            line-height: 1 !important;
+        }
+        .landing-panel.is-complete .landing-quick-label {
+            font-size: clamp(0.62rem, 2.1vw, 0.74rem) !important;
+            letter-spacing: 0.07em !important;
+        }
+        .landing-panel.is-complete .landing-actions {
+            gap: 10px !important;
+        }
+        .landing-panel.is-complete .landing-secondary-actions {
+            display: grid !important;
+            gap: 10px !important;
+        }
+        .landing-panel.is-complete #landingStatsBtn {
+            display: none !important;
+        }
+        .landing-panel.is-complete .landing-btn,
+        .landing-panel.is-complete .landing-btn.ghost,
+        .landing-panel.is-complete .landing-modes-btn {
+            min-height: 52px !important;
+            font-size: clamp(1rem, 3.8vw, 1.1rem) !important;
+            border-radius: 18px !important;
+            width: 100% !important;
+        }
+        .landing-panel.is-complete .landing-board-wrap {
+            gap: 8px !important;
+            padding: 12px !important;
+            border-radius: 22px !important;
+            width: min(100%, 398px) !important;
+        }
+        .landing-panel.is-complete .landing-board-header {
+            align-items: flex-start !important;
+            gap: 10px !important;
+        }
+        .landing-board-date-wrap {
+            display: grid !important;
+            gap: 2px !important;
+            justify-items: start !important;
+        }
+        .landing-board-side {
+            display: grid;
+            gap: 6px;
+            justify-items: end;
+            text-align: right;
+        }
+        .landing-board-score {
+            color: var(--landing-text);
+            font-size: 0.96rem;
+            line-height: 1.1;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+            text-align: left;
+        }
+        .landing-board-score-you.red,
+        .landing-board-score-bot.red,
+        .landing-legend-chip.red {
+            color: #e48666;
+        }
+        .landing-board-score-you.black,
+        .landing-board-score-bot.black,
+        .landing-legend-chip.black {
+            color: #b9c1ff;
+        }
+        .landing-board-score-sep {
+            color: rgba(190,176,153,0.7);
+            padding-inline: 0.28rem;
+        }
+        .landing-panel.is-complete .landing-board-title {
+            font-size: 0.92rem !important;
+            color: rgba(242, 232, 212, 0.9) !important;
+        }
+        .landing-panel.is-complete .landing-board-number {
+            font-size: 0.82rem !important;
+            color: rgba(190, 176, 153, 0.9) !important;
+        }
+        .landing-board-legend[hidden],
+        .landing-board-outcome[hidden] {
+            display: none !important;
+        }
+        .landing-board-legend {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+        .landing-legend-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 8px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: rgba(242, 232, 212, 0.92);
+            font-size: 0.7rem;
+            line-height: 1;
+            font-weight: 500;
+        }
+        .landing-legend-swatch {
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            display: inline-block;
+        }
+        .landing-legend-swatch.red { background: #d36b4d; }
+        .landing-legend-swatch.black { background: #8894dd; }
+
+        .landing-board-outcome {
+            text-align: left;
+            color: var(--landing-text);
+            font-size: 1.02rem;
+            line-height: 1.2;
+            font-weight: 700;
+            margin-top: -2px;
+        }
+
+        .landing-panel.is-complete .landing-board-grid {
+            --card-width: clamp(46px, 13vw, 58px) !important;
+            --card-height: clamp(64px, 18vw, 82px) !important;
+            --card-radius: 12px !important;
+            --board-gap: 5px !important;
+        }
+
+        @media (max-width: 680px) {
+            .landing-screen {
+                padding-top: max(18px, calc(env(safe-area-inset-top, 0px) + 12px)) !important;
+                padding-bottom: max(20px, calc(env(safe-area-inset-bottom, 0px) + 12px)) !important;
+            }
+            .landing-panel.is-complete {
+                width: min(100%, 370px) !important;
+                max-width: 370px !important;
+                gap: 6px !important;
+            }
+            .landing-panel.is-complete .landing-logo-lockup {
+                gap: 4px !important;
+            }
+            .landing-panel.is-complete .landing-small-title {
+                font-size: 1.45rem !important;
+            }
+            .landing-panel.is-complete .landing-quick-stats {
+                grid-template-columns: repeat(3, minmax(0,1fr)) !important;
+                gap: 6px !important;
+            }
+            .landing-panel.is-complete .landing-quick-stat {
+                padding: 8px 4px !important;
+                border-radius: 14px !important;
+            }
+            .landing-panel.is-complete .landing-quick-value {
+                font-size: 1rem !important;
+            }
+            .landing-panel.is-complete .landing-quick-label {
+                font-size: 0.56rem !important;
+            }
+            .landing-panel.is-complete .landing-btn,
+            .landing-panel.is-complete .landing-btn.ghost,
+            .landing-panel.is-complete .landing-modes-btn {
+                min-height: 48px !important;
+                padding: 12px 18px !important;
+                border-radius: 16px !important;
+            }
+            .landing-panel.is-complete .landing-board-wrap {
+                width: 100% !important;
+                padding: 10px !important;
+                gap: 7px !important;
+            }
+            .landing-panel.is-complete .landing-board-grid {
+                --card-width: clamp(44px, 15.6vw, 56px) !important;
+                --card-height: clamp(62px, 21.4vw, 78px) !important;
+                --board-gap: 4px !important;
+            }
+            .landing-board-score {
+                font-size: 0.88rem !important;
+            }
+            .landing-panel.is-complete .landing-board-title {
+                font-size: 0.86rem !important;
+            }
+            .landing-panel.is-complete .landing-board-number {
+                font-size: 0.75rem !important;
+            }
+            .landing-board-outcome {
+                font-size: 0.92rem !important;
+            }
+            .landing-legend-chip {
+                font-size: 0.64rem !important;
+                padding: 3px 7px !important;
+            }
+        }
+
+
+        /* V8 targeted overrides */
+        .landing-screen {
+            padding-top: max(28px, calc(env(safe-area-inset-top, 0px) + 20px)) !important;
+        }
+        .landing-logo-lockup,
+        .landing-panel.is-complete .landing-logo-lockup {
+            justify-items: center !important;
+            width: 100% !important;
+            padding-top: 6px !important;
+            margin-bottom: 6px !important;
+        }
+        .landing-panel.is-complete .landing-mark {
+            transform: none !important;
+            margin: 0 auto !important;
+        }
+        .landing-mark {
+            grid-template-columns: repeat(5, 10px) !important;
+            gap: 1px !important;
+            padding: 0 !important;
+            border-radius: 11px !important;
+            border: 1px solid rgba(86, 101, 147, 0.62) !important;
+            background: #0c1122 !important;
+            box-shadow: none !important;
+            overflow: hidden !important;
+        }
+        .landing-mark-cell {
+            width: 10px !important;
+            height: 10px !important;
+            border: 1px solid rgba(157, 170, 209, 0.12) !important;
+            border-radius: 0 !important;
+            background: rgba(40, 49, 82, 0.9) !important;
+        }
+        .landing-mark-cell:nth-child(1) { border-top-left-radius: 6px !important; }
+        .landing-mark-cell:nth-child(5) { border-top-right-radius: 6px !important; }
+        .landing-mark-cell:nth-child(21) { border-bottom-left-radius: 6px !important; }
+        .landing-mark-cell:nth-child(25) { border-bottom-right-radius: 6px !important; }
+
+        .landing-board-header {
+            display: grid !important;
+            grid-template-columns: minmax(0, 1fr) auto !important;
+            align-items: start !important;
+            gap: 10px !important;
+        }
+        .landing-board-main {
+            display: grid !important;
+            gap: 4px !important;
+            min-width: 0 !important;
+        }
+        .landing-board-score {
+            color: var(--landing-text) !important;
+            font-size: 1.02rem !important;
+            line-height: 1.05 !important;
+            font-weight: 800 !important;
+            letter-spacing: -0.02em !important;
+            text-align: left !important;
+            white-space: nowrap !important;
+        }
+        .landing-board-outcome {
+            text-align: left !important;
+            color: var(--landing-text) !important;
+            font-size: 0.98rem !important;
+            line-height: 1.18 !important;
+            font-weight: 700 !important;
+            margin: 0 !important;
+        }
+        .landing-board-side {
+            display: grid !important;
+            gap: 2px !important;
+            justify-items: end !important;
+            text-align: right !important;
+            align-self: start !important;
+        }
+        .landing-board-title {
+            font-size: 0.92rem !important;
+            line-height: 1.05 !important;
+            color: rgba(242, 232, 212, 0.94) !important;
+        }
+        .landing-board-number {
+            font-size: 0.8rem !important;
+            line-height: 1.05 !important;
+            color: rgba(190, 176, 153, 0.92) !important;
+        }
+        .landing-board-legend {
+            display: none !important;
+        }
+        .landing-panel.is-complete .landing-summary {
+            gap: 10px !important;
+        }
+        .landing-panel.is-complete .landing-board-wrap {
+            width: min(100%, 402px) !important;
+            max-width: 402px !important;
+            padding: 12px !important;
+            gap: 8px !important;
+        }
+        .landing-panel.is-complete .landing-board-grid {
+            --card-width: clamp(46px, 13.2vw, 58px) !important;
+            --card-height: clamp(64px, 18.5vw, 82px) !important;
+            --board-gap: 5px !important;
+        }
+
+        @media (max-width: 680px) {
+            .landing-screen {
+                padding-top: max(24px, calc(env(safe-area-inset-top, 0px) + 16px)) !important;
+            }
+            .landing-logo-lockup,
+            .landing-panel.is-complete .landing-logo-lockup {
+                padding-top: 10px !important;
+                margin-bottom: 4px !important;
+            }
+            .landing-panel.is-complete {
+                width: min(100%, 390px) !important;
+                max-width: 390px !important;
+            }
+            .landing-board-header {
+                gap: 8px !important;
+            }
+            .landing-board-score {
+                font-size: 0.94rem !important;
+            }
+            .landing-board-outcome {
+                font-size: 0.9rem !important;
+            }
+            .landing-board-title {
+                font-size: 0.82rem !important;
+            }
+            .landing-board-number {
+                font-size: 0.72rem !important;
+            }
+            .landing-panel.is-complete .landing-board-wrap {
+                width: 100% !important;
+                max-width: 100% !important;
+                padding: 10px !important;
+            }
+            .landing-panel.is-complete .landing-board-grid {
+                --card-width: clamp(42px, 15.5vw, 55px) !important;
+                --card-height: clamp(60px, 21.2vw, 78px) !important;
+                --board-gap: 4px !important;
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -1783,44 +3166,87 @@
                     <div id="landingMark" class="landing-mark" aria-hidden="true"></div>
                     <div id="landingSmallTitle" class="landing-small-title" aria-hidden="true">Flood</div>
                 </div>
-                <div class="landing-kicker" id="landingKicker">Daily Puzzle</div>
-                <h1 class="landing-title wordmark-flood" id="landingTitle">Flood</h1>
-                <p class="landing-subtitle" id="landingSubtitle">Cover more spaces than your opponent.</p>
-                <div id="landingStats" class="landing-stats" hidden>
-                    <div class="landing-stat">
-                        <span id="landingStatScore" class="landing-stat-value">—</span>
-                        <span class="landing-stat-label">Final Score</span>
+                <div id="landingMainContent" class="landing-main-content">
+                    <div class="landing-summary">
+                        <div class="landing-kicker" id="landingKicker">Daily Puzzle</div>
+                        <h1 class="landing-title wordmark-flood" id="landingTitle">Flood</h1>
+                        <p class="landing-subtitle" id="landingSubtitle">Cover more spaces than your opponent.</p>
+                        <div id="landingQuickStats" class="landing-quick-stats" hidden>
+                            <div id="landingQuickScoreStat" class="landing-quick-stat landing-quick-stat-score">
+                                <span id="landingQuickScore" class="landing-quick-value">—</span>
+                                <span class="landing-quick-label">Final Score</span>
+                            </div>
+                            <div class="landing-quick-stat">
+                                <span id="landingQuickStreak" class="landing-quick-value">0</span>
+                                <span class="landing-quick-label">Streak</span>
+                            </div>
+                            <div class="landing-quick-stat">
+                                <span id="landingQuickBest" class="landing-quick-value">0</span>
+                                <span class="landing-quick-label">Best Streak</span>
+                            </div>
+                            <div class="landing-quick-stat">
+                                <span id="landingQuickAvgMargin" class="landing-quick-value">—</span>
+                                <span class="landing-quick-label">Avg Margin</span>
+                            </div>
+                        </div>
+                        <div id="landingStats" class="landing-stats" hidden>
+                            <div class="landing-stat">
+                                <span id="landingStatScore" class="landing-stat-value">—</span>
+                                <span class="landing-stat-label">Final Score</span>
+                            </div>
+                            <div class="landing-stat">
+                                <span id="landingStatStreak" class="landing-stat-value">0</span>
+                                <span class="landing-stat-label">Current Streak</span>
+                            </div>
+                            <div class="landing-stat">
+                                <span id="landingStatMaxStreak" class="landing-stat-value">0</span>
+                                <span class="landing-stat-label">Max Streak</span>
+                            </div>
+                            <div class="landing-stat">
+                                <span id="landingStatAvgMargin" class="landing-stat-value">—</span>
+                                <span class="landing-stat-label">Avg Win Margin</span>
+                            </div>
+                        </div>
+                        <div class="landing-actions">
+                            <button id="landingPlayBtn" class="landing-btn primary" type="button">Play</button>
+                            <div class="landing-secondary-actions">
+                                <button id="landingStatsBtn" class="landing-btn secondary" type="button" hidden>View Stats</button>
+                                <button id="landingModesBtn" class="landing-btn ghost landing-modes-btn" type="button" hidden>More ways to play</button>
+                            </div>
+                            <button id="landingShareBtn" class="landing-btn ghost" type="button" hidden>Share Result</button>
+                        </div>
+                        <div id="landingFooter" class="landing-footer">
+                            <div class="landing-footer-meta" hidden>
+                                <strong id="landingFooterDate">March 23, 2026</strong>
+                                <span id="landingFooterPuzzle">Puzzle No. 1</span>
+                            </div>
+                            <span>A new daily puzzle unlocks at local midnight. Warm-ups and replays never change your daily result.</span>
+                        </div>
                     </div>
-                    <div class="landing-stat">
-                        <span id="landingStatStreak" class="landing-stat-value">0</span>
-                        <span class="landing-stat-label">Current Streak</span>
+                    <div id="dailyPreviewWrap" class="landing-preview-wrap landing-board-wrap" hidden>
+                        <div class="landing-board-header">
+                            <div class="landing-board-main">
+                                <div id="landingBoardScore" class="landing-board-score">Bot: 0 · You: 0</div>
+                                <div id="landingBoardOutcome" class="landing-board-outcome" hidden>Bot won by 1.</div>
+                            </div>
+                            <div class="landing-board-side">
+                                <strong id="landingPuzzleDate" class="landing-board-title">March 23, 2026</strong>
+                                <span id="landingPuzzleNumber" class="landing-board-number">Puzzle No. 1</span>
+                                <div id="landingBoardLegend" class="landing-board-legend" hidden>
+                                    <span id="landingLegendYou" class="landing-legend-chip">
+                                        <span class="landing-legend-swatch red"></span>
+                                        You
+                                    </span>
+                                    <span id="landingLegendBot" class="landing-legend-chip">
+                                        <span class="landing-legend-swatch black"></span>
+                                        Bot
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="dailyPreviewGrid" class="landing-board-grid" aria-label="Daily board snapshot"></div>
+                        <div id="landingPreviewCaption" class="landing-board-caption">Study the final board, then jump right back in.</div>
                     </div>
-                    <div class="landing-stat">
-                        <span id="landingStatMaxStreak" class="landing-stat-value">0</span>
-                        <span class="landing-stat-label">Max Streak</span>
-                    </div>
-                    <div class="landing-stat">
-                        <span id="landingStatAvgMargin" class="landing-stat-value">—</span>
-                        <span class="landing-stat-label">Avg Win Margin</span>
-                    </div>
-                </div>
-                <div id="dailyPreviewWrap" class="landing-preview-wrap" hidden>
-                    <div class="daily-preview-meta">
-                        <strong id="landingPuzzleDate">March 23, 2026</strong>
-                        <span id="landingPuzzleNumber">Puzzle No. 1</span>
-                    </div>
-                    <div id="dailyPreviewGrid" class="daily-preview-grid" aria-label="Saved daily board preview"></div>
-                    <div id="landingPreviewCaption" class="daily-preview-caption">Your saved board so far.</div>
-                </div>
-                <div class="landing-actions">
-                    <button id="landingPlayBtn" class="landing-btn primary" type="button">Play</button>
-                    <button id="landingPracticeBtn" class="landing-btn secondary" type="button">Replay or Random Practice</button>
-                    <button id="landingShareBtn" class="landing-btn ghost" type="button" hidden>Share Result</button>
-                </div>
-                <div id="landingFooter" class="landing-footer">
-                    <strong id="landingFooterDate">March 23, 2026</strong>
-                    <span id="landingFooterPuzzle">Puzzle No. 1</span>
-                    <span>A new daily puzzle unlocks at local midnight. Practice mode is always random.</span>
                 </div>
             </div>
         </section>
@@ -1887,36 +3313,76 @@
     <div id="practiceModeModal" class="modal">
         <div class="modal-content">
             <button id="closePracticeModeBtn" class="modal-close" type="button" aria-label="Close practice options">×</button>
-            <h2>Practice</h2>
-            <p class="analysis-copy practice-copy">Practice never changes your daily result or sharing.</p>
-            <div class="menu-actions">
-                <button id="practiceReplayBtn" class="menu-action menu-action-with-icon" type="button">
-                    <div class="menu-action-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" focusable="false">
-                            <path d="M4 12a8 8 0 1 0 2.34-5.66"></path>
-                            <path d="M4 4v4h4"></path>
-                        </svg>
+            <h2 id="practiceModalTitle">More Ways to Play</h2>
+            <p id="practiceModalCopy" class="analysis-copy practice-copy">Choose one clean next step. Your daily result stays locked.</p>
+            <div class="mode-groups">
+                <section class="mode-group" aria-label="Retry today">
+                    <div class="menu-label">Retry today</div>
+                    <div class="menu-actions">
+                        <button id="practiceReplayBtn" class="menu-action menu-action-with-icon" type="button">
+                            <div class="menu-action-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" focusable="false">
+                                    <path d="M4 12a8 8 0 1 0 2.34-5.66"></path>
+                                    <path d="M4 4v4h4"></path>
+                                </svg>
+                            </div>
+                            <div class="menu-action-copy">
+                                <strong>Run It Back</strong>
+                                <span>Today’s exact puzzle again.</span>
+                            </div>
+                        </button>
+                        <button id="practiceReplaySwapBtn" class="menu-action menu-action-with-icon" type="button">
+                            <div class="menu-action-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" focusable="false">
+                                    <path d="M7 7h10"></path>
+                                    <path d="M14 4l3 3-3 3"></path>
+                                    <path d="M17 17H7"></path>
+                                    <path d="M10 14l-3 3 3 3"></path>
+                                </svg>
+                            </div>
+                            <div class="menu-action-copy">
+                                <strong>Switch Sides</strong>
+                                <span>The same puzzle from the opposite side.</span>
+                            </div>
+                        </button>
                     </div>
-                    <div class="menu-action-copy">
-                        <strong>Replay Today’s Board</strong>
-                        <span>Today’s exact board, just for practice.</span>
+                </section>
+                <section class="mode-group" aria-label="Fresh game">
+                    <div class="menu-label">Fresh game</div>
+                    <div class="menu-actions">
+                        <button id="practiceRandomBtn" class="menu-action menu-action-with-icon" type="button">
+                            <div class="menu-action-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" focusable="false">
+                                    <path d="M16 4h4v4"></path>
+                                    <path d="M4 20l16-16"></path>
+                                    <path d="M20 16v4h-4"></path>
+                                    <path d="M15 15l5 5"></path>
+                                    <path d="M4 4l5 5"></path>
+                                </svg>
+                            </div>
+                            <div class="menu-action-copy">
+                                <strong>Rematch</strong>
+                                <span>Fresh random game on the same side.</span>
+                            </div>
+                        </button>
+                        <button id="practiceRandomSwapBtn" class="menu-action menu-action-with-icon" type="button">
+                            <div class="menu-action-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" focusable="false">
+                                    <path d="M16 4h4v4"></path>
+                                    <path d="M4 20l16-16"></path>
+                                    <path d="M20 16v4h-4"></path>
+                                    <path d="M15 15l5 5"></path>
+                                    <path d="M4 4l5 5"></path>
+                                    <path d="M12 5v14"></path>
+                                </svg>
+                            </div>
+                            <div class="menu-action-copy">
+                                <strong>Fresh Switch Sides</strong>
+                                <span>Fresh random game from the opposite side.</span>
+                            </div>
+                        </button>
                     </div>
-                </button>
-                <button id="practiceRandomBtn" class="menu-action menu-action-with-icon" type="button">
-                    <div class="menu-action-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" focusable="false">
-                            <path d="M16 4h4v4"></path>
-                            <path d="M4 20l16-16"></path>
-                            <path d="M20 16v4h-4"></path>
-                            <path d="M15 15l5 5"></path>
-                            <path d="M4 4l5 5"></path>
-                        </svg>
-                    </div>
-                    <div class="menu-action-copy">
-                        <strong>Random Practice</strong>
-                        <span>Fresh random deck against the bot.</span>
-                    </div>
-                </button>
+                </section>
             </div>
         </div>
     </div>
@@ -1965,8 +3431,13 @@
         const PLAYER_SUITS = { red: ['♥', '♦'], black: ['♠', '♣'] };
         const MATCH_LOG_VERSION = 'FLOOD_MATCH_LOG_V1';
         const FLOOD_SETTINGS = { showAllowedMoves: true };
-        const PRACTICE_VARIANTS = { random: 'random', replay: 'replay' };
-        const FLOOD_GAME_OPTIONS = { playerColor: 'red', seed: null, practiceVariant: PRACTICE_VARIANTS.random };
+        const PRACTICE_VARIANTS = {
+            randomSame: 'randomSame',
+            randomSwap: 'randomSwap',
+            replaySame: 'replaySame',
+            replaySwap: 'replaySwap'
+        };
+        const FLOOD_GAME_OPTIONS = { playerColor: 'red', seed: null, practiceVariant: PRACTICE_VARIANTS.randomSame };
         const PLAYERS = ['red', 'black'];
         const APP_MODES = { landing: 'landing', daily: 'daily', practice: 'practice' };
         const DAILY_STORAGE_VERSION = 1;
@@ -2105,6 +3576,20 @@
         const normalizePlayerColor = (color = FLOOD_GAME_OPTIONS.playerColor) => (
             ['red', 'black', 'random'].includes(color) ? color : FLOOD_GAME_OPTIONS.playerColor
         );
+        const fixedPlayerColor = (color) => (color === 'black' ? 'black' : 'red');
+        const oppositePlayerColor = (color) => (fixedPlayerColor(color) === 'red' ? 'black' : 'red');
+        const isReplayPracticeVariant = (variant = FLOOD_GAME_OPTIONS.practiceVariant) => (
+            variant === PRACTICE_VARIANTS.replaySame || variant === PRACTICE_VARIANTS.replaySwap
+        );
+        const isSwapPracticeVariant = (variant = FLOOD_GAME_OPTIONS.practiceVariant) => (
+            variant === PRACTICE_VARIANTS.randomSwap || variant === PRACTICE_VARIANTS.replaySwap
+        );
+        const activePracticeBaseColor = () => fixedPlayerColor(app?.mode === APP_MODES.practice && app?.game?.userPlayer ? app.game.userPlayer : DAILY_PLAYER_COLOR);
+        const resolvePracticePlayerColor = (variant = FLOOD_GAME_OPTIONS.practiceVariant) => {
+            const baseColor = activePracticeBaseColor();
+            return isSwapPracticeVariant(variant) ? oppositePlayerColor(baseColor) : baseColor;
+        };
+        const colorDisplayName = (color) => fixedPlayerColor(color) === 'black' ? 'Black' : 'Red';
         const hashSeed = (seed) => {
             let hash = 2166136261;
             for (const char of String(seed)) {
@@ -2926,13 +4411,31 @@
                 this.pendingPointerDrag = null;
                 this.dropResolved = false;
                 this.pendingReturnAnimation = false;
+                this._ghostLastPos = null;
+                this._ghostTilt = 0;
+                this._ghostVx = 0;
                 this.clearTimer('returnAnimationTimer');
             }
             createPointerGhost(sourceEl) {
-                const sourceRect = sourceEl.getBoundingClientRect();
-                const ghost = sourceEl.cloneNode(true);
-                ghost.classList.remove('dragging');
+                // For board cards, clone the full stack container so preserve-3d context
+                // is intact and backface-visibility works correctly on iOS Safari.
+                const isBoardCard = sourceEl.classList.contains('board-card');
+                const ghostSource = isBoardCard
+                    ? (sourceEl.closest('.board-card-stack') ?? sourceEl)
+                    : sourceEl;
+                const sourceRect = ghostSource.getBoundingClientRect();
+                const ghost = ghostSource.cloneNode(true);
+                ghost.classList.remove('dragging', 'lifted-board-card');
                 ghost.classList.add('touch-drag-ghost');
+                if (isBoardCard) {
+                    ghost.classList.add('board-ghost');
+                    // Force the cloned stack to show the back face regardless of any
+                    // flipped/unflipped class that might have been on the original cell.
+                    const clonedBack = ghost.querySelector('.board-card.back');
+                    const clonedFace = ghost.querySelector('.board-card.face');
+                    if (clonedBack) clonedBack.style.cssText += '; transform: rotateY(0deg) !important;';
+                    if (clonedFace) clonedFace.style.cssText += '; transform: rotateY(180deg) !important;';
+                }
                 this.pointerGhostMetrics = {
                     width: sourceRect.width,
                     height: sourceRect.height
@@ -2950,7 +4453,23 @@
                 const height = this.pointerGhostMetrics?.height ?? this.pointerDragGhost.offsetHeight;
                 const offsetX = this.dragPointerOffset?.x ?? (width / 2);
                 const offsetY = this.dragPointerOffset?.y ?? (height / 2);
-                this.pointerDragGhost.style.transform = `translate3d(${clientX - offsetX}px, ${clientY - offsetY}px, 0)`;
+                const x = clientX - offsetX;
+                const y = clientY - offsetY;
+                // Velocity-based tilt for natural physics feel
+                const now = performance.now();
+                const prev = this._ghostLastPos;
+                let tiltDeg = 0;
+                if (prev) {
+                    const dt = Math.max(1, now - prev.t);
+                    const vx = (clientX - prev.x) / dt; // px/ms
+                    const smooth = this._ghostTilt ?? 0;
+                    tiltDeg = smooth * 0.7 + Math.max(-14, Math.min(14, vx * 22)) * 0.3;
+                    this._ghostTilt = tiltDeg;
+                    this._ghostVx = vx;
+                }
+                this._ghostLastPos = { x: clientX, y: clientY, t: now };
+                this.pointerDragGhost.style.transform =
+                    `translate3d(${x}px, ${y}px, 0) rotate(${tiltDeg.toFixed(2)}deg) scale(1.06)`;
             }
             getPointerDropTarget(clientX, clientY) {
                 const hovered = document.elementFromPoint(clientX, clientY);
@@ -3032,13 +4551,17 @@
             animateCardReturn(clientX, clientY, message = null) {
                 const sourceEl = this.activeDragElement;
                 if (!sourceEl) {
-                    if (message) {
-                        this.announce(message, 'error');
-                    }
+                    if (message) this.announce(message, 'error');
                     this.finishDragCleanup();
                     return;
                 }
                 const sourceRect = sourceEl.getBoundingClientRect();
+                // If the source element has zero dimensions (detached/hidden), bail cleanly
+                if (!sourceRect.width && !sourceRect.height) {
+                    if (message) this.announce(message, 'error');
+                    this.finishDragCleanup();
+                    return;
+                }
                 const offsetX = this.dragPointerOffset?.x ?? sourceRect.width / 2;
                 const offsetY = this.dragPointerOffset?.y ?? sourceRect.height / 2;
                 const pointerX = Number.isFinite(clientX) && clientX > 0
@@ -3048,38 +4571,62 @@
                     ? clientY
                     : (this.lastDragPoint?.y ?? (sourceRect.top + offsetY));
                 const startLeft = pointerX - offsetX;
-                const startTop = pointerY - offsetY;
-                const clone = sourceEl.cloneNode(true);
+                const startTop  = pointerY - offsetY;
+                // Reuse live ghost if present; otherwise clone from source
+                const isBoardCard = sourceEl.classList.contains('board-card');
+                let clone;
+                if (this.pointerDragGhost) {
+                    clone = this.pointerDragGhost;
+                    this.pointerDragGhost = null; // transfer ownership
+                } else {
+                    const cloneSource = isBoardCard
+                        ? (sourceEl.closest('.board-card-stack') ?? sourceEl)
+                        : sourceEl;
+                    clone = cloneSource.cloneNode(true);
+                    clone.style.left  = `${startLeft}px`;
+                    clone.style.top   = `${startTop}px`;
+                    clone.style.width  = `${sourceRect.width}px`;
+                    clone.style.height = `${sourceRect.height}px`;
+                    document.body.appendChild(clone);
+                }
                 let settled = false;
                 this.dropResolved = true;
                 this.pendingReturnAnimation = true;
-                clone.classList.remove('dragging');
+                clone.classList.remove('touch-drag-ghost', 'dragging');
                 clone.classList.add('returning-card');
-                clone.style.left = `${startLeft}px`;
-                clone.style.top = `${startTop}px`;
-                clone.style.width = `${sourceRect.width}px`;
-                clone.style.height = `${sourceRect.height}px`;
-                clone.style.opacity = '0.98';
-                clone.style.transform = 'translate(0, 0) scale(1.02)';
-                document.body.appendChild(clone);
+                if (isBoardCard) clone.classList.add('board-ghost');
+                clone.style.position  = 'fixed';
+                clone.style.margin    = '0';
+                clone.style.opacity   = '0.96';
+                clone.style.pointerEvents = 'none';
+                clone.style.zIndex    = '2200';
+                clone.style.willChange = 'transform, opacity';
+                // Momentum: nudge start by current velocity so the arc feels physical
+                const vx = this._ghostVx ?? 0;
+                const momentum = Math.max(-30, Math.min(30, vx * 12));
+                const dX = sourceRect.left - startLeft + momentum;
+                const dY = sourceRect.top  - startTop;
+                const currentTransform = `translate3d(0px, 0px, 0) rotate(${(this._ghostTilt ?? 0).toFixed(1)}deg) scale(1.06)`;
+                const targetTransform  = `translate3d(${dX}px, ${dY}px, 0) rotate(0deg) scale(1)`;
+                // Apply immediately so browser knows starting transform
+                clone.style.transform = currentTransform;
                 const finish = () => {
                     if (settled) return;
                     settled = true;
                     clone.remove();
-                    if (message) {
-                        this.announce(message, 'error');
-                    }
+                    if (message) this.announce(message, 'error');
                     this.finishDragCleanup();
                 };
+                // Double rAF: first paints starting state, second triggers transition
                 requestAnimationFrame(() => {
                     requestAnimationFrame(() => {
-                        clone.style.transform = `translate(${sourceRect.left - startLeft}px, ${sourceRect.top - startTop}px) scale(1)`;
-                        clone.style.opacity = '0.92';
-                        clone.style.boxShadow = '0 6px 18px rgba(0, 0, 0, 0.2)';
+                        clone.style.transform  = targetTransform;
+                        clone.style.opacity    = '0.88';
+                        clone.style.boxShadow  = '0 4px 12px rgba(0,0,0,0.18)';
                     });
                 });
                 clone.addEventListener('transitionend', finish, { once: true });
-                this.returnAnimationTimer = setTimeout(finish, 460);
+                this.returnAnimationTimer = setTimeout(finish, 520);
             }
             handleGlobalDrop(e) {
                 if (!this.draggedCard || this.dropResolved) {
@@ -3129,6 +4676,15 @@
                 });
                 this.draggedFromBoard = { row, col };
                 this.updateUI();
+                // After updateUI() the board is fully re-rendered; sync activeDragElement
+                // to the fresh .board-card.back at the new position so animateCardReturn
+                // can compute a valid rect if the user later cancels the drag.
+                const cellIndex = row * BOARD_SIZE + col;
+                const newCellEl = this.els.board.querySelectorAll('.cell')[cellIndex];
+                const newBack = newCellEl?.querySelector('.board-card.back');
+                if (newBack) {
+                    this.activeDragElement = newBack;
+                }
                 return true;
             }
             resolveDraggedCellDrop(row, col) {
@@ -4831,12 +6387,11 @@
                 const target = this.getPointerDropTarget(e.clientX, e.clientY);
                 if (target?.type === 'discard') {
                     if (this.draggedFromBoard || this.currentPlayer !== this.userPlayer) {
-                        this.removePointerGhost();
+                        // let animateCardReturn reuse + transition the ghost
                         this.animateCardReturn(e.clientX, e.clientY);
                         return;
                     }
                     if (!this.canDiscard(this.userPlayer)) {
-                        this.removePointerGhost();
                         this.animateCardReturn(e.clientX, e.clientY, 'Discard unlocks after the first move');
                         return;
                     }
@@ -4856,11 +6411,9 @@
                         this.finishDragCleanup();
                         return;
                     }
-                    this.removePointerGhost();
                     this.animateCardReturn(e.clientX, e.clientY, 'Must connect to home row');
                     return;
                 }
-                this.removePointerGhost();
                 this.animateCardReturn(e.clientX, e.clientY);
             }
             startBoardCardDrag(row, col, sourceEl, startDrag) {
@@ -4886,11 +6439,13 @@
             handleBoardCardPointerStart(e, row, col) {
                 this.startBoardCardDrag(row, col, e.currentTarget, (dragState, cellData, cellEl) => {
                     this.beginPointerDrag(e, dragState);
-                    this.pendingPointerDrag.onActivate = () => {
-                        if (this.draggedFromBoard?.row === row && this.draggedFromBoard?.col === col) {
-                            this.showLiftedBoardSource(cellEl, cellData);
-                        }
-                    };
+                    if (this.pendingPointerDrag) {
+                        this.pendingPointerDrag.onActivate = () => {
+                            if (this.draggedFromBoard?.row === row && this.draggedFromBoard?.col === col) {
+                                this.showLiftedBoardSource(cellEl, cellData);
+                            }
+                        };
+                    }
                 });
             }
             handleDragOver(e, row, col) {
@@ -5008,8 +6563,14 @@
                 title: 'landingTitle',
                 subtitle: 'landingSubtitle',
                 play: 'landingPlayBtn',
-                practice: 'landingPracticeBtn',
+                statsButton: 'landingStatsBtn',
+                modes: 'landingModesBtn',
                 share: 'landingShareBtn',
+                quickStats: 'landingQuickStats',
+                quickScore: 'landingQuickScore',
+                quickStreak: 'landingQuickStreak',
+                quickBest: 'landingQuickBest',
+                quickAvgMargin: 'landingQuickAvgMargin',
                 stats: 'landingStats',
                 statScore: 'landingStatScore',
                 statStreak: 'landingStatStreak',
@@ -5020,6 +6581,12 @@
                 previewCaption: 'landingPreviewCaption',
                 puzzleDate: 'landingPuzzleDate',
                 puzzleNumber: 'landingPuzzleNumber',
+                quickScoreStat: 'landingQuickScoreStat',
+                boardScore: 'landingBoardScore',
+                boardOutcome: 'landingBoardOutcome',
+                boardLegend: 'landingBoardLegend',
+                legendYou: 'landingLegendYou',
+                legendBot: 'landingLegendBot',
                 footer: 'landingFooter',
                 footerDate: 'landingFooterDate',
                 footerPuzzle: 'landingFooterPuzzle'
@@ -5047,7 +6614,9 @@
                 menuShare: 'menuShareBtn',
                 completedBoardResults: 'completedBoardResultsBtn',
                 practiceReplay: 'practiceReplayBtn',
-                practiceRandom: 'practiceRandomBtn'
+                practiceReplaySwap: 'practiceReplaySwapBtn',
+                practiceRandom: 'practiceRandomBtn',
+                practiceRandomSwap: 'practiceRandomSwapBtn'
             }),
             colorButtons: [...document.querySelectorAll('[data-player-color]')],
             ...pickIds({
@@ -5058,6 +6627,8 @@
                 menuPracticeTitle: 'menuPracticeTitle',
                 menuPracticeCopy: 'menuPracticeCopy',
                 completedBoardActions: 'completedBoardActions',
+                practiceModalTitle: 'practiceModalTitle',
+                practiceModalCopy: 'practiceModalCopy',
                 showAllowedMovesToggle: 'showAllowedMovesToggle',
                 analysisExport: 'analysisExport'
             }),
@@ -5185,6 +6756,35 @@
                 return (await this.copy(text)) ? 'copied' : null;
             }
         };
+        const createStaticCardHTML = (rank, suit) => `
+                <div class="card-corner top">
+                    <div class="card-rank">${rank}</div>
+                    <div class="card-suit-small">${suit}</div>
+                </div>
+                <div class="card-suit-large">${suit}</div>
+                <div class="card-corner bottom">
+                    <div class="card-rank">${rank}</div>
+                    <div class="card-suit-small">${suit}</div>
+                </div>
+            `;
+        const createLandingBoardCellMarkup = (cell, rowIndex) => {
+            const resolvedCard = typeof cell?.card === 'string' ? cardFromCode(cell.card) : cell?.card;
+            const homeRowClass = rowIndex === 0 || rowIndex === BOARD_SIZE - 1 ? ' home-row' : '';
+            if (!resolvedCard) {
+                return `<div class="cell${homeRowClass}"></div>`;
+            }
+            const owner = dailyHistory.owner(cell);
+            const faceTone = owner ?? resolvedCard.color ?? 'black';
+            const faceStateClass = cell.faceUp ? 'flipped' : 'unflipped';
+            return `
+                <div class="cell ${faceStateClass}${homeRowClass}">
+                    <div class="board-card-stack" aria-hidden="true">
+                        <div class="board-card face ${faceTone}">${createStaticCardHTML(resolvedCard.rank, resolvedCard.suit)}</div>
+                        <div class="board-card back"></div>
+                    </div>
+                </div>
+            `;
+        };
         const LANDING_COPY = {
             fresh: {
                 title: 'Flood',
@@ -5198,28 +6798,20 @@
             },
             complete: {
                 title: 'Daily Complete',
-                playLabel: 'View Today’s Board'
+                playLabel: 'Rematch'
             }
         };
         const landingView = {
             renderPreview(progress) {
-                ui.landing.previewGrid.innerHTML = '';
                 const board = progress?.game?.board;
                 if (!board) {
+                    ui.landing.previewGrid.innerHTML = '';
                     ui.landing.previewWrap.hidden = true;
                     return;
                 }
-                board.forEach((row) => {
-                    row.forEach((cell) => {
-                        const previewCell = document.createElement('div');
-                        previewCell.className = 'daily-preview-cell';
-                        const owner = dailyHistory.owner(cell);
-                        if (owner) {
-                            previewCell.classList.add(owner);
-                        }
-                        ui.landing.previewGrid.appendChild(previewCell);
-                    });
-                });
+                ui.landing.previewGrid.innerHTML = board
+                    .map((row, rowIndex) => row.map((cell) => createLandingBoardCellMarkup(cell, rowIndex)).join(''))
+                    .join('');
                 ui.landing.previewWrap.hidden = false;
             },
             setCopy({ title, subtitle, playLabel, previewCaption = null }) {
@@ -5236,26 +6828,49 @@
                     ui.landing.previewCaption.textContent = previewCaption;
                 }
             },
+            renderQuickStats(progress) {
+                const { red, black } = dailyHistory.scores(progress);
+                const streakStats = dailyHistory.streakStats(progress.dateKey ?? app.dailyKey);
+                const avgWinMargin = dailyHistory.winMarginAverage(progress.dateKey ?? app.dailyKey);
+                ui.landing.quickStats.hidden = false;
+                ui.landing.quickScore.textContent = `${red}-${black}`;
+                ui.landing.quickStreak.textContent = String(streakStats.current);
+                ui.landing.quickBest.textContent = String(streakStats.best);
+                ui.landing.quickAvgMargin.textContent = avgWinMargin === null ? '—' : `+${avgWinMargin.toFixed(1)}`;
+            },
             resetBase(progress, puzzleNumber, displayDate) {
                 ui.landing.panel.classList.toggle('has-progress', Boolean(progress));
                 ui.landing.panel.classList.toggle('is-complete', progress?.status === 'ended');
+                ui.landing.quickStats.hidden = true;
+                ui.landing.quickScoreStat && (ui.landing.quickScoreStat.hidden = false);
                 ui.landing.stats.hidden = true;
+                ui.landing.statsButton && (ui.landing.statsButton.hidden = true);
+                ui.landing.modes.hidden = false;
+                ui.landing.modes.textContent = 'Warm Up & Practice';
+                ui.landing.play.classList.remove('attention');
+                ui.landing.subtitle.hidden = false;
                 ui.landing.puzzleDate.textContent = displayDate;
                 ui.landing.puzzleNumber.textContent = `Puzzle No. ${puzzleNumber}`;
+                ui.landing.boardScore.textContent = 'Bot: 0 · You: 0';
+                ui.landing.boardOutcome.hidden = true;
+                ui.landing.boardOutcome.textContent = '';
+                if (ui.landing.boardLegend) ui.landing.boardLegend.hidden = true;
+                if (ui.landing.legendYou) ui.landing.legendYou.className = 'landing-legend-chip';
+                if (ui.landing.legendBot) ui.landing.legendBot.className = 'landing-legend-chip';
                 ui.landing.footerDate.textContent = displayDate;
                 ui.landing.footerPuzzle.textContent = `Puzzle No. ${puzzleNumber}`;
                 ui.landing.footer.hidden = false;
                 ui.landing.share.dataset.baseLabel = 'Share Result';
                 ui.landing.share.textContent = 'Share Result';
                 ui.landing.share.hidden = true;
-                ui.landing.practice.textContent = 'Replay or Random Practice';
             },
             renderFresh(puzzleNumber) {
                 ui.landing.kicker.textContent = `Daily Puzzle #${puzzleNumber}`;
-                this.setCopy(LANDING_COPY.fresh);
+                this.setCopy({ ...LANDING_COPY.fresh, playLabel: 'Play Daily' });
                 ui.landing.previewWrap.hidden = true;
                 ui.landing.previewCaption.hidden = false;
                 ui.landing.footer.hidden = false;
+                ui.landing.modes.textContent = 'Warm Up & Practice';
             },
             renderInProgress(progress, activePuzzleNumber) {
                 const { red, black } = dailyHistory.scores(progress);
@@ -5264,28 +6879,46 @@
                     previewCaption: `Score so far • ${red}-${black}`
                 });
                 this.renderPreview(progress);
-                ui.landing.kicker.textContent = `Daily Puzzle #${activePuzzleNumber}`;
+                ui.landing.kicker.textContent = `${formatDailyDate(progress.dateKey ?? app.dailyKey)} • Puzzle No. ${activePuzzleNumber}`;
+                ui.landing.boardScore.textContent = `Bot: ${black} · You: ${red}`;
                 ui.landing.previewCaption.hidden = false;
+                ui.landing.modes.textContent = 'Warm Up & Practice';
             },
             renderComplete(progress, activePuzzleNumber) {
                 const { red, black } = dailyHistory.scores(progress);
+                const margin = Math.abs(red - black);
+                const outcomeCopy = red > black
+                    ? `You won${margin ? ` by ${margin}` : ''}.`
+                    : black > red
+                        ? `Bot won${margin ? ` by ${margin}` : ''}.`
+                        : 'It ended level.';
+                const userColor = fixedPlayerColor(DAILY_PLAYER_COLOR);
+                const botColor = oppositePlayerColor(userColor);
                 this.setCopy({
-                    ...LANDING_COPY.complete,
-                    subtitle: dailyHistory.outcomeSummary(progress),
-                    previewCaption: ''
+                    title: 'Flood',
+                    subtitle: '',
+                    playLabel: 'Rematch',
+                    previewCaption: 'Study the final board, then jump right back in.'
                 });
                 this.renderPreview(progress);
-                ui.landing.kicker.textContent = `Daily Puzzle #${activePuzzleNumber}`;
+                this.renderQuickStats(progress);
+                ui.landing.quickScoreStat && (ui.landing.quickScoreStat.hidden = true);
+                ui.landing.kicker.textContent = '';
+                ui.landing.subtitle.hidden = true;
+                ui.landing.boardScore.innerHTML = `<span class="landing-board-score-bot ${botColor}">Bot: ${black}</span><span class="landing-board-score-sep">·</span><span class="landing-board-score-you ${userColor}">You: ${red}</span>`;
+                ui.landing.boardOutcome.hidden = false;
+                ui.landing.boardOutcome.textContent = outcomeCopy;
+                if (ui.landing.boardLegend) ui.landing.boardLegend.hidden = true;
+                if (ui.landing.legendYou) ui.landing.legendYou.className = `landing-legend-chip ${userColor}`;
+                if (ui.landing.legendBot) ui.landing.legendBot.className = `landing-legend-chip ${botColor}`;
                 ui.landing.previewCaption.hidden = true;
-                ui.landing.share.hidden = false;
-                if (!app.showDailyResults) return;
-                const streakStats = dailyHistory.streakStats(progress.dateKey ?? app.dailyKey);
-                const avgWinMargin = dailyHistory.winMarginAverage(progress.dateKey ?? app.dailyKey);
-                ui.landing.stats.hidden = false;
-                ui.landing.statScore.textContent = `${red}-${black}`;
-                ui.landing.statStreak.textContent = String(streakStats.current);
-                ui.landing.statMaxStreak.textContent = String(streakStats.best);
-                ui.landing.statAvgMargin.textContent = avgWinMargin === null ? '—' : `+${avgWinMargin.toFixed(1)}`;
+                ui.landing.footer.hidden = true;
+                ui.landing.share.hidden = true;
+                ui.landing.stats.hidden = true;
+                ui.landing.statsButton && (ui.landing.statsButton.hidden = true);
+                ui.landing.modes.hidden = false;
+                ui.landing.modes.textContent = 'More ways to play';
+                ui.landing.play.classList.add('attention');
             },
             render() {
                 clearTimeout(landingShareTimer);
@@ -5312,17 +6945,16 @@
                 syncPracticeColorUI();
                 const dailyEnded = app.dailyProgress?.status === 'ended';
                 const inPractice = app.mode === APP_MODES.practice;
-                const replayPractice = FLOOD_GAME_OPTIONS.practiceVariant === PRACTICE_VARIANTS.replay;
-                ui.practiceColorSection.hidden = !inPractice || replayPractice;
+                ui.practiceColorSection.hidden = true;
                 ui.gameMenuTitle.textContent = inPractice ? 'Practice Options' : 'Daily Options';
                 ui.menuDailyTitle.textContent = inPractice ? 'Go to Daily Home' : 'Return to Daily Home';
                 ui.menuDailyCopy.textContent = inPractice
                     ? 'Leave practice and go back to today’s saved daily puzzle screen.'
                     : 'See today’s saved puzzle, continue it later, or share your result.';
-                ui.menuPracticeTitle.textContent = inPractice ? 'Replay or New Practice' : 'Replay or Random Practice';
-                ui.menuPracticeCopy.textContent = replayPractice
-                    ? 'Replay today’s board again or switch to a fresh random practice match. Practice never affects the daily result.'
-                    : 'Replay today’s board in practice mode or deal a fresh random deck against the bot.';
+                ui.menuPracticeTitle.textContent = 'More ways to play';
+                ui.menuPracticeCopy.textContent = inPractice
+                    ? 'Open grouped retry and fresh-game options from the current side.'
+                    : 'Open grouped replay and fresh-game options without cluttering the landing screen.';
                 ui.buttons.menuShare.hidden = !dailyEnded;
                 const titleEl = ui.buttons.menuShare.querySelector('strong');
                 const bodyEl = ui.buttons.menuShare.querySelector('span');
@@ -5394,7 +7026,7 @@
                         onGameOver: () => {
                             setTimeout(() => {
                                 if (app.mode === APP_MODES.daily) {
-                                    shell.enterLanding({ showResults: true });
+                                    shell.enterLanding({ showResults: false });
                                 }
                             }, 900);
                         }
@@ -5402,10 +7034,8 @@
                 }
                 return new FloodGame(FLOOD_SETTINGS, {
                     mode: APP_MODES.practice,
-                    playerColor: FLOOD_GAME_OPTIONS.practiceVariant === PRACTICE_VARIANTS.replay
-                        ? DAILY_PLAYER_COLOR
-                        : FLOOD_GAME_OPTIONS.playerColor,
-                    seed: FLOOD_GAME_OPTIONS.practiceVariant === PRACTICE_VARIANTS.replay
+                    playerColor: resolvePracticePlayerColor(FLOOD_GAME_OPTIONS.practiceVariant),
+                    seed: isReplayPracticeVariant(FLOOD_GAME_OPTIONS.practiceVariant)
                         ? getDailySeed(app.dailyKey)
                         : null
                 });
@@ -5413,7 +7043,7 @@
             enterLanding({ showResults = false } = {}) {
                 closeAllModals();
                 this.destroyGame();
-                app.showDailyResults = showResults;
+                app.showDailyResults = false;
                 setShellMode(APP_MODES.landing);
                 syncCompletedBoardView();
                 landingView.render();
@@ -5431,14 +7061,39 @@
                 menuView.sync();
             }
         };
+        const setMenuActionCopy = (button, title, body) => {
+            const titleEl = button?.querySelector('strong');
+            const bodyEl = button?.querySelector('span');
+            if (titleEl) titleEl.textContent = title;
+            if (bodyEl) bodyEl.textContent = body;
+        };
+        const replayChallengeCopy = () => {
+            const snapshot = app.dailyProgress;
+            if (snapshot?.status !== 'ended') return 'Today’s exact puzzle again, just for practice.';
+            const { red, black } = dailyHistory.scores(snapshot);
+            if (red > black) return `You won by ${red - black}. Can you do even better?`;
+            if (black > red) return `You lost by ${black - red}. Try a different line.`;
+            return 'It was a draw. See if you can break it open.';
+        };
         const practiceController = {
             open() {
                 menuView.sync();
+                const baseColor = activePracticeBaseColor();
+                const oppositeColor = oppositePlayerColor(baseColor);
+                ui.practiceModalTitle.textContent = app.dailyProgress?.status === 'ended' ? 'More Ways to Play' : 'Warm Up & Practice';
+                ui.practiceModalCopy.textContent = app.dailyProgress?.status === 'ended'
+                    ? 'Keep the session going with one clear next step. Your daily result stays locked.'
+                    : 'Practice never changes your daily result or sharing.';
+                setMenuActionCopy(ui.buttons.practiceReplay, 'Run It Back', replayChallengeCopy());
+                setMenuActionCopy(ui.buttons.practiceReplaySwap, 'Switch Sides', `The same puzzle from the ${colorDisplayName(oppositeColor)} side.`);
+                setMenuActionCopy(ui.buttons.practiceRandom, 'Rematch', `Fresh random game as ${colorDisplayName(baseColor)}.`);
+                setMenuActionCopy(ui.buttons.practiceRandomSwap, 'Fresh Switch Sides', `Fresh random game as ${colorDisplayName(oppositeColor)}.`);
                 setModalOpen(ui.modals.game, false);
                 setModalOpen(ui.modals.practice, true);
             },
             start(variant) {
                 FLOOD_GAME_OPTIONS.practiceVariant = variant;
+                FLOOD_GAME_OPTIONS.playerColor = resolvePracticePlayerColor(variant);
                 setModalOpen(ui.modals.practice, false);
                 shell.enterGame(APP_MODES.practice);
             }
@@ -5494,18 +7149,26 @@
             });
         });
         bindClick(ui.landing.play, () => {
+            if (app.dailyProgress?.status === 'ended') {
+                FLOOD_GAME_OPTIONS.practiceVariant = PRACTICE_VARIANTS.randomSame;
+                FLOOD_GAME_OPTIONS.playerColor = resolvePracticePlayerColor(PRACTICE_VARIANTS.randomSame);
+                shell.enterGame(APP_MODES.practice);
+                return;
+            }
             shell.enterGame(APP_MODES.daily);
             maybeShowFirstPlayHowToPlay();
         });
-        bindClick(ui.landing.practice, () => practiceController.open());
+        bindClick(ui.landing.modes, () => practiceController.open());
         bindClick(ui.landing.share, shareDailyResult);
-        bindClick(ui.buttons.completedBoardResults, () => shell.enterLanding({ showResults: true }));
+        bindClick(ui.buttons.completedBoardResults, () => shell.enterLanding());
         bindClick(ui.buttons.menuDaily, () => shell.enterLanding());
         bindClick(ui.buttons.menuPractice, () => practiceController.open());
         bindClick(ui.buttons.menuShare, shareDailyResult);
         bindClick(ui.buttons.copyAnalysis, copyAnalysisExport);
-        bindClick(ui.buttons.practiceReplay, () => practiceController.start(PRACTICE_VARIANTS.replay));
-        bindClick(ui.buttons.practiceRandom, () => practiceController.start(PRACTICE_VARIANTS.random));
+        bindClick(ui.buttons.practiceReplay, () => practiceController.start(PRACTICE_VARIANTS.replaySame));
+        bindClick(ui.buttons.practiceReplaySwap, () => practiceController.start(PRACTICE_VARIANTS.replaySwap));
+        bindClick(ui.buttons.practiceRandom, () => practiceController.start(PRACTICE_VARIANTS.randomSame));
+        bindClick(ui.buttons.practiceRandomSwap, () => practiceController.start(PRACTICE_VARIANTS.randomSwap));
         Object.values(ui.modals).forEach((modal) => {
             modal.addEventListener('click', (e) => {
                 if (e.target === modal) {
