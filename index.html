@@ -4085,7 +4085,7 @@
                 this.draggedFromBoard = null;
                 this.setupPlacements = createPlayerMap(() => null);
                 this.waitingForFlip = null;
-                this.dealingToSlot = createPlayerMap(() => null);
+                this.resetDealingAnimations();
                 this.animatingMove = null;
                 this.settings = settings;
                 this.communicationTimer = null;
@@ -4142,6 +4142,20 @@
                 if (!this[key]) return;
                 clearTimeout(this[key]);
                 this[key] = null;
+            }
+            resetDealingAnimations() {
+                this.dealingToSlot = createPlayerMap(() => null);
+                this.dealingAnimationActive = createPlayerMap(() => false);
+                this.pendingHandRender = createPlayerMap(() => false);
+            }
+            finishDealingAnimation(player, { rerenderHand = false } = {}) {
+                this.dealingToSlot[player] = null;
+                this.dealingAnimationActive[player] = false;
+                const shouldRerenderHand = rerenderHand || this.pendingHandRender[player];
+                this.pendingHandRender[player] = false;
+                if (shouldRerenderHand && !this.isDestroyed) {
+                    this.renderHand(player);
+                }
             }
             isSharedMatch() {
                 return this.mode === APP_MODES.shared;
@@ -4282,9 +4296,7 @@
                 if (this.isDestroyed) return;
                 if (document.hidden) {
                     this.animatingMove = null;
-                    PLAYERS.forEach((player) => {
-                        this.dealingToSlot[player] = null;
-                    });
+                    this.resetDealingAnimations();
                     if (this.draggedCard || this.activeDragElement || this.pendingReturnAnimation) {
                         this.finishDragCleanup();
                     } else {
@@ -4336,7 +4348,7 @@
                 });
                 this.setupPlacements = createPlayerMap(() => null);
                 this.setupRevealed = createPlayerMap(() => false);
-                this.dealingToSlot = createPlayerMap(() => null);
+                this.resetDealingAnimations();
                 this.waitingForFlip = null;
                 this.currentPlayer = this.userPlayer;
                 this.gamePhase = 'setup';
@@ -4434,12 +4446,16 @@
             getPreferredSetupColumns() {
                 return this.setupWidePlacement ? [2, 1, 3, 0, 4] : [2];
             }
+            isSetupRevealBlocked() {
+                return this.gamePhase === 'setup' && Boolean(this.animatingMove);
+            }
             canPlayerFlip(cell) {
                 if (
                     this.isSharedSetupPhase() &&
                     cell?.owner === this.userPlayer &&
                     this.hasSetupPlacement(this.userPlayer) &&
                     !this.setupRevealed?.[this.userPlayer] &&
+                    !this.isSetupRevealBlocked() &&
                     this.isSharedRoomReady()
                 ) {
                     return true;
@@ -4449,6 +4465,7 @@
                     !cell.faceUp &&
                     this.waitingForFlip === this.userPlayer &&
                     cell.owner === this.userPlayer &&
+                    !this.isSetupRevealBlocked() &&
                     this.gamePhase !== 'ended' &&
                     this.isSharedRoomReady()
                 );
@@ -4591,7 +4608,7 @@
                         card: cardFromCode(placement.card)
                     } : null;
                 });
-                this.dealingToSlot = createPlayerMap(() => null);
+                this.resetDealingAnimations();
                 this.matchLog = snapshot.matchLog ? JSON.parse(JSON.stringify(snapshot.matchLog)) : null;
                 this.matchLogStep = snapshot.matchLogStep ?? (this.matchLog?.events?.length ?? 0);
                 this.cacheElements();
@@ -5149,21 +5166,20 @@
                 this.dealingToSlot[player] = deal.slot;
                 this.updateUI();
                 if (document.hidden) {
-                    this.dealingToSlot[player] = null;
-                    this.updateUI();
+                    this.finishDealingAnimation(player, { rerenderHand: true });
                     return Promise.resolve(true);
                 }
                 return new Promise((resolve) => {
                     requestAnimationFrame(() => {
                         if (this.isDestroyed) {
-                            this.dealingToSlot[player] = null;
+                            this.finishDealingAnimation(player);
                             resolve(false);
                             return;
                         }
                         const { hand: handEl, deck: deckEl } = this.getPlayerEls(player);
                         const cardEl = handEl.querySelectorAll('.hand-slot')[emptySlot]?.querySelector('.card');
                         if (!cardEl) {
-                            this.dealingToSlot[player] = null;
+                            this.finishDealingAnimation(player, { rerenderHand: true });
                             resolve(false);
                             return;
                         }
@@ -5171,11 +5187,12 @@
                         const cardRect = cardEl.getBoundingClientRect();
                         cardEl.style.setProperty('--deal-x', `${deckRect.left - cardRect.left}px`);
                         cardEl.style.setProperty('--deal-y', `${deckRect.top - cardRect.top}px`);
+                        this.dealingAnimationActive[player] = true;
                         cardEl.classList.remove('pre-deal');
                         cardEl.classList.add('dealing');
                         setTimeout(() => {
                             cardEl.classList.remove('dealing');
-                            this.dealingToSlot[player] = null;
+                            this.finishDealingAnimation(player);
                             resolve(!this.isDestroyed);
                         }, 500);
                     });
@@ -5279,7 +5296,7 @@
                             setupRevealed: createPlayerMap((player) => Boolean(this.setupRevealed[player]))
                         });
                         if (!this.areSetupCardsRevealed()) {
-                            this.updateUI();
+                            this.renderFrame({ includeBoard: false });
                             return;
                         }
                     }
@@ -5292,7 +5309,7 @@
                     revealCell(redPlacement.row, redPlacement.col);
                     revealCell(blackPlacement.row, blackPlacement.col);
                     if (this.isSharedMatch()) {
-                        this.updateUI();
+                        this.renderFrame({ includeBoard: false });
                     }
                     setTimeout(() => {
                         const redValue = CARD_VALUES[redPlacement.card.rank];
@@ -6445,6 +6462,12 @@
                 }
                 if (this.gamePhase === 'setup') {
                     if (this.isSharedMatch()) {
+                        if (this.isSetupRevealBlocked()) {
+                            return {
+                                text: `${this.getOpponentLabel()} is placing a setup card...`,
+                                tone: 'bot-turn'
+                            };
+                        }
                         if (!this.hasSetupPlacement(this.userPlayer)) {
                             if (this.hasSetupPlacement(this.botPlayer)) {
                                 return {
@@ -6470,6 +6493,12 @@
                             };
                         }
                         return { text: 'Revealing the opening cards...', tone: 'neutral' };
+                    }
+                    if (this.isSetupRevealBlocked()) {
+                        return {
+                            text: 'Bot is placing a card...',
+                            tone: 'bot-turn'
+                        };
                     }
                     if (this.waitingForFlip === this.userPlayer) {
                         return { text: 'Flip your card to reveal it', tone: 'player-turn' };
@@ -6732,6 +6761,10 @@
                 const { hand: handEl } = this.getPlayerEls(player);
                 if (player === this.userPlayer) {
                     this.ensureUserHandHandlers();
+                }
+                if (this.dealingAnimationActive[player]) {
+                    this.pendingHandRender[player] = true;
+                    return;
                 }
                 handEl.innerHTML = '';
                 for (let i = 0; i < HAND_SIZE; i++) {
@@ -7508,7 +7541,7 @@
                 const localAuthoritativeState = app.game?.mode === APP_MODES.shared
                     ? app.game.getAuthoritativeLocalState?.()
                     : null;
-                const shouldPreserveLocalState = preserveLocalState || (
+                const hasQueuedLocalState = (
                     Boolean(this.pendingState && app.game?.mode === APP_MODES.shared) &&
                     (
                         sharedMatch.statesEqual(room.game, this.inFlightState) ||
@@ -7516,6 +7549,16 @@
                     ) &&
                     !sharedMatch.statesEqual(room.game, this.pendingState)
                 );
+                const hasNewerLocalInFlightState = (
+                    Boolean(this.inFlightState && app.game?.mode === APP_MODES.shared && localAuthoritativeState) &&
+                    sharedMatch.statesEqual(localAuthoritativeState, this.inFlightState) &&
+                    !sharedMatch.statesEqual(room.game, this.inFlightState) &&
+                    (
+                        sharedMatch.statesEqual(room.game, app.sharedRoom?.game) ||
+                        Number(room.version ?? 0) <= previousVersion
+                    )
+                );
+                const shouldPreserveLocalState = preserveLocalState || hasQueuedLocalState || hasNewerLocalInFlightState;
                 const repairedSetupState = (
                     localAuthoritativeState
                     && room.game?.gamePhase === 'setup'
