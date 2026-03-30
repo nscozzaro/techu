@@ -6539,14 +6539,21 @@
             canDiscard(player) {
                 return this.gamePhase === 'playing' && this.openingMoveComplete;
             }
-            updateUI() {
+            renderFrame({ includeBoard = true, notifyState = true } = {}) {
                 this.sizeLayout();
-                this.renderBoard();
+                if (includeBoard) {
+                    this.renderBoard();
+                }
                 this.renderHands();
                 this.renderDecks();
                 this.updateScores();
                 this.renderCommunication();
-                this.notifyStateChange();
+                if (notifyState) {
+                    this.notifyStateChange();
+                }
+            }
+            updateUI() {
+                this.renderFrame();
             }
             renderCardBack() {
                 return '<div class="card card-back" style="pointer-events: none;"></div>';
@@ -7521,7 +7528,7 @@
                     if (localAuthoritativeState && sharedMatch.statesEqual(room.game, localAuthoritativeState)) {
                         this.applyingRemoteState = true;
                         app.game.gameOptions.sharedRoomReady = room.status === 'active' || room.status === 'ended';
-                        app.game.updateUI();
+                        app.game.renderFrame({ includeBoard: false, notifyState: false });
                         this.applyingRemoteState = false;
                         menuView.sync();
                         practiceController.syncSharedInviteAction?.();
@@ -7530,7 +7537,7 @@
                     if (shouldPreserveLocalState) {
                         this.applyingRemoteState = true;
                         app.game.gameOptions.sharedRoomReady = room.status === 'active' || room.status === 'ended';
-                        app.game.updateUI();
+                        app.game.renderFrame({ includeBoard: false, notifyState: false });
                         this.applyingRemoteState = false;
                         menuView.sync();
                         practiceController.syncSharedInviteAction?.();
