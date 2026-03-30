@@ -3220,7 +3220,7 @@
                                 <strong id="landingFooterDate">March 23, 2026</strong>
                                 <span id="landingFooterPuzzle">Puzzle No. 1</span>
                             </div>
-                            <span>A new daily puzzle unlocks at local midnight. Warm-ups and replays never change your daily result.</span>
+                            <span>A new daily puzzle unlocks at local midnight. More ways to play never change your daily result.</span>
                         </div>
                     </div>
                     <div id="dailyPreviewWrap" class="landing-preview-wrap landing-board-wrap" hidden>
@@ -3260,8 +3260,8 @@
             <div class="game-container">
             <div class="header">
                 <div class="scores">
-                    <span id="botScoreWrap" class="score-black">Bot: <span id="blackScore">0</span></span>
-                    <span id="userScoreWrap" class="score-red">You: <span id="redScore">0</span></span>
+                    <span id="botScoreWrap" class="score-black"><span id="opponentScoreLabel">Bot</span>: <span id="blackScore">0</span></span>
+                    <span id="userScoreWrap" class="score-red"><span id="localScoreLabel">You</span>: <span id="redScore">0</span></span>
                 </div>
                 <div class="header-status neutral" id="statusBar">Setting up...</div>
                 <div class="header-actions">
@@ -3303,9 +3303,13 @@
                     <strong>Share Daily Result</strong>
                     <span>Copy a Wordle-style summary of today’s finished board.</span>
                 </button>
+                <button id="menuSharedLinkBtn" class="menu-action" type="button" hidden>
+                    <strong>Copy Shared Match Link</strong>
+                    <span>Re-copy the invite link for your live match with a friend.</span>
+                </button>
                 <button id="openAnalysisBtn" class="menu-action" type="button">
                     <strong>Export Match Log</strong>
-                    <span>Copy a full transcript of the current match to paste into chat for Bot review.</span>
+                    <span>Copy a full transcript of the current match to paste into chat for review.</span>
                 </button>
             </div>
         </div>
@@ -3383,6 +3387,26 @@
                         </button>
                     </div>
                 </section>
+                <section class="mode-group" aria-label="Play a friend">
+                    <div class="menu-label">Play a friend</div>
+                    <div class="menu-actions">
+                        <button id="sharedInviteBtn" class="menu-action menu-action-with-icon" type="button">
+                            <div class="menu-action-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" focusable="false">
+                                    <path d="M7 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"></path>
+                                    <path d="M17 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"></path>
+                                    <path d="M3 20a5 5 0 0 1 8 0"></path>
+                                    <path d="M13.5 20a4.5 4.5 0 0 1 7.5 0"></path>
+                                </svg>
+                            </div>
+                            <div class="menu-action-copy">
+                                <strong>Share game link with a friend</strong>
+                                <span>Create a live room, copy the link, and play from separate devices.</span>
+                            </div>
+                        </button>
+                    </div>
+                    <p id="sharedInviteStatus" class="analysis-copy practice-copy" hidden>Host starts as Red. The invite room stays live for up to 12 hours after the latest move.</p>
+                </section>
             </div>
         </div>
     </div>
@@ -3412,7 +3436,7 @@
         <div class="modal-content">
             <button id="closeAnalysisBtn" class="modal-close" type="button" aria-label="Close match log">×</button>
             <h2>Match Log</h2>
-            <p class="analysis-copy">Paste this into chat and ask me to review how the Bot lost. It includes shuffles, draws, plays, flips, discards, and Bot scoring snapshots.</p>
+            <p class="analysis-copy">Paste this into chat and ask me to review the match. It includes shuffles, draws, plays, flips, discards, and score snapshots.</p>
             <textarea id="analysisExport" class="analysis-textarea" readonly spellcheck="false"></textarea>
             <div class="menu-actions">
                 <button id="copyAnalysisBtn" class="menu-action" type="button">
@@ -3439,13 +3463,16 @@
         };
         const FLOOD_GAME_OPTIONS = { playerColor: 'red', seed: null, practiceVariant: PRACTICE_VARIANTS.randomSame };
         const PLAYERS = ['red', 'black'];
-        const APP_MODES = { landing: 'landing', daily: 'daily', practice: 'practice' };
+        const APP_MODES = { landing: 'landing', daily: 'daily', practice: 'practice', shared: 'shared' };
         const DAILY_STORAGE_VERSION = 1;
         const DAILY_STORAGE_PREFIX = 'flood-daily:';
         const HOW_TO_PLAY_STORAGE_KEY = 'flood-how-to-play-seen';
+        const SHARED_ROOM_STORAGE_KEY = 'flood-shared-room';
         const DAILY_PLAYER_COLOR = 'red';
         const DAILY_EPOCH_UTC = Date.UTC(2026, 2, 23);
         const SHARE_EMOJI = { red: '🟩', black: '⬛', empty: '⬜' };
+        const SHARED_ROOM_TTL_HOURS = 12;
+        const SHARED_STREAM_RETRY_MS = 1500;
         const PLAYER_AREA_META = {
             top: { handId: 'blackHand', deckId: 'blackDeck', deckCountId: 'blackDeckCount', discardId: 'blackDiscard' },
             bottom: { handId: 'redHand', deckId: 'redDeck', deckCountId: 'redDeckCount', discardId: 'redDiscard' }
@@ -3463,6 +3490,7 @@
             ['black', '♠', 'Black']
         ];
         const MENU_SHARE_DEFAULT = ['Share Daily Result', 'Copy a Wordle-style summary of today’s finished board.'];
+        const MENU_SHARED_LINK_DEFAULT = ['Copy Shared Match Link', 'Re-copy the invite link for your live match with a friend.'];
         const ANALYSIS_COPY_DEFAULT = ['Copy Match Log', 'Copies the full transcript so you can paste it directly into this chat.'];
         const DIRECTIONS = [[-1, 0], [1, 0], [0, -1], [0, 1]];
         const BOARD_SIZE = 5;
@@ -3659,12 +3687,53 @@
                 }
             }
         };
+        const cloneData = (value) => JSON.parse(JSON.stringify(value));
+        const getInviteParams = () => {
+            const params = new URLSearchParams(window.location.search);
+            const roomId = params.get('room');
+            const seat = params.get('seat');
+            const play = params.get('play');
+            if (play !== APP_MODES.shared || !roomId || !PLAYERS.includes(seat)) {
+                return null;
+            }
+            return { roomId, seat };
+        };
+        const clearInviteParams = () => {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('play');
+            url.searchParams.delete('room');
+            url.searchParams.delete('seat');
+            window.history.replaceState({}, '', url);
+        };
         const onboarding = {
             hasSeenHowToPlay() {
                 return storage.get(HOW_TO_PLAY_STORAGE_KEY) === '1';
             },
             markHowToPlaySeen() {
                 storage.set(HOW_TO_PLAY_STORAGE_KEY, '1', 'Unable to persist Flood onboarding state.');
+            }
+        };
+        const sharedStore = {
+            load() {
+                const raw = storage.get(SHARED_ROOM_STORAGE_KEY);
+                if (!raw) return null;
+                try {
+                    const parsed = JSON.parse(raw);
+                    return parsed?.roomId && PLAYERS.includes(parsed?.seat) ? parsed : null;
+                } catch (error) {
+                    console.warn('Unable to load saved shared Flood room.', error);
+                    return null;
+                }
+            },
+            save(payload) {
+                storage.set(SHARED_ROOM_STORAGE_KEY, JSON.stringify(payload), 'Unable to persist shared Flood room.');
+            },
+            clear() {
+                try {
+                    window.localStorage?.removeItem(SHARED_ROOM_STORAGE_KEY);
+                } catch (error) {
+                    console.warn('Unable to clear shared Flood room.', error);
+                }
             }
         };
         const dailyStore = {
@@ -3807,6 +3876,90 @@
                 ].join('\n');
             }
         };
+        const sharedMatch = {
+            otherSeat: (seat) => seat === 'black' ? 'red' : 'black',
+            shouldMirrorSeat(seat) {
+                return seat === 'black';
+            },
+            mirrorRow(row) {
+                return Number.isInteger(row) ? (BOARD_SIZE - 1) - row : row;
+            },
+            mirrorBoard(board = createBoard()) {
+                return cloneData(board).slice().reverse();
+            },
+            mirrorCoordinates(value) {
+                if (Array.isArray(value)) {
+                    return value.map((item) => this.mirrorCoordinates(item));
+                }
+                if (!value || typeof value !== 'object') {
+                    return value;
+                }
+                const mirrored = Object.fromEntries(
+                    Object.entries(value).map(([key, nestedValue]) => [key, this.mirrorCoordinates(nestedValue)])
+                );
+                if (Number.isInteger(mirrored.row)) {
+                    mirrored.row = this.mirrorRow(mirrored.row);
+                }
+                return mirrored;
+            },
+            toLocalPerspective(sharedGame, seat) {
+                if (!this.shouldMirrorSeat(seat)) {
+                    return cloneData(sharedGame);
+                }
+                const localGame = cloneData(sharedGame);
+                localGame.board = this.mirrorBoard(localGame.board);
+                localGame.setupPlacements = this.mirrorCoordinates(localGame.setupPlacements ?? { red: null, black: null });
+                localGame.matchLog = this.mirrorCoordinates(localGame.matchLog);
+                return localGame;
+            },
+            toAuthoritativePerspective(localState, seat) {
+                if (!this.shouldMirrorSeat(seat)) {
+                    return cloneData(localState);
+                }
+                const sharedGame = cloneData(localState);
+                sharedGame.board = this.mirrorBoard(sharedGame.board);
+                sharedGame.setupPlacements = this.mirrorCoordinates(sharedGame.setupPlacements ?? { red: null, black: null });
+                sharedGame.matchLog = this.mirrorCoordinates(sharedGame.matchLog);
+                return sharedGame;
+            },
+            buildLocalSnapshot(sharedGame, seat) {
+                const clone = this.toLocalPerspective(sharedGame, seat);
+                return {
+                    ...clone,
+                    mode: APP_MODES.shared,
+                    userPlayer: seat,
+                    botPlayer: this.otherSeat(seat),
+                    gameOptions: {
+                        playerColor: seat,
+                        seed: clone.seed ?? null
+                    }
+                };
+            },
+            toAuthoritativeState(localState) {
+                const authoritativeSeat = localState.userPlayer ?? localState.gameOptions?.playerColor ?? 'red';
+                return this.toAuthoritativePerspective({
+                    version: localState.version ?? DAILY_STORAGE_VERSION,
+                    mode: APP_MODES.shared,
+                    seed: localState.gameOptions?.seed ?? localState.seed ?? null,
+                    currentPlayer: localState.currentPlayer,
+                    gamePhase: localState.gamePhase,
+                    waitingForFlip: localState.waitingForFlip,
+                    openingMoveComplete: Boolean(localState.openingMoveComplete),
+                    setupWidePlacement: Boolean(localState.setupWidePlacement),
+                    setupRevealed: localState.setupRevealed ?? { red: false, black: false },
+                    setupPlacements: localState.setupPlacements ?? { red: null, black: null },
+                    board: localState.board ?? createBoard(),
+                    hands: localState.hands ?? createPlayerMap(() => Array(HAND_SIZE).fill(null)),
+                    decks: localState.decks ?? createPlayerMap(() => []),
+                    discards: localState.discards ?? createPlayerMap(() => []),
+                    matchLog: localState.matchLog ?? null,
+                    matchLogStep: localState.matchLogStep ?? 0
+                }, authoritativeSeat);
+            },
+            statesEqual(left, right) {
+                return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
+            }
+        };
         const createDeck = (player) => PLAYER_SUITS[player].flatMap((suit) => (
             CARD_RANKS.map((rank) => ({ rank, suit, color: player }))
         ));
@@ -3825,7 +3978,15 @@
                     this[`${player}Hand`] = Array(HAND_SIZE).fill(null);
                     this[`${player}Discard`] = [];
                 });
-                const options = { seed: null, mode: APP_MODES.practice, initialState: null, onStateChange: null, onGameOver: null, ...gameOptions };
+                const options = {
+                    seed: null,
+                    mode: APP_MODES.practice,
+                    initialState: null,
+                    onStateChange: null,
+                    onGameOver: null,
+                    sharedRoomReady: true,
+                    ...gameOptions
+                };
                 const savedState = options.initialState;
                 this.gameOptions = options;
                 this.mode = options.mode;
@@ -3899,6 +4060,115 @@
                 clearTimeout(this[key]);
                 this[key] = null;
             }
+            isSharedMatch() {
+                return this.mode === APP_MODES.shared;
+            }
+            getOpponentLabel() {
+                return this.isSharedMatch() ? 'Friend' : 'Bot';
+            }
+            isSharedRoomReady() {
+                return !this.isSharedMatch() || Boolean(this.gameOptions.sharedRoomReady);
+            }
+            canLocalTakeTurn() {
+                return this.currentPlayer === this.userPlayer && this.gamePhase !== 'ended' && this.isSharedRoomReady();
+            }
+            canLocalDragCards() {
+                return !this.openingDealInProgress && this.canLocalTakeTurn();
+            }
+            areSetupCardsPlaced(state = this) {
+                return Boolean(state.setupPlacements?.red && state.setupPlacements?.black);
+            }
+            areSetupCardsRevealed(state = this) {
+                return Boolean(state.setupRevealed?.red && state.setupRevealed?.black);
+            }
+            isSharedSetupRevealPhase(state = this) {
+                return (state.mode ?? this.mode) === APP_MODES.shared
+                    && state.gamePhase === 'setup'
+                    && this.areSetupCardsPlaced(state);
+            }
+            isCellVisibleFaceUp(cell, state = this) {
+                if (!cell?.faceUp) return false;
+                if (!this.isSharedSetupRevealPhase(state)) {
+                    return true;
+                }
+                if (this.areSetupCardsRevealed(state)) {
+                    return true;
+                }
+                return cell.owner === (state.userPlayer ?? this.userPlayer);
+            }
+            getAuthoritativeLocalState() {
+                if (this.mode !== APP_MODES.shared) return null;
+                return sharedMatch.toAuthoritativeState(this.serializeState());
+            }
+            canDragPendingBoardCard(cell) {
+                if (!cell || cell.faceUp || cell.owner !== this.userPlayer || !this.canLocalTakeTurn()) {
+                    return false;
+                }
+                if (this.isSharedSetupRevealPhase()) {
+                    return false;
+                }
+                if (this.gamePhase === 'setup' && this.waitingForFlip === this.userPlayer) {
+                    return false;
+                }
+                return true;
+            }
+            getRevealedCellTransitions(nextSnapshot = this.serializeState()) {
+                const transitions = [];
+                for (let row = 0; row < BOARD_SIZE; row += 1) {
+                    for (let col = 0; col < BOARD_SIZE; col += 1) {
+                        const previousCell = this.board?.[row]?.[col] ?? null;
+                        const nextCell = nextSnapshot?.board?.[row]?.[col] ?? null;
+                        if (!previousCell || !nextCell) continue;
+                        if (
+                            !this.isCellVisibleFaceUp(previousCell, this) &&
+                            this.isCellVisibleFaceUp(nextCell, nextSnapshot)
+                        ) {
+                            transitions.push({ row, col });
+                        }
+                    }
+                }
+                return transitions;
+            }
+            animateRevealedCells(transitions = []) {
+                if (!transitions.length) return;
+                const cells = this.els.board.querySelectorAll('.cell');
+                const targets = transitions
+                    .map(({ row, col }) => cells[row * BOARD_SIZE + col])
+                    .filter(Boolean);
+                if (!targets.length) return;
+                targets.forEach((target) => {
+                    if (!target.classList.contains('flipped')) return;
+                    target.classList.remove('flipped');
+                    target.classList.add('unflipped');
+                });
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        targets.forEach((target) => {
+                            target.classList.remove('unflipped');
+                            target.classList.add('flipped');
+                        });
+                    });
+                });
+            }
+            syncSharedRoom(room, seat = this.userPlayer, { animateFlips = true } = {}) {
+                if (!room?.game) return;
+                this.gameOptions.sharedRoomReady = room.status === 'active' || room.status === 'ended';
+                if (this.draggedCard || this.activeDragElement || this.pendingReturnAnimation) {
+                    this.finishDragCleanup();
+                } else {
+                    this.clearAllowedMoveHighlights();
+                    this.clearDragSourceState();
+                    this.clearLiftedBoardState();
+                }
+                this.communicationState.transient = null;
+                this.clearTimer('communicationTimer');
+                const snapshot = sharedMatch.buildLocalSnapshot(room.game, seat);
+                const flipTransitions = animateFlips ? this.getRevealedCellTransitions(snapshot) : [];
+                this.restoreSerializedState(snapshot);
+                if (flipTransitions.length) {
+                    this.animateRevealedCells(flipTransitions);
+                }
+            }
             handleTabVisibilityChange() {
                 if (this.isDestroyed) return;
                 if (document.hidden) {
@@ -3920,6 +4190,7 @@
                 this.animatingMove = null;
                 this.waitingForFlip = null;
                 this.setupWidePlacement = true;
+                this.setupRevealed = createPlayerMap(() => false);
                 if (this.draggedCard || this.activeDragElement || this.pendingReturnAnimation) {
                     this.finishDragCleanup();
                 } else {
@@ -3955,6 +4226,7 @@
                     this[`${player}Discard`] = [];
                 });
                 this.setupPlacements = createPlayerMap(() => null);
+                this.setupRevealed = createPlayerMap(() => false);
                 this.dealingToSlot = createPlayerMap(() => null);
                 this.waitingForFlip = null;
                 this.currentPlayer = this.userPlayer;
@@ -3980,7 +4252,9 @@
                 if (this.isDestroyed) return;
                 this.openingDealInProgress = false;
                 this.updateUI();
-                this.scheduleAiSetupTurn();
+                if (!this.isSharedMatch()) {
+                    this.scheduleAiSetupTurn();
+                }
             }
             scheduleAiSetupTurn(delay = 500) {
                 this.clearTimer('setupTimer');
@@ -4028,6 +4302,8 @@
                 });
                 this.els.botScoreWrap.className = this.botPlayer === 'red' ? 'score-red' : 'score-black';
                 this.els.userScoreWrap.className = this.userPlayer === 'red' ? 'score-red' : 'score-black';
+                if (ui.opponentScoreLabel) ui.opponentScoreLabel.textContent = this.getOpponentLabel();
+                if (ui.localScoreLabel) ui.localScoreLabel.textContent = 'You';
             }
             isUserPlayer(player) {
                 return player === this.userPlayer;
@@ -4050,15 +4326,27 @@
                 return this.setupWidePlacement ? [2, 1, 3, 0, 4] : [2];
             }
             canPlayerFlip(cell) {
+                if (
+                    this.isSharedMatch() &&
+                    this.gamePhase === 'setup' &&
+                    this.areSetupCardsPlaced() &&
+                    cell?.owner === this.userPlayer &&
+                    !this.setupRevealed?.[this.userPlayer] &&
+                    this.isSharedRoomReady()
+                ) {
+                    return true;
+                }
                 return Boolean(
                     cell &&
                     !cell.faceUp &&
                     this.waitingForFlip === this.userPlayer &&
                     cell.owner === this.userPlayer &&
-                    this.gamePhase !== 'ended'
+                    this.gamePhase !== 'ended' &&
+                    this.isSharedRoomReady()
                 );
             }
             queueBotTurn(delay = 1000) {
+                if (this.isSharedMatch()) return;
                 if (this.currentPlayer === this.botPlayer && this.gamePhase === 'playing') {
                     setTimeout(() => this.aiTurn(), delay);
                 }
@@ -4147,6 +4435,7 @@
                     waitingForFlip: this.waitingForFlip,
                     openingMoveComplete: this.openingMoveComplete,
                     setupWidePlacement: this.setupWidePlacement,
+                    setupRevealed: createPlayerMap((player) => Boolean(this.setupRevealed?.[player])),
                     openingDealInProgress: false,
                     setupPlacements: createPlayerMap((player) => {
                         const placement = this.setupPlacements[player];
@@ -4183,6 +4472,7 @@
                 this.waitingForFlip = snapshot.waitingForFlip ?? null;
                 this.openingMoveComplete = Boolean(snapshot.openingMoveComplete);
                 this.setupWidePlacement = Boolean(snapshot.setupWidePlacement);
+                this.setupRevealed = createPlayerMap((player) => Boolean(snapshot.setupRevealed?.[player]));
                 this.openingDealInProgress = false;
                 this.searchFocus = null;
                 this.setupPlacements = createPlayerMap((player) => {
@@ -4201,7 +4491,7 @@
                 this.updateUI();
             }
             resumePendingTurn() {
-                if (this.gamePhase === 'ended' || this.isDestroyed) return;
+                if (this.gamePhase === 'ended' || this.isDestroyed || this.isSharedMatch()) return;
                 if (this.gamePhase === 'setup') {
                     if (!this.setupPlacements[this.botPlayer]) {
                         this.scheduleAiSetupTurn(300);
@@ -4492,7 +4782,7 @@
                 };
             }
             refreshPointerDropFeedback(clientX, clientY) {
-                if (!this.draggedCard || this.currentPlayer !== this.userPlayer) return;
+                if (!this.draggedCard || !this.canLocalTakeTurn()) return;
                 const target = this.getPointerDropTarget(clientX, clientY);
                 const previous = this.activePointerFeedback;
                 const sameTarget =
@@ -4640,7 +4930,7 @@
                 const { row: fromRow, col: fromCol } = this.draggedFromBoard;
                 if (row === fromRow && col === fromCol) return false;
                 const sourceCell = this.board[fromRow][fromCol];
-                if (!sourceCell || sourceCell.faceUp || sourceCell.owner !== this.userPlayer || this.currentPlayer !== this.userPlayer) {
+                if (!sourceCell || sourceCell.faceUp || sourceCell.owner !== this.userPlayer || !this.canLocalTakeTurn()) {
                     return false;
                 }
                 this.board[fromRow][fromCol] = sourceCell.coveredCell ?? null;
@@ -4724,7 +5014,7 @@
             }
             refreshAllowedMoveHighlights() {
                 this.clearAllowedMoveHighlights();
-                if (!this.settings.showAllowedMoves || !this.draggedCard || this.currentPlayer !== this.userPlayer) {
+                if (!this.settings.showAllowedMoves || !this.draggedCard || !this.canLocalTakeTurn()) {
                     return;
                 }
                 this.els.board.querySelectorAll('.cell').forEach((cell) => {
@@ -4840,7 +5130,13 @@
                 });
                 if (this.gamePhase === 'setup') {
                     this.setupPlacements[player] = { row, col, card };
-                    if (this.setupPlacements.red && this.setupPlacements.black) {
+                    if (this.isSharedMatch()) {
+                        if (this.setupPlacements.red && this.setupPlacements.black) {
+                            this.waitingForFlip = null;
+                        } else {
+                            this.currentPlayer = this.otherPlayer(player);
+                        }
+                    } else if (this.setupPlacements.red && this.setupPlacements.black) {
                         this.waitingForFlip = this.userPlayer;
                     }
                 } else {
@@ -4850,7 +5146,7 @@
             }
             flipCard(row, col) {
                 const cell = this.board[row][col];
-                if (!cell || cell.faceUp) return;
+                if (!cell || (cell.faceUp && !this.canPlayerFlip(cell))) return;
                 const flipCardCode = this.cardToCode(cell.card);
                 const cells = this.els.board.querySelectorAll('.cell');
                 const revealCell = (targetRow, targetCol) => {
@@ -4867,10 +5163,28 @@
                 revealCell(row, col);
                 this.waitingForFlip = null;
                 if (this.gamePhase === 'setup') {
+                    if (this.isSharedMatch()) {
+                        this.setupRevealed[cell.owner] = true;
+                        this.logGameEvent('setup-self-reveal', {
+                            player: cell.owner,
+                            row,
+                            col,
+                            card: flipCardCode,
+                            setupRevealed: createPlayerMap((player) => Boolean(this.setupRevealed[player]))
+                        });
+                        if (!this.areSetupCardsRevealed()) {
+                            this.waitingForFlip = this.otherPlayer(cell.owner);
+                            this.updateUI();
+                            return;
+                        }
+                    }
                     const redPlacement = this.setupPlacements.red;
                     const blackPlacement = this.setupPlacements.black;
                     revealCell(redPlacement.row, redPlacement.col);
                     revealCell(blackPlacement.row, blackPlacement.col);
+                    if (this.isSharedMatch()) {
+                        this.updateUI();
+                    }
                     setTimeout(() => {
                         const redValue = CARD_VALUES[redPlacement.card.rank];
                         const blackValue = CARD_VALUES[blackPlacement.card.rank];
@@ -4886,19 +5200,25 @@
                             this.drawCards('black', 1, 'setup-tie-redraw');
                             this.announce('Tie! Draw and place again', 'info');
                             this.gamePhase = 'setup';
-                            this.currentPlayer = this.userPlayer;
+                            this.currentPlayer = this.isSharedMatch() ? 'red' : this.userPlayer;
+                            this.setupRevealed = createPlayerMap(() => false);
                             this.setupPlacements = createPlayerMap(() => null);
-                            this.scheduleAiSetupTurn();
+                            if (!this.isSharedMatch()) {
+                                this.scheduleAiSetupTurn();
+                            }
                             this.updateUI();
                             return;
                         }
                         const starter = redValue < blackValue ? 'red' : 'black';
                         this.setupWidePlacement = false;
+                        this.setupRevealed = createPlayerMap(() => true);
                         this.currentPlayer = starter;
                         this.gamePhase = 'playing';
                         this.dealCardsWithAnimation(starter);
                         if (starter === this.userPlayer) {
                             this.announce('You go first!', 'success');
+                        } else if (this.isSharedMatch()) {
+                            this.announce(`${this.getOpponentLabel()} goes first`, 'info');
                         } else {
                             this.announce('Bot goes first', 'info');
                             setTimeout(() => this.aiTurn(), 1500);
@@ -5952,7 +6272,7 @@
                 }
                 const skippedPlayer = this.currentPlayer;
                 this.currentPlayer = this.otherPlayer();
-                this.announce(this.isUserPlayer(skippedPlayer) ? 'You have no cards' : 'Bot has no cards', 'info');
+                this.announce(this.isUserPlayer(skippedPlayer) ? 'You have no cards' : `${this.getOpponentLabel()} has no cards`, 'info');
                 this.checkAndSkipIfNoCards();
             }
             isGameOver() {
@@ -5969,7 +6289,7 @@
                     return `Game Over! You win! ${userScore} - ${botScore}`;
                 }
                 if (botScore > userScore) {
-                    return `Game Over! Bot wins! ${botScore} - ${userScore}`;
+                    return `Game Over! ${this.getOpponentLabel()} wins! ${botScore} - ${userScore}`;
                 }
                 return `Game Over! It's a tie! ${userScore} - ${botScore}`;
             }
@@ -6008,15 +6328,42 @@
                 if (this.openingDealInProgress) {
                     return { text: 'Dealing opening hands...', tone: 'neutral' };
                 }
+                if (!this.isSharedRoomReady()) {
+                    return { text: 'Waiting for your friend to join from the shared link…', tone: 'neutral' };
+                }
                 if (this.gamePhase === 'setup') {
-                    if (this.waitingForFlip === this.userPlayer) {
-                        return { text: 'Flip your card to reveal it', tone: 'player-turn' };
+                    if (this.isSharedMatch() && this.areSetupCardsPlaced()) {
+                        if (!this.setupRevealed[this.userPlayer]) {
+                            return { text: 'Flip your setup card when ready', tone: 'player-turn' };
+                        }
+                        if (!this.setupRevealed[this.botPlayer]) {
+                            return {
+                                text: `${this.getOpponentLabel()} is revealing their setup card...`,
+                                tone: 'bot-turn'
+                            };
+                        }
+                    } else {
+                        if (this.waitingForFlip === this.userPlayer) {
+                            return { text: 'Flip your card to reveal it', tone: 'player-turn' };
+                        }
+                        if (this.waitingForFlip === this.botPlayer) {
+                            return {
+                                text: this.isSharedMatch() ? `${this.getOpponentLabel()} is revealing the setup cards...` : 'Bot is revealing the setup cards...',
+                                tone: 'bot-turn'
+                            };
+                        }
                     }
                     if (this.setupPlacements[this.botPlayer] && !this.setupPlacements[this.userPlayer]) {
-                        return { text: `Bot is ready. ${this.getSetupInstructionText()}`, tone: 'player-turn' };
+                        return {
+                            text: `${this.isSharedMatch() ? this.getOpponentLabel() : 'Bot'} is ready. ${this.getSetupInstructionText()}`,
+                            tone: 'player-turn'
+                        };
                     }
                     if (this.setupPlacements[this.userPlayer] && !this.setupPlacements[this.botPlayer]) {
-                        return { text: 'Bot is placing a card...', tone: 'bot-turn' };
+                        return {
+                            text: this.isSharedMatch() ? `${this.getOpponentLabel()} is placing a card...` : 'Bot is placing a card...',
+                            tone: 'bot-turn'
+                        };
                     }
                     return { text: this.getSetupInstructionText(), tone: 'player-turn' };
                 }
@@ -6043,8 +6390,8 @@
                 }
                 return {
                     text: this.canDiscard(this.botPlayer)
-                        ? "Bot's turn"
-                        : 'Bot opening move',
+                        ? `${this.getOpponentLabel()}'s turn`
+                        : `${this.getOpponentLabel()} opening move`,
                     tone: 'bot-turn'
                 };
             }
@@ -6091,7 +6438,10 @@
             renderDiscard(player) {
                 const { discard } = this.getPlayerState(player);
                 const { discard: discardEl } = this.getPlayerEls(player);
-                discardEl.classList.toggle('disabled', !this.canDiscard(player));
+                const canUseDiscard = player === this.userPlayer
+                    ? this.canDiscard(player) && this.canLocalTakeTurn()
+                    : this.canDiscard(player);
+                discardEl.classList.toggle('disabled', !canUseDiscard);
                 discardEl.innerHTML = discard.length
                     ? this.renderCardBack()
                     : '<span class="discard-label">Discard</span>';
@@ -6120,7 +6470,7 @@
                 if (!cellData?.coveredCell) {
                     return;
                 }
-                const previewState = cellData.coveredCell.faceUp ? 'face-up' : 'face-down';
+                const previewState = this.isCellVisibleFaceUp(cellData.coveredCell) ? 'face-up' : 'face-down';
                 const { container } = this.createBoardCardStack(cellData.coveredCell, `lifted-board-preview ${previewState}`);
                 cellEl.prepend(container);
             }
@@ -6180,7 +6530,7 @@
                             cell.appendChild(cardContainer);
                             if (this.animatingMove?.toRow === r && this.animatingMove?.toCol === c) {
                                 if (cellData.coveredCell) {
-                                    const previewState = cellData.coveredCell.faceUp ? 'face-up' : 'face-down';
+                                    const previewState = this.isCellVisibleFaceUp(cellData.coveredCell) ? 'face-up' : 'face-down';
                                     const { container: preview } = this.createBoardCardStack(
                                         cellData.coveredCell,
                                         `lifted-board-preview ${previewState}`
@@ -6191,15 +6541,19 @@
                                 back.style.opacity = '0';
                                 this.animateBoardEntry(back, cell);
                             }
-                            if (cellData.faceUp) {
+                            if (this.isCellVisibleFaceUp(cellData)) {
                                 cell.classList.add('flipped');
                             } else {
                                 cell.classList.add('unflipped');
                                 if (this.canPlayerFlip(cellData)) {
                                     cell.classList.add('can-flip');
+                                    back.addEventListener('click', (e) => {
+                                        e.stopPropagation();
+                                        this.handleCellClick(r, c);
+                                    });
                                 }
                             }
-                            if (cellData.owner === this.userPlayer && !cellData.faceUp && this.currentPlayer === this.userPlayer && this.gamePhase !== 'ended') {
+                            if (this.canDragPendingBoardCard(cellData)) {
                                 this.bindPendingBoardCard(back, r, c);
                             }
                         }
@@ -6221,7 +6575,7 @@
                 if (player === this.userPlayer) {
                     cardEl.className = `card ${card.color}`;
                     cardEl.innerHTML = this.createCardHTML(card.rank, card.suit, card.color);
-                    cardEl.draggable = !this.openingDealInProgress && this.currentPlayer === this.userPlayer && this.gamePhase !== 'ended';
+                    cardEl.draggable = this.canLocalDragCards();
                     if (this.dealingToSlot[this.userPlayer] === slotIndex) {
                         cardEl.classList.add('pre-deal');
                     }
@@ -6306,7 +6660,7 @@
             }
             beginPointerDrag(e, { card, slotIndex, fromBoard = null }) {
                 if (e.pointerType === 'mouse') return;
-                if (this.openingDealInProgress || this.currentPlayer !== this.userPlayer || this.gamePhase === 'ended') return;
+                if (!this.canLocalDragCards()) return;
                 const sourceEl = e.currentTarget;
                 const rect = sourceEl.getBoundingClientRect();
                 this.activeDragElement = sourceEl;
@@ -6386,7 +6740,7 @@
                 }
                 const target = this.getPointerDropTarget(e.clientX, e.clientY);
                 if (target?.type === 'discard') {
-                    if (this.draggedFromBoard || this.currentPlayer !== this.userPlayer) {
+                    if (this.draggedFromBoard || !this.canLocalTakeTurn()) {
                         // let animateCardReturn reuse + transition the ghost
                         this.animateCardReturn(e.clientX, e.clientY);
                         return;
@@ -6505,7 +6859,7 @@
             setupDiscardHandlers() {
                 const userDiscardEl = this.getPlayerEls(this.userPlayer).discard;
                 userDiscardEl.addEventListener('dragover', (e) => {
-                    if (!this.draggedCard || this.draggedFromBoard || this.currentPlayer !== this.userPlayer || !this.canDiscard(this.userPlayer)) return;
+                    if (!this.draggedCard || this.draggedFromBoard || !this.canLocalTakeTurn() || !this.canDiscard(this.userPlayer)) return;
                     e.preventDefault();
                     userDiscardEl.classList.add('drag-over');
                 });
@@ -6515,7 +6869,7 @@
                 userDiscardEl.addEventListener('drop', (e) => {
                     e.preventDefault();
                     userDiscardEl.classList.remove('drag-over');
-                    if (!this.draggedCard || this.draggedFromBoard || this.currentPlayer !== this.userPlayer) return;
+                    if (!this.draggedCard || this.draggedFromBoard || !this.canLocalTakeTurn()) return;
                     if (!this.canDiscard(this.userPlayer)) {
                         this.animateCardReturn(e.clientX, e.clientY, 'Discard unlocks after the first move');
                         return;
@@ -6612,11 +6966,13 @@
                 menuDaily: 'menuDailyBtn',
                 menuPractice: 'menuPracticeBtn',
                 menuShare: 'menuShareBtn',
+                menuSharedLink: 'menuSharedLinkBtn',
                 completedBoardResults: 'completedBoardResultsBtn',
                 practiceReplay: 'practiceReplayBtn',
                 practiceReplaySwap: 'practiceReplaySwapBtn',
                 practiceRandom: 'practiceRandomBtn',
-                practiceRandomSwap: 'practiceRandomSwapBtn'
+                practiceRandomSwap: 'practiceRandomSwapBtn',
+                sharedInvite: 'sharedInviteBtn'
             }),
             colorButtons: [...document.querySelectorAll('[data-player-color]')],
             ...pickIds({
@@ -6626,25 +6982,33 @@
                 menuDailyCopy: 'menuDailyCopy',
                 menuPracticeTitle: 'menuPracticeTitle',
                 menuPracticeCopy: 'menuPracticeCopy',
+                sharedInviteStatus: 'sharedInviteStatus',
                 completedBoardActions: 'completedBoardActions',
                 practiceModalTitle: 'practiceModalTitle',
                 practiceModalCopy: 'practiceModalCopy',
                 showAllowedMovesToggle: 'showAllowedMovesToggle',
-                analysisExport: 'analysisExport'
+                analysisExport: 'analysisExport',
+                opponentScoreLabel: 'opponentScoreLabel',
+                localScoreLabel: 'localScoreLabel'
             }),
             copyAnalysisTitle: document.querySelector('#copyAnalysisBtn strong'),
-            copyAnalysisBody: document.querySelector('#copyAnalysisBtn span')
+            copyAnalysisBody: document.querySelector('#copyAnalysisBtn span'),
+            menuSharedLinkTitle: document.querySelector('#menuSharedLinkBtn strong'),
+            menuSharedLinkBody: document.querySelector('#menuSharedLinkBtn span')
         };
         const app = {
             mode: APP_MODES.landing,
             dailyKey: getLocalDateKey(),
             dailyProgress: dailyStore.load(getLocalDateKey()),
             game: null,
-            showDailyResults: false
+            showDailyResults: false,
+            sharedSession: sharedStore.load(),
+            sharedRoom: null
         };
         let analysisCopyTimer = null;
         let landingShareTimer = null;
         let menuShareTimer = null;
+        let menuSharedLinkTimer = null;
         const setModalOpen = (modal, isOpen) => {
             modal?.classList.toggle('show', isOpen);
         };
@@ -6708,6 +7072,15 @@
                     [titleEl.textContent, bodyEl.textContent] = MENU_SHARE_DEFAULT;
                 }, 1800);
             },
+            flashMenuSharedLink(title, body) {
+                if (!ui.menuSharedLinkTitle || !ui.menuSharedLinkBody) return;
+                clearTimeout(menuSharedLinkTimer);
+                ui.menuSharedLinkTitle.textContent = title;
+                ui.menuSharedLinkBody.textContent = body;
+                menuSharedLinkTimer = setTimeout(() => {
+                    [ui.menuSharedLinkTitle.textContent, ui.menuSharedLinkBody.textContent] = MENU_SHARED_LINK_DEFAULT;
+                }, 1800);
+            },
             flashAnalysisCopy(title, body) {
                 clearTimeout(analysisCopyTimer);
                 this.setAnalysisCopy(title, body);
@@ -6754,6 +7127,327 @@
                     }
                 }
                 return (await this.copy(text)) ? 'copied' : null;
+            },
+            async shareInvite({ text, url, copyText }) {
+                if (!text && !url && !copyText) return null;
+                if (navigator.share) {
+                    try {
+                        await navigator.share({
+                            text: text ?? undefined,
+                            url: url ?? undefined
+                        });
+                        return 'shared';
+                    } catch (error) {
+                        if (error?.name === 'AbortError') {
+                            return null;
+                        }
+                        console.warn('Web Share failed for multiplayer invite, falling back to clipboard.', error);
+                    }
+                }
+                return (await this.copy(copyText ?? url ?? text)) ? 'copied' : null;
+            }
+        };
+        const setSharedInviteStatus = (text = '', { visible = false } = {}) => {
+            if (!ui.sharedInviteStatus) return;
+            ui.sharedInviteStatus.textContent = text;
+            ui.sharedInviteStatus.hidden = !visible;
+        };
+        const sharedRoomApi = {
+            async request(action, { method = 'GET', body = null, params = {} } = {}) {
+                const url = new URL(`/api/multiplayer?action=${encodeURIComponent(action)}`, window.location.origin);
+                Object.entries(params).forEach(([key, value]) => {
+                    if (value !== null && value !== undefined && value !== '') {
+                        url.searchParams.set(key, value);
+                    }
+                });
+                const response = await fetch(url, {
+                    method,
+                    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+                    body: body ? JSON.stringify(body) : undefined
+                });
+                let payload = null;
+                try {
+                    payload = await response.json();
+                } catch (error) {
+                    payload = null;
+                }
+                if (!response.ok || !payload?.ok) {
+                    const failure = new Error(payload?.message || 'Shared room request failed.');
+                    failure.status = response.status;
+                    failure.payload = payload;
+                    throw failure;
+                }
+                return payload;
+            }
+        };
+        const sharedRoomController = {
+            eventSource: null,
+            reconnectTimer: null,
+            creatingRoom: false,
+            joiningRoom: false,
+            applyingRemoteState: false,
+            submittingState: false,
+            pendingState: null,
+            inFlightState: null,
+            inviteCopy(room = app.sharedRoom) {
+                if (!room?.inviteUrl) return null;
+                return {
+                    text: 'Play Flood with me in this live shared room.',
+                    url: room.inviteUrl,
+                    copyText: room.inviteUrl
+                };
+            },
+            persist() {
+                if (!app.sharedSession || !app.sharedRoom) return;
+                sharedStore.save({
+                    roomId: app.sharedSession.roomId,
+                    seat: app.sharedSession.seat,
+                    inviteUrl: app.sharedRoom.inviteUrl,
+                    version: app.sharedRoom.version,
+                    status: app.sharedRoom.status,
+                    savedAt: new Date().toISOString()
+                });
+            },
+            updateMenuCopy() {
+                if (ui.menuSharedLinkTitle) ui.menuSharedLinkTitle.textContent = MENU_SHARED_LINK_DEFAULT[0];
+                if (ui.menuSharedLinkBody) ui.menuSharedLinkBody.textContent = MENU_SHARED_LINK_DEFAULT[1];
+            },
+            setSession(room, seat) {
+                app.sharedRoom = room ? cloneData(room) : null;
+                app.sharedSession = room ? {
+                    roomId: room.roomId,
+                    seat,
+                    inviteUrl: room.inviteUrl
+                } : null;
+                if (room) {
+                    this.persist();
+                }
+                this.updateMenuCopy();
+            },
+            clearSession({ clearUrl = true } = {}) {
+                this.closeStream();
+                this.pendingState = null;
+                this.submittingState = false;
+                this.applyingRemoteState = false;
+                app.sharedRoom = null;
+                app.sharedSession = null;
+                sharedStore.clear();
+                this.inFlightState = null;
+                if (clearUrl) {
+                    clearInviteParams();
+                }
+                setSharedInviteStatus('', { visible: false });
+            },
+            closeStream() {
+                clearTimeout(this.reconnectTimer);
+                this.reconnectTimer = null;
+                this.eventSource?.close();
+                this.eventSource = null;
+            },
+            scheduleReconnect() {
+                if (!app.sharedSession) return;
+                clearTimeout(this.reconnectTimer);
+                this.reconnectTimer = setTimeout(() => {
+                    this.connectStream();
+                }, SHARED_STREAM_RETRY_MS);
+            },
+            connectStream() {
+                if (!app.sharedSession) return;
+                this.closeStream();
+                const url = new URL('/api/multiplayer', window.location.origin);
+                url.searchParams.set('action', 'events');
+                url.searchParams.set('room', app.sharedSession.roomId);
+                url.searchParams.set('since', String(app.sharedRoom?.version ?? 0));
+                this.eventSource = new EventSource(url);
+                this.eventSource.addEventListener('room', (event) => {
+                    try {
+                        const payload = JSON.parse(event.data);
+                        this.applyRoom(payload);
+                    } catch (error) {
+                        console.warn('Unable to parse shared room update.', error);
+                    }
+                });
+                this.eventSource.addEventListener('room-missing', () => {
+                    this.clearSession();
+                    if (app.mode === APP_MODES.shared) {
+                        shell.enterLanding();
+                    }
+                });
+                this.eventSource.onerror = () => {
+                    this.closeStream();
+                    this.scheduleReconnect();
+                };
+            },
+            async copyInvite(room = app.sharedRoom) {
+                const invite = this.inviteCopy(room);
+                if (!invite) return null;
+                return clipboard.shareInvite(invite);
+            },
+            async createAndShare() {
+                if (this.creatingRoom) return;
+                this.creatingRoom = true;
+                setSharedInviteStatus('Creating a live room and invite link…', { visible: true });
+                try {
+                    const payload = await sharedRoomApi.request('create', {
+                        method: 'POST',
+                        body: { origin: window.location.origin }
+                    });
+                    this.setSession(payload.room, payload.seat);
+                    this.connectStream();
+                    this.applyingRemoteState = true;
+                    shell.enterGame(APP_MODES.shared);
+                    this.applyingRemoteState = false;
+                    const shareMethod = await this.copyInvite(payload.room);
+                    if (shareMethod === 'shared') {
+                        setSharedInviteStatus('Invite sent. Waiting for your friend to join…', { visible: true });
+                    } else if (shareMethod === 'copied') {
+                        setSharedInviteStatus('Invite link copied. Send it to your friend to join.', { visible: true });
+                    } else {
+                        setSharedInviteStatus(`Room ready. Share this link: ${payload.room.inviteUrl}`, { visible: true });
+                    }
+                } catch (error) {
+                    console.warn('Unable to create a shared Flood room.', error);
+                    setSharedInviteStatus(error?.message || 'Unable to create a shared room right now.', { visible: true });
+                } finally {
+                    this.creatingRoom = false;
+                    practiceController.syncSharedInviteAction?.();
+                }
+            },
+            async joinFromInvite(invite = getInviteParams()) {
+                if (!invite?.roomId || !invite?.seat || this.joiningRoom) return;
+                this.joiningRoom = true;
+                setSharedInviteStatus('Joining the shared room…', { visible: true });
+                try {
+                    const payload = await sharedRoomApi.request('join', {
+                        method: 'POST',
+                        body: {
+                            roomId: invite.roomId,
+                            seat: invite.seat
+                        }
+                    });
+                    this.setSession(payload.room, payload.seat);
+                    clearInviteParams();
+                    this.connectStream();
+                    this.applyingRemoteState = true;
+                    shell.enterGame(APP_MODES.shared);
+                    this.applyingRemoteState = false;
+                    setSharedInviteStatus('Joined. Your live match is ready.', { visible: true });
+                } catch (error) {
+                    console.warn('Unable to join the shared Flood room.', error);
+                    setSharedInviteStatus(error?.message || 'Unable to join that shared room.', { visible: true });
+                } finally {
+                    this.joiningRoom = false;
+                    practiceController.syncSharedInviteAction?.();
+                }
+            },
+            async resumeStoredSession() {
+                const invite = getInviteParams();
+                if (invite) {
+                    await this.joinFromInvite(invite);
+                    return;
+                }
+                if (!app.sharedSession?.roomId || !app.sharedSession?.seat) return;
+                try {
+                    const payload = await sharedRoomApi.request('room', {
+                        params: { room: app.sharedSession.roomId }
+                    });
+                    this.setSession(payload.room, app.sharedSession.seat);
+                    this.connectStream();
+                    this.applyingRemoteState = true;
+                    shell.enterGame(APP_MODES.shared);
+                    this.applyingRemoteState = false;
+                } catch (error) {
+                    console.warn('Unable to restore the shared Flood room.', error);
+                    this.clearSession();
+                }
+            },
+            applyRoom(room, { animateFlips = true, preserveLocalState = false } = {}) {
+                if (!room?.roomId || !app.sharedSession?.seat) return;
+                const previousVersion = Number(app.sharedRoom?.version ?? 0);
+                const localAuthoritativeState = app.game?.mode === APP_MODES.shared
+                    ? app.game.getAuthoritativeLocalState?.()
+                    : null;
+                const shouldPreserveLocalState = preserveLocalState || (
+                    Boolean(this.pendingState && app.game?.mode === APP_MODES.shared) &&
+                    (
+                        sharedMatch.statesEqual(room.game, this.inFlightState) ||
+                        sharedMatch.statesEqual(room.game, app.sharedRoom?.game)
+                    ) &&
+                    !sharedMatch.statesEqual(room.game, this.pendingState)
+                );
+                this.setSession(room, app.sharedSession.seat);
+                if (app.mode === APP_MODES.shared && app.game?.mode === APP_MODES.shared) {
+                    if (localAuthoritativeState && sharedMatch.statesEqual(room.game, localAuthoritativeState)) {
+                        app.game.gameOptions.sharedRoomReady = room.status === 'active' || room.status === 'ended';
+                        menuView.sync();
+                        practiceController.syncSharedInviteAction?.();
+                        return;
+                    }
+                    if (shouldPreserveLocalState) {
+                        app.game.gameOptions.sharedRoomReady = room.status === 'active' || room.status === 'ended';
+                        menuView.sync();
+                        practiceController.syncSharedInviteAction?.();
+                        return;
+                    }
+                    this.applyingRemoteState = true;
+                    app.game.syncSharedRoom(room, app.sharedSession.seat, {
+                        animateFlips: animateFlips && Number(room.version ?? 0) > previousVersion
+                    });
+                    this.applyingRemoteState = false;
+                    menuView.sync();
+                }
+                practiceController.syncSharedInviteAction?.();
+            },
+            queueLocalState(localState) {
+                if (this.applyingRemoteState || app.mode !== APP_MODES.shared || !app.sharedSession || !app.sharedRoom) {
+                    return;
+                }
+                const authoritativeState = sharedMatch.toAuthoritativeState(localState);
+                if (
+                    sharedMatch.statesEqual(authoritativeState, app.sharedRoom.game) ||
+                    sharedMatch.statesEqual(authoritativeState, this.pendingState) ||
+                    sharedMatch.statesEqual(authoritativeState, this.inFlightState)
+                ) {
+                    return;
+                }
+                this.pendingState = authoritativeState;
+                this.flushLocalState();
+            },
+            async flushLocalState() {
+                if (this.submittingState || !this.pendingState || !app.sharedSession || !app.sharedRoom) {
+                    return;
+                }
+                const nextState = cloneData(this.pendingState);
+                this.pendingState = null;
+                this.submittingState = true;
+                this.inFlightState = nextState;
+                try {
+                    const payload = await sharedRoomApi.request('update', {
+                        method: 'POST',
+                        body: {
+                            roomId: app.sharedSession.roomId,
+                            seat: app.sharedSession.seat,
+                            expectedVersion: app.sharedRoom.version,
+                            game: nextState
+                        }
+                    });
+                    this.applyRoom(payload.room, {
+                        animateFlips: false,
+                        preserveLocalState: Boolean(this.pendingState) && sharedMatch.statesEqual(payload.room?.game, nextState)
+                    });
+                } catch (error) {
+                    console.warn('Unable to push the local shared-room update.', error);
+                    const remoteRoom = error?.payload?.room;
+                    if (remoteRoom) {
+                        this.applyRoom(remoteRoom);
+                    }
+                } finally {
+                    this.submittingState = false;
+                    this.inFlightState = null;
+                    if (this.pendingState) {
+                        this.flushLocalState();
+                    }
+                }
             }
         };
         const createStaticCardHTML = (rank, suit) => `
@@ -6846,7 +7540,7 @@
                 ui.landing.stats.hidden = true;
                 ui.landing.statsButton && (ui.landing.statsButton.hidden = true);
                 ui.landing.modes.hidden = false;
-                ui.landing.modes.textContent = 'Warm Up & Practice';
+                ui.landing.modes.textContent = 'More ways to play';
                 ui.landing.play.classList.remove('attention');
                 ui.landing.subtitle.hidden = false;
                 ui.landing.puzzleDate.textContent = displayDate;
@@ -6870,7 +7564,7 @@
                 ui.landing.previewWrap.hidden = true;
                 ui.landing.previewCaption.hidden = false;
                 ui.landing.footer.hidden = false;
-                ui.landing.modes.textContent = 'Warm Up & Practice';
+                ui.landing.modes.textContent = 'More ways to play';
             },
             renderInProgress(progress, activePuzzleNumber) {
                 const { red, black } = dailyHistory.scores(progress);
@@ -6882,7 +7576,7 @@
                 ui.landing.kicker.textContent = `${formatDailyDate(progress.dateKey ?? app.dailyKey)} • Puzzle No. ${activePuzzleNumber}`;
                 ui.landing.boardScore.textContent = `Bot: ${black} · You: ${red}`;
                 ui.landing.previewCaption.hidden = false;
-                ui.landing.modes.textContent = 'Warm Up & Practice';
+                ui.landing.modes.textContent = 'More ways to play';
             },
             renderComplete(progress, activePuzzleNumber) {
                 const { red, black } = dailyHistory.scores(progress);
@@ -6945,20 +7639,30 @@
                 syncPracticeColorUI();
                 const dailyEnded = app.dailyProgress?.status === 'ended';
                 const inPractice = app.mode === APP_MODES.practice;
+                const inShared = app.mode === APP_MODES.shared;
                 ui.practiceColorSection.hidden = true;
-                ui.gameMenuTitle.textContent = inPractice ? 'Practice Options' : 'Daily Options';
-                ui.menuDailyTitle.textContent = inPractice ? 'Go to Daily Home' : 'Return to Daily Home';
-                ui.menuDailyCopy.textContent = inPractice
+                ui.gameMenuTitle.textContent = inShared ? 'Shared Match' : (inPractice ? 'Practice Options' : 'Daily Options');
+                ui.menuDailyTitle.textContent = inShared
+                    ? 'Leave Shared Match'
+                    : (inPractice ? 'Go to Daily Home' : 'Return to Daily Home');
+                ui.menuDailyCopy.textContent = inShared
+                    ? 'Close the live room on this device and head back to the daily home screen.'
+                    : inPractice
                     ? 'Leave practice and go back to today’s saved daily puzzle screen.'
                     : 'See today’s saved puzzle, continue it later, or share your result.';
                 ui.menuPracticeTitle.textContent = 'More ways to play';
-                ui.menuPracticeCopy.textContent = inPractice
+                ui.menuPracticeCopy.textContent = inShared
+                    ? 'Open bot practice and replay options without changing the shared match link.'
+                    : inPractice
                     ? 'Open grouped retry and fresh-game options from the current side.'
                     : 'Open grouped replay and fresh-game options without cluttering the landing screen.';
-                ui.buttons.menuShare.hidden = !dailyEnded;
+                ui.buttons.menuShare.hidden = !dailyEnded || inShared;
+                ui.buttons.menuSharedLink.hidden = !inShared || !app.sharedRoom?.inviteUrl;
                 const titleEl = ui.buttons.menuShare.querySelector('strong');
                 const bodyEl = ui.buttons.menuShare.querySelector('span');
                 [titleEl.textContent, bodyEl.textContent] = MENU_SHARE_DEFAULT;
+                if (ui.menuSharedLinkTitle) ui.menuSharedLinkTitle.textContent = MENU_SHARED_LINK_DEFAULT[0];
+                if (ui.menuSharedLinkBody) ui.menuSharedLinkBody.textContent = MENU_SHARED_LINK_DEFAULT[1];
             }
         };
         const persistDailyProgress = (state) => {
@@ -6982,7 +7686,7 @@
             const text = populateAnalysisExport();
             const copied = await clipboard.copy(text);
             if (copied) {
-                feedback.flashAnalysisCopy('Copied Match Log', 'Paste it into chat and ask me why the Bot lost.');
+                feedback.flashAnalysisCopy('Copied Match Log', 'Paste it into chat and ask for a review of the match.');
                 return;
             }
             selectAnalysisExport();
@@ -6990,7 +7694,7 @@
             feedback.flashAnalysisCopy(
                 manualCopy ? 'Copied Match Log' : 'Use Cmd/Ctrl+C',
                 manualCopy
-                    ? 'Paste it into chat and ask me why the Bot lost.'
+                    ? 'Paste it into chat and ask for a review of the match.'
                     : 'The log is selected so you can copy it manually.'
             );
         };
@@ -7032,6 +7736,19 @@
                         }
                     });
                 }
+                if (mode === APP_MODES.shared) {
+                    if (!app.sharedSession?.seat || !app.sharedRoom?.game) {
+                        return null;
+                    }
+                    return new FloodGame(FLOOD_SETTINGS, {
+                        mode: APP_MODES.shared,
+                        playerColor: app.sharedSession.seat,
+                        seed: app.sharedRoom.game.seed ?? null,
+                        sharedRoomReady: app.sharedRoom.status === 'active' || app.sharedRoom.status === 'ended',
+                        initialState: sharedMatch.buildLocalSnapshot(app.sharedRoom.game, app.sharedSession.seat),
+                        onStateChange: (state) => sharedRoomController.queueLocalState(state)
+                    });
+                }
                 return new FloodGame(FLOOD_SETTINGS, {
                     mode: APP_MODES.practice,
                     playerColor: resolvePracticePlayerColor(FLOOD_GAME_OPTIONS.practiceVariant),
@@ -7042,8 +7759,12 @@
             },
             enterLanding({ showResults = false } = {}) {
                 closeAllModals();
+                const leavingSharedMatch = app.mode === APP_MODES.shared;
                 this.destroyGame();
                 app.showDailyResults = false;
+                if (leavingSharedMatch) {
+                    sharedRoomController.clearSession();
+                }
                 setShellMode(APP_MODES.landing);
                 syncCompletedBoardView();
                 landingView.render();
@@ -7056,6 +7777,10 @@
                 setShellMode(mode);
                 feedback.resetAnalysisCopy();
                 app.game = this.createGame(mode);
+                if (!app.game) {
+                    this.enterLanding();
+                    return;
+                }
                 window.exportFloodMatchLog = () => app.game?.getMatchLogText?.() ?? '';
                 syncCompletedBoardView();
                 menuView.sync();
@@ -7076,18 +7801,37 @@
             return 'It was a draw. See if you can break it open.';
         };
         const practiceController = {
+            syncSharedInviteAction() {
+                const hasLiveRoom = Boolean(app.sharedRoom?.inviteUrl && app.sharedRoom?.status !== 'ended');
+                setMenuActionCopy(
+                    ui.buttons.sharedInvite,
+                    hasLiveRoom ? 'Copy shared match link again' : 'Share game link with a friend',
+                    hasLiveRoom
+                        ? 'Re-copy the live invite link and keep the existing room going.'
+                        : 'Create a live room, copy the link, and play from separate devices.'
+                );
+                setSharedInviteStatus(
+                    hasLiveRoom
+                        ? (app.sharedRoom.status === 'waiting'
+                            ? 'Live room ready. Waiting for your friend to join.'
+                            : 'Live room connected. Re-copy the same link if your friend needs it again.')
+                        : '',
+                    { visible: hasLiveRoom }
+                );
+            },
             open() {
                 menuView.sync();
                 const baseColor = activePracticeBaseColor();
                 const oppositeColor = oppositePlayerColor(baseColor);
-                ui.practiceModalTitle.textContent = app.dailyProgress?.status === 'ended' ? 'More Ways to Play' : 'Warm Up & Practice';
+                ui.practiceModalTitle.textContent = 'More Ways to Play';
                 ui.practiceModalCopy.textContent = app.dailyProgress?.status === 'ended'
                     ? 'Keep the session going with one clear next step. Your daily result stays locked.'
-                    : 'Practice never changes your daily result or sharing.';
+                    : 'Practice and shared-link matches never change your daily result.';
                 setMenuActionCopy(ui.buttons.practiceReplay, 'Run It Back', replayChallengeCopy());
                 setMenuActionCopy(ui.buttons.practiceReplaySwap, 'Switch Sides', `The same puzzle from the ${colorDisplayName(oppositeColor)} side.`);
                 setMenuActionCopy(ui.buttons.practiceRandom, 'Rematch', `Fresh random game as ${colorDisplayName(baseColor)}.`);
                 setMenuActionCopy(ui.buttons.practiceRandomSwap, 'Fresh Switch Sides', `Fresh random game as ${colorDisplayName(oppositeColor)}.`);
+                this.syncSharedInviteAction();
                 setModalOpen(ui.modals.game, false);
                 setModalOpen(ui.modals.practice, true);
             },
@@ -7107,6 +7851,7 @@
         };
         syncSettingsUI();
         menuView.sync();
+        practiceController.syncSharedInviteAction();
         feedback.resetAnalysisCopy();
         setShellMode(APP_MODES.landing);
         syncCompletedBoardView();
@@ -7164,11 +7909,31 @@
         bindClick(ui.buttons.menuDaily, () => shell.enterLanding());
         bindClick(ui.buttons.menuPractice, () => practiceController.open());
         bindClick(ui.buttons.menuShare, shareDailyResult);
+        bindClick(ui.buttons.menuSharedLink, async () => {
+            const method = await sharedRoomController.copyInvite();
+            if (method === 'shared') {
+                feedback.flashMenuSharedLink('Shared Invite Link', 'Your system share sheet opened for the live room.');
+            } else if (method === 'copied') {
+                feedback.flashMenuSharedLink('Copied Invite Link', 'Paste the live room link anywhere you want.');
+            }
+        });
         bindClick(ui.buttons.copyAnalysis, copyAnalysisExport);
         bindClick(ui.buttons.practiceReplay, () => practiceController.start(PRACTICE_VARIANTS.replaySame));
         bindClick(ui.buttons.practiceReplaySwap, () => practiceController.start(PRACTICE_VARIANTS.replaySwap));
         bindClick(ui.buttons.practiceRandom, () => practiceController.start(PRACTICE_VARIANTS.randomSame));
         bindClick(ui.buttons.practiceRandomSwap, () => practiceController.start(PRACTICE_VARIANTS.randomSwap));
+        bindClick(ui.buttons.sharedInvite, async () => {
+            if (app.sharedRoom?.inviteUrl && app.sharedRoom.status !== 'ended') {
+                const method = await sharedRoomController.copyInvite();
+                if (method === 'shared') {
+                    setSharedInviteStatus('Invite sent again. Waiting for your friend to join…', { visible: true });
+                } else if (method === 'copied') {
+                    setSharedInviteStatus('Invite link copied again. Send it to your friend.', { visible: true });
+                }
+                return;
+            }
+            await sharedRoomController.createAndShare();
+        });
         Object.values(ui.modals).forEach((modal) => {
             modal.addEventListener('click', (e) => {
                 if (e.target === modal) {
@@ -7187,6 +7952,7 @@
             FLOOD_SETTINGS.showAllowedMoves = e.target.checked;
             app.game?.refreshAllowedMoveHighlights();
         });
+        void sharedRoomController.resumeStoredSession();
     </script>
 </body>
 </html>
