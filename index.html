@@ -7378,13 +7378,19 @@
                 this.setSession(room, app.sharedSession.seat);
                 if (app.mode === APP_MODES.shared && app.game?.mode === APP_MODES.shared) {
                     if (localAuthoritativeState && sharedMatch.statesEqual(room.game, localAuthoritativeState)) {
+                        this.applyingRemoteState = true;
                         app.game.gameOptions.sharedRoomReady = room.status === 'active' || room.status === 'ended';
+                        app.game.updateUI();
+                        this.applyingRemoteState = false;
                         menuView.sync();
                         practiceController.syncSharedInviteAction?.();
                         return;
                     }
                     if (shouldPreserveLocalState) {
+                        this.applyingRemoteState = true;
                         app.game.gameOptions.sharedRoomReady = room.status === 'active' || room.status === 'ended';
+                        app.game.updateUI();
+                        this.applyingRemoteState = false;
                         menuView.sync();
                         practiceController.syncSharedInviteAction?.();
                         return;
