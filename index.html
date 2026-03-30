@@ -3956,6 +3956,89 @@
                     matchLogStep: localState.matchLogStep ?? 0
                 }, authoritativeSeat);
             },
+            hasBothSetupRevealed(game) {
+                return Boolean(game?.setupRevealed?.red && game?.setupRevealed?.black);
+            },
+            isResetSetupState(game) {
+                return game?.gamePhase === 'setup'
+                    && !game?.setupPlacements?.red
+                    && !game?.setupPlacements?.black
+                    && !game?.setupRevealed?.red
+                    && !game?.setupRevealed?.black;
+            },
+            getSeatSetupCell(game, seat) {
+                const placement = game?.setupPlacements?.[seat];
+                if (!placement) return null;
+                return game?.board?.[placement.row]?.[placement.col] ?? null;
+            },
+            seatSetupSnapshot(game, seat) {
+                return JSON.stringify({
+                    placement: game?.setupPlacements?.[seat] ?? null,
+                    revealed: Boolean(game?.setupRevealed?.[seat]),
+                    hand: game?.hands?.[seat] ?? [],
+                    deck: game?.decks?.[seat] ?? [],
+                    discard: game?.discards?.[seat] ?? [],
+                    cell: this.getSeatSetupCell(game, seat)
+                });
+            },
+            seatSetupDiffers(left, right, seat) {
+                return this.seatSetupSnapshot(left, seat) !== this.seatSetupSnapshot(right, seat);
+            },
+            hasSeatSetupActivity(game, seat) {
+                return Boolean(game?.setupPlacements?.[seat] || game?.setupRevealed?.[seat]);
+            },
+            clearSeatSetupPlacement(game, seat) {
+                const placement = game?.setupPlacements?.[seat];
+                if (!placement) return;
+                const row = Number(placement.row);
+                const col = Number(placement.col);
+                if (!Number.isInteger(row) || !Number.isInteger(col)) return;
+                const cell = game?.board?.[row]?.[col];
+                if (cell?.owner === seat) {
+                    game.board[row][col] = cell.covered ?? null;
+                }
+            },
+            createSeatSetupCell(incomingGame, seat, placement) {
+                const row = Number(placement?.row);
+                const col = Number(placement?.col);
+                const incomingCell = incomingGame?.board?.[row]?.[col];
+                if (incomingCell?.owner === seat) {
+                    return cloneData(incomingCell);
+                }
+                return {
+                    owner: seat,
+                    card: placement?.card ?? null,
+                    faceUp: Boolean(incomingGame?.setupRevealed?.[seat]),
+                    fromSlot: null,
+                    covered: null
+                };
+            },
+            mergeSetupState(currentGame, incomingGame, seat) {
+                if (!currentGame || !incomingGame) {
+                    return null;
+                }
+                if (this.hasBothSetupRevealed(currentGame) && (incomingGame.gamePhase !== 'setup' || this.isResetSetupState(incomingGame))) {
+                    return cloneData(incomingGame);
+                }
+                const mergedGame = cloneData(currentGame);
+                mergedGame.hands[seat] = cloneData(incomingGame.hands?.[seat] ?? mergedGame.hands?.[seat] ?? Array(HAND_SIZE).fill(null));
+                mergedGame.decks[seat] = cloneData(incomingGame.decks?.[seat] ?? mergedGame.decks?.[seat] ?? []);
+                mergedGame.discards[seat] = cloneData(incomingGame.discards?.[seat] ?? mergedGame.discards?.[seat] ?? []);
+                this.clearSeatSetupPlacement(mergedGame, seat);
+                const placement = cloneData(incomingGame.setupPlacements?.[seat] ?? null);
+                mergedGame.setupPlacements[seat] = placement;
+                mergedGame.setupRevealed[seat] = Boolean(incomingGame.setupRevealed?.[seat]);
+                if (placement) {
+                    const row = Number(placement.row);
+                    const col = Number(placement.col);
+                    if (!Number.isInteger(row) || !Number.isInteger(col) || !mergedGame.board?.[row]) {
+                        return null;
+                    }
+                    mergedGame.board[row][col] = this.createSeatSetupCell(incomingGame, seat, placement);
+                }
+                mergedGame.waitingForFlip = null;
+                return mergedGame;
+            },
             statesEqual(left, right) {
                 return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
             }
@@ -4069,10 +4152,34 @@
             isSharedRoomReady() {
                 return !this.isSharedMatch() || Boolean(this.gameOptions.sharedRoomReady);
             }
+            isSharedSetupPhase(state = this) {
+                return (state.mode ?? this.mode) === APP_MODES.shared && state.gamePhase === 'setup';
+            }
+            hasSetupPlacement(player, state = this) {
+                return Boolean(state.setupPlacements?.[player]);
+            }
+            hasSetupReveal(player, state = this) {
+                return Boolean(state.setupRevealed?.[player]);
+            }
+            canLocalParticipateInSharedSetup(state = this) {
+                const localPlayer = state.userPlayer ?? this.userPlayer;
+                return this.isSharedSetupPhase(state)
+                    && this.isSharedRoomReady()
+                    && !this.hasSetupReveal(localPlayer, state);
+            }
+            getLocalPlacementPlayer() {
+                return this.isSharedSetupPhase() ? this.userPlayer : this.currentPlayer;
+            }
             canLocalTakeTurn() {
+                if (this.canLocalParticipateInSharedSetup()) {
+                    return true;
+                }
                 return this.currentPlayer === this.userPlayer && this.gamePhase !== 'ended' && this.isSharedRoomReady();
             }
             canLocalDragCards() {
+                if (this.canLocalParticipateInSharedSetup()) {
+                    return !this.openingDealInProgress && !this.hasSetupPlacement(this.userPlayer);
+                }
                 return !this.openingDealInProgress && this.canLocalTakeTurn();
             }
             areSetupCardsPlaced(state = this) {
@@ -4083,8 +4190,7 @@
             }
             isSharedSetupRevealPhase(state = this) {
                 return (state.mode ?? this.mode) === APP_MODES.shared
-                    && state.gamePhase === 'setup'
-                    && this.areSetupCardsPlaced(state);
+                    && state.gamePhase === 'setup';
             }
             isCellVisibleFaceUp(cell, state = this) {
                 if (!cell?.faceUp) return false;
@@ -4101,10 +4207,13 @@
                 return sharedMatch.toAuthoritativeState(this.serializeState());
             }
             canDragPendingBoardCard(cell) {
-                if (!cell || cell.faceUp || cell.owner !== this.userPlayer || !this.canLocalTakeTurn()) {
+                if (!cell || cell.faceUp || cell.owner !== this.userPlayer || !this.isSharedRoomReady()) {
                     return false;
                 }
-                if (this.isSharedSetupRevealPhase()) {
+                if (this.isSharedSetupPhase()) {
+                    return this.hasSetupPlacement(this.userPlayer) && !this.hasSetupReveal(this.userPlayer);
+                }
+                if (!this.canLocalTakeTurn()) {
                     return false;
                 }
                 if (this.gamePhase === 'setup' && this.waitingForFlip === this.userPlayer) {
@@ -4327,10 +4436,9 @@
             }
             canPlayerFlip(cell) {
                 if (
-                    this.isSharedMatch() &&
-                    this.gamePhase === 'setup' &&
-                    this.areSetupCardsPlaced() &&
+                    this.isSharedSetupPhase() &&
                     cell?.owner === this.userPlayer &&
+                    this.hasSetupPlacement(this.userPlayer) &&
                     !this.setupRevealed?.[this.userPlayer] &&
                     this.isSharedRoomReady()
                 ) {
@@ -4815,9 +4923,10 @@
                     this.activePointerFeedback = { type: 'cell', row: target.row, col: target.col };
                     return;
                 }
+                const actingPlayer = this.getLocalPlacementPlayer();
                 const isValidTarget = this.draggedFromBoard
                     ? this.canRepositionPendingCard(target.row, target.col)
-                    : this.isValidMove(target.row, target.col, this.draggedCard, this.currentPlayer);
+                    : this.isValidMove(target.row, target.col, this.draggedCard, actingPlayer);
                 target.el.classList.add(isValidTarget ? 'drag-over' : 'invalid-drop');
                 this.activePointerFeedback = {
                     type: 'cell',
@@ -4986,11 +5095,12 @@
                     this.dropResolved = true;
                     return true;
                 }
-                if (!this.isValidMove(row, col, this.draggedCard, this.currentPlayer)) {
+                const actingPlayer = this.getLocalPlacementPlayer();
+                if (!this.isValidMove(row, col, this.draggedCard, actingPlayer)) {
                     return false;
                 }
                 this.dropResolved = true;
-                this.placeCard(row, col, this.draggedCard, this.currentPlayer);
+                this.placeCard(row, col, this.draggedCard, actingPlayer);
                 return true;
             }
             returnPendingCardToHand() {
@@ -5131,11 +5241,7 @@
                 if (this.gamePhase === 'setup') {
                     this.setupPlacements[player] = { row, col, card };
                     if (this.isSharedMatch()) {
-                        if (this.setupPlacements.red && this.setupPlacements.black) {
-                            this.waitingForFlip = null;
-                        } else {
-                            this.currentPlayer = this.otherPlayer(player);
-                        }
+                        this.waitingForFlip = null;
                     } else if (this.setupPlacements.red && this.setupPlacements.black) {
                         this.waitingForFlip = this.userPlayer;
                     }
@@ -5173,13 +5279,16 @@
                             setupRevealed: createPlayerMap((player) => Boolean(this.setupRevealed[player]))
                         });
                         if (!this.areSetupCardsRevealed()) {
-                            this.waitingForFlip = this.otherPlayer(cell.owner);
                             this.updateUI();
                             return;
                         }
                     }
                     const redPlacement = this.setupPlacements.red;
                     const blackPlacement = this.setupPlacements.black;
+                    if (!redPlacement || !blackPlacement) {
+                        this.updateUI();
+                        return;
+                    }
                     revealCell(redPlacement.row, redPlacement.col);
                     revealCell(blackPlacement.row, blackPlacement.col);
                     if (this.isSharedMatch()) {
@@ -5233,6 +5342,9 @@
                     row,
                     col
                 });
+                // Publish the revealed card immediately so the earlier face-down
+                // placement ACK cannot overwrite this local flip before finishTurn().
+                this.notifyStateChange();
                 this.finishTurn({ delay: 700 });
             }
             getCardValue(cardOrRank) {
@@ -6332,36 +6444,51 @@
                     return { text: 'Waiting for your friend to join from the shared link…', tone: 'neutral' };
                 }
                 if (this.gamePhase === 'setup') {
-                    if (this.isSharedMatch() && this.areSetupCardsPlaced()) {
-                        if (!this.setupRevealed[this.userPlayer]) {
+                    if (this.isSharedMatch()) {
+                        if (!this.hasSetupPlacement(this.userPlayer)) {
+                            if (this.hasSetupPlacement(this.botPlayer)) {
+                                return {
+                                    text: `${this.getOpponentLabel()} is ready. ${this.getSetupInstructionText()}`,
+                                    tone: 'player-turn'
+                                };
+                            }
+                            return { text: this.getSetupInstructionText(), tone: 'player-turn' };
+                        }
+                        if (!this.hasSetupReveal(this.userPlayer)) {
                             return { text: 'Flip your setup card when ready', tone: 'player-turn' };
                         }
-                        if (!this.setupRevealed[this.botPlayer]) {
+                        if (!this.hasSetupPlacement(this.botPlayer)) {
+                            return {
+                                text: `${this.getOpponentLabel()} is placing a setup card...`,
+                                tone: 'bot-turn'
+                            };
+                        }
+                        if (!this.hasSetupReveal(this.botPlayer)) {
                             return {
                                 text: `${this.getOpponentLabel()} is revealing their setup card...`,
                                 tone: 'bot-turn'
                             };
                         }
-                    } else {
-                        if (this.waitingForFlip === this.userPlayer) {
-                            return { text: 'Flip your card to reveal it', tone: 'player-turn' };
-                        }
-                        if (this.waitingForFlip === this.botPlayer) {
-                            return {
-                                text: this.isSharedMatch() ? `${this.getOpponentLabel()} is revealing the setup cards...` : 'Bot is revealing the setup cards...',
-                                tone: 'bot-turn'
-                            };
-                        }
+                        return { text: 'Revealing the opening cards...', tone: 'neutral' };
+                    }
+                    if (this.waitingForFlip === this.userPlayer) {
+                        return { text: 'Flip your card to reveal it', tone: 'player-turn' };
+                    }
+                    if (this.waitingForFlip === this.botPlayer) {
+                        return {
+                            text: 'Bot is revealing the setup cards...',
+                            tone: 'bot-turn'
+                        };
                     }
                     if (this.setupPlacements[this.botPlayer] && !this.setupPlacements[this.userPlayer]) {
                         return {
-                            text: `${this.isSharedMatch() ? this.getOpponentLabel() : 'Bot'} is ready. ${this.getSetupInstructionText()}`,
+                            text: `Bot is ready. ${this.getSetupInstructionText()}`,
                             tone: 'player-turn'
                         };
                     }
                     if (this.setupPlacements[this.userPlayer] && !this.setupPlacements[this.botPlayer]) {
                         return {
-                            text: this.isSharedMatch() ? `${this.getOpponentLabel()} is placing a card...` : 'Bot is placing a card...',
+                            text: 'Bot is placing a card...',
                             tone: 'bot-turn'
                         };
                     }
@@ -6660,7 +6787,12 @@
             }
             beginPointerDrag(e, { card, slotIndex, fromBoard = null }) {
                 if (e.pointerType === 'mouse') return;
-                if (!this.canLocalDragCards()) return;
+                if (fromBoard) {
+                    const cell = this.board[fromBoard.row]?.[fromBoard.col] ?? null;
+                    if (!this.canDragPendingBoardCard(cell)) return;
+                } else if (!this.canLocalDragCards()) {
+                    return;
+                }
                 const sourceEl = e.currentTarget;
                 const rect = sourceEl.getBoundingClientRect();
                 this.activeDragElement = sourceEl;
@@ -6809,9 +6941,10 @@
                 if (this.draggedFromBoard && row === this.draggedFromBoard.row && col === this.draggedFromBoard.col) {
                     return;
                 }
+                const actingPlayer = this.getLocalPlacementPlayer();
                 const isValidTarget = this.draggedFromBoard
                     ? this.canRepositionPendingCard(row, col)
-                    : this.isValidMove(row, col, this.draggedCard, this.currentPlayer);
+                    : this.isValidMove(row, col, this.draggedCard, actingPlayer);
                 if (isValidTarget) {
                     cell.classList.add('drag-over');
                 } else {
@@ -7364,6 +7497,7 @@
             applyRoom(room, { animateFlips = true, preserveLocalState = false } = {}) {
                 if (!room?.roomId || !app.sharedSession?.seat) return;
                 const previousVersion = Number(app.sharedRoom?.version ?? 0);
+                const localSeat = app.sharedSession.seat;
                 const localAuthoritativeState = app.game?.mode === APP_MODES.shared
                     ? app.game.getAuthoritativeLocalState?.()
                     : null;
@@ -7375,6 +7509,13 @@
                     ) &&
                     !sharedMatch.statesEqual(room.game, this.pendingState)
                 );
+                const repairedSetupState = (
+                    localAuthoritativeState
+                    && room.game?.gamePhase === 'setup'
+                    && localAuthoritativeState.gamePhase === 'setup'
+                    && sharedMatch.hasSeatSetupActivity(localAuthoritativeState, localSeat)
+                    && sharedMatch.seatSetupDiffers(room.game, localAuthoritativeState, localSeat)
+                ) ? sharedMatch.mergeSetupState(room.game, localAuthoritativeState, localSeat) : null;
                 this.setSession(room, app.sharedSession.seat);
                 if (app.mode === APP_MODES.shared && app.game?.mode === APP_MODES.shared) {
                     if (localAuthoritativeState && sharedMatch.statesEqual(room.game, localAuthoritativeState)) {
@@ -7395,8 +7536,28 @@
                         practiceController.syncSharedInviteAction?.();
                         return;
                     }
+                    if (repairedSetupState && !sharedMatch.statesEqual(repairedSetupState, room.game)) {
+                        this.applyingRemoteState = true;
+                        app.game.syncSharedRoom({
+                            ...room,
+                            game: repairedSetupState
+                        }, localSeat, {
+                            animateFlips: animateFlips && Number(room.version ?? 0) > previousVersion
+                        });
+                        this.applyingRemoteState = false;
+                        if (
+                            !sharedMatch.statesEqual(repairedSetupState, this.pendingState) &&
+                            !sharedMatch.statesEqual(repairedSetupState, this.inFlightState)
+                        ) {
+                            this.pendingState = repairedSetupState;
+                        }
+                        menuView.sync();
+                        practiceController.syncSharedInviteAction?.();
+                        this.flushLocalState();
+                        return;
+                    }
                     this.applyingRemoteState = true;
-                    app.game.syncSharedRoom(room, app.sharedSession.seat, {
+                    app.game.syncSharedRoom(room, localSeat, {
                         animateFlips: animateFlips && Number(room.version ?? 0) > previousVersion
                     });
                     this.applyingRemoteState = false;

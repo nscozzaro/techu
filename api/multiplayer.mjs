@@ -4,6 +4,7 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { getCache } from '@vercel/functions';
 
 let runtimeCache = null;
+const roomWriteQueues = new Map();
 
 const ROOM_TTL_SECONDS = 60 * 60 * 12;
 const SSE_POLL_INTERVAL_MS = 1000;
@@ -270,6 +271,25 @@ const saveRoom = async (request, room) => {
     return room;
 };
 
+const withRoomLock = async (roomId, work) => {
+    const previous = roomWriteQueues.get(roomId) ?? Promise.resolve();
+    let release = null;
+    const current = new Promise((resolve) => {
+        release = resolve;
+    });
+    const queued = previous.then(() => current, () => current);
+    roomWriteQueues.set(roomId, queued);
+    await previous.catch(() => {});
+    try {
+        return await work();
+    } finally {
+        release?.();
+        if (roomWriteQueues.get(roomId) === queued) {
+            roomWriteQueues.delete(roomId);
+        }
+    }
+};
+
 const createRoom = async (request, body) => {
     let roomId = null;
     for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -351,19 +371,77 @@ const joinRoom = async (request, roomId, seat) => {
 
 const isSeatTurn = (room, seat) => {
     if (!room?.game) return false;
-    if (
-        room.game.gamePhase === 'setup' &&
-        room.game.setupPlacements?.red &&
-        room.game.setupPlacements?.black
-    ) {
-        if (!room.game.setupRevealed?.[seat]) {
-            return true;
-        }
-        if (room.game.setupRevealed?.red && room.game.setupRevealed?.black) {
-            return true;
-        }
+    if (room.game.gamePhase === 'setup') {
+        return true;
     }
     return room.game.currentPlayer === seat || room.game.waitingForFlip === seat;
+};
+
+const hasBothSetupRevealed = (game) => Boolean(
+    game?.setupRevealed?.red && game?.setupRevealed?.black
+);
+
+const isResetSetupState = (game) => (
+    game?.gamePhase === 'setup'
+    && !game?.setupPlacements?.red
+    && !game?.setupPlacements?.black
+    && !game?.setupRevealed?.red
+    && !game?.setupRevealed?.black
+);
+
+const clearSeatSetupPlacement = (game, seat) => {
+    const placement = game?.setupPlacements?.[seat];
+    if (!placement) return;
+    const row = Number(placement.row);
+    const col = Number(placement.col);
+    if (!Number.isInteger(row) || !Number.isInteger(col)) return;
+    const cell = game.board?.[row]?.[col];
+    if (cell?.owner === seat) {
+        game.board[row][col] = cell.covered ?? null;
+    }
+};
+
+const createSeatSetupCell = (incomingGame, seat, placement) => {
+    const row = Number(placement?.row);
+    const col = Number(placement?.col);
+    const incomingCell = incomingGame?.board?.[row]?.[col];
+    if (incomingCell?.owner === seat) {
+        return clone(incomingCell);
+    }
+    return {
+        owner: seat,
+        card: placement?.card ?? null,
+        faceUp: Boolean(incomingGame?.setupRevealed?.[seat]),
+        fromSlot: null,
+        covered: null
+    };
+};
+
+const mergeSetupState = (currentGame, incomingGame, seat) => {
+    if (!currentGame || !incomingGame) {
+        return null;
+    }
+    if (hasBothSetupRevealed(currentGame) && (incomingGame.gamePhase !== 'setup' || isResetSetupState(incomingGame))) {
+        return clone(incomingGame);
+    }
+    const mergedGame = clone(currentGame);
+    mergedGame.hands[seat] = clone(incomingGame.hands?.[seat] ?? mergedGame.hands?.[seat] ?? Array(HAND_SIZE).fill(null));
+    mergedGame.decks[seat] = clone(incomingGame.decks?.[seat] ?? mergedGame.decks?.[seat] ?? []);
+    mergedGame.discards[seat] = clone(incomingGame.discards?.[seat] ?? mergedGame.discards?.[seat] ?? []);
+    clearSeatSetupPlacement(mergedGame, seat);
+    const placement = clone(incomingGame.setupPlacements?.[seat] ?? null);
+    mergedGame.setupPlacements[seat] = placement;
+    mergedGame.setupRevealed[seat] = Boolean(incomingGame.setupRevealed?.[seat]);
+    if (placement) {
+        const row = Number(placement.row);
+        const col = Number(placement.col);
+        if (!Number.isInteger(row) || !Number.isInteger(col) || !mergedGame.board?.[row]) {
+            return null;
+        }
+        mergedGame.board[row][col] = createSeatSetupCell(incomingGame, seat, placement);
+    }
+    mergedGame.waitingForFlip = null;
+    return mergedGame;
 };
 
 const updateRoom = async (request, body) => {
@@ -376,43 +454,51 @@ const updateRoom = async (request, body) => {
     if (!Number.isFinite(expectedVersion)) {
         return errorResponse(400, 'version_invalid', 'An expected room version is required for synchronization.');
     }
-    const room = await loadRoom(request, roomId);
-    if (!room) {
-        return errorResponse(404, 'room_not_found', 'That shared match could not be found.');
-    }
-    if (!room.players?.[seat]?.joined) {
-        return errorResponse(409, 'seat_missing', 'That seat is not currently attached to this room.', {
+    return withRoomLock(roomId, async () => {
+        const room = await loadRoom(request, roomId);
+        if (!room) {
+            return errorResponse(404, 'room_not_found', 'That shared match could not be found.');
+        }
+        if (!room.players?.[seat]?.joined) {
+            return errorResponse(409, 'seat_missing', 'That seat is not currently attached to this room.', {
+                room: sanitizeRoom(room)
+            });
+        }
+        if (!room.players.black?.joined) {
+            return errorResponse(409, 'room_waiting', 'Your friend has not joined yet.', {
+                room: sanitizeRoom(room)
+            });
+        }
+        const isSetupSync = room.game?.gamePhase === 'setup' && body.game?.gamePhase !== 'ended';
+        if (!isSetupSync && expectedVersion !== Number(room.version ?? 0)) {
+            return errorResponse(409, 'room_conflict', 'The shared room moved on before this update arrived.', {
+                room: sanitizeRoom(room)
+            });
+        }
+        if (!isSetupSync && !isSeatTurn(room, seat)) {
+            return errorResponse(409, 'turn_invalid', 'It is not this seat’s turn to update the room.', {
+                room: sanitizeRoom(room)
+            });
+        }
+        if (!body?.game || typeof body.game !== 'object') {
+            return errorResponse(400, 'game_invalid', 'A serialized game snapshot is required.');
+        }
+        if (body.game.seed !== room.game.seed) {
+            return errorResponse(400, 'seed_mismatch', 'The shared match seed does not match this room.');
+        }
+        room.game = isSetupSync ? mergeSetupState(room.game, body.game, seat) : clone(body.game);
+        if (!room.game) {
+            return errorResponse(409, 'setup_merge_invalid', 'The shared setup update could not be merged safely.', {
+                room: sanitizeRoom(room)
+            });
+        }
+        room.players[seat].lastSeenAt = new Date().toISOString();
+        touchRoom(room, { bumpVersion: true });
+        await saveRoom(request, room);
+        return json({
+            ok: true,
             room: sanitizeRoom(room)
         });
-    }
-    if (!room.players.black?.joined) {
-        return errorResponse(409, 'room_waiting', 'Your friend has not joined yet.', {
-            room: sanitizeRoom(room)
-        });
-    }
-    if (expectedVersion !== Number(room.version ?? 0)) {
-        return errorResponse(409, 'room_conflict', 'The shared room moved on before this update arrived.', {
-            room: sanitizeRoom(room)
-        });
-    }
-    if (!isSeatTurn(room, seat)) {
-        return errorResponse(409, 'turn_invalid', 'It is not this seat’s turn to update the room.', {
-            room: sanitizeRoom(room)
-        });
-    }
-    if (!body?.game || typeof body.game !== 'object') {
-        return errorResponse(400, 'game_invalid', 'A serialized game snapshot is required.');
-    }
-    if (body.game.seed !== room.game.seed) {
-        return errorResponse(400, 'seed_mismatch', 'The shared match seed does not match this room.');
-    }
-    room.game = clone(body.game);
-    room.players[seat].lastSeenAt = new Date().toISOString();
-    touchRoom(room, { bumpVersion: true });
-    await saveRoom(request, room);
-    return json({
-        ok: true,
-        room: sanitizeRoom(room)
     });
 };
 
