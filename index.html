@@ -5159,8 +5159,6 @@
             dealCardsWithAnimation(player) {
                 const { deck, hand } = this.getPlayerState(player);
                 if (!deck.length) return Promise.resolve(false);
-                const emptySlot = hand.findIndex((slot) => slot === null);
-                if (emptySlot === -1) return Promise.resolve(false);
                 const [deal] = this.drawCards(player, 1, this.openingDealInProgress ? 'opening-deal' : 'turn-draw');
                 if (!deal) return Promise.resolve(false);
                 this.dealingToSlot[player] = deal.slot;
@@ -5170,17 +5168,28 @@
                     return Promise.resolve(true);
                 }
                 return new Promise((resolve) => {
+                    let settled = false;
+                    const settleDeal = (result, { rerenderHand = true } = {}) => {
+                        if (settled) return;
+                        settled = true;
+                        clearTimeout(recoveryTimer);
+                        this.finishDealingAnimation(player, { rerenderHand });
+                        resolve(result && !this.isDestroyed);
+                    };
+                    const recoveryTimer = setTimeout(() => {
+                        if (settled || this.dealingAnimationActive[player]) return;
+                        settleDeal(true, { rerenderHand: true });
+                    }, 240);
                     requestAnimationFrame(() => {
+                        if (settled) return;
                         if (this.isDestroyed) {
-                            this.finishDealingAnimation(player);
-                            resolve(false);
+                            settleDeal(false, { rerenderHand: false });
                             return;
                         }
                         const { hand: handEl, deck: deckEl } = this.getPlayerEls(player);
-                        const cardEl = handEl.querySelectorAll('.hand-slot')[emptySlot]?.querySelector('.card');
+                        const cardEl = handEl.querySelectorAll('.hand-slot')[deal.slot]?.querySelector('.card');
                         if (!cardEl) {
-                            this.finishDealingAnimation(player, { rerenderHand: true });
-                            resolve(false);
+                            settleDeal(false, { rerenderHand: true });
                             return;
                         }
                         const deckRect = deckEl.getBoundingClientRect();
@@ -5191,9 +5200,10 @@
                         cardEl.classList.remove('pre-deal');
                         cardEl.classList.add('dealing');
                         setTimeout(() => {
+                            if (settled) return;
+                            cardEl.classList.remove('pre-deal');
                             cardEl.classList.remove('dealing');
-                            this.finishDealingAnimation(player);
-                            resolve(!this.isDestroyed);
+                            settleDeal(true, { rerenderHand: true });
                         }, 500);
                     });
                 });

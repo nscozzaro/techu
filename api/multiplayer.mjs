@@ -469,13 +469,15 @@ const updateRoom = async (request, body) => {
                 room: sanitizeRoom(room)
             });
         }
-        const isSetupSync = room.game?.gamePhase === 'setup' && body.game?.gamePhase !== 'ended';
-        if (!isSetupSync && expectedVersion !== Number(room.version ?? 0)) {
+        const isSetupSync = room.game?.gamePhase === 'setup' && body.game?.gamePhase === 'setup';
+        const isSetupAdvance = room.game?.gamePhase === 'setup' && body.game?.gamePhase === 'playing';
+        const bypassConflictChecks = isSetupSync || isSetupAdvance;
+        if (!bypassConflictChecks && expectedVersion !== Number(room.version ?? 0)) {
             return errorResponse(409, 'room_conflict', 'The shared room moved on before this update arrived.', {
                 room: sanitizeRoom(room)
             });
         }
-        if (!isSetupSync && !isSeatTurn(room, seat)) {
+        if (!bypassConflictChecks && !isSeatTurn(room, seat)) {
             return errorResponse(409, 'turn_invalid', 'It is not this seat’s turn to update the room.', {
                 room: sanitizeRoom(room)
             });
