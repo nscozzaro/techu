@@ -354,10 +354,14 @@ const isSeatTurn = (room, seat) => {
     if (
         room.game.gamePhase === 'setup' &&
         room.game.setupPlacements?.red &&
-        room.game.setupPlacements?.black &&
-        !room.game.setupRevealed?.[seat]
+        room.game.setupPlacements?.black
     ) {
-        return true;
+        if (!room.game.setupRevealed?.[seat]) {
+            return true;
+        }
+        if (room.game.setupRevealed?.red && room.game.setupRevealed?.black) {
+            return true;
+        }
     }
     return room.game.currentPlayer === seat || room.game.waitingForFlip === seat;
 };
