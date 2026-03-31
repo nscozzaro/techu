@@ -2376,6 +2376,9 @@
         .returning-card.board-ghost .board-card.face {
             transform: rotateY(180deg) !important;
         }
+        .shared-move-hidden {
+            opacity: 0 !important;
+        }
         @keyframes deal-card {
             from {
                 transform: translate3d(var(--deal-x), var(--deal-y), 0) scale(0.76) rotate(-7deg);
@@ -4087,6 +4090,8 @@
                 this.waitingForFlip = null;
                 this.resetDealingAnimations();
                 this.animatingMove = null;
+                this.sharedMoveAnimation = null;
+                this.sharedMoveAnimationTimer = null;
                 this.settings = settings;
                 this.communicationTimer = null;
                 this.communicationState = { transient: null };
@@ -4273,6 +4278,178 @@
                     });
                 });
             }
+            getNewSharedMoveEvent(nextSnapshot) {
+                const nextEvents = nextSnapshot?.matchLog?.events ?? [];
+                const lastAppliedStep = Number(this.matchLogStep ?? 0);
+                return nextEvents
+                    .slice()
+                    .reverse()
+                    .find((event) => (
+                        Number(event?.n) > lastAppliedStep
+                        && ['place', 'reposition-pending', 'return-pending', 'draw'].includes(event.type)
+                    )) ?? null;
+            }
+            buildSharedMoveAnimation(nextSnapshot) {
+                if (!this.isSharedMatch()) return null;
+                const moveEvent = this.getNewSharedMoveEvent(nextSnapshot);
+                const player = moveEvent?.detail?.player;
+                if (!moveEvent || !player) {
+                    return null;
+                }
+                const localPlayer = nextSnapshot.userPlayer ?? this.userPlayer;
+                if (moveEvent.type !== 'draw' && player === localPlayer) {
+                    return null;
+                }
+                if (moveEvent.type === 'place' && Number.isInteger(moveEvent.detail?.slot)) {
+                    return {
+                        player,
+                        cardCode: moveEvent.detail.card,
+                        source: { type: 'hand', slot: moveEvent.detail.slot },
+                        target: { type: 'board', row: moveEvent.detail.row, col: moveEvent.detail.col }
+                    };
+                }
+                if (moveEvent.type === 'reposition-pending') {
+                    return {
+                        player,
+                        cardCode: moveEvent.detail.card,
+                        source: {
+                            type: 'board',
+                            row: moveEvent.detail?.from?.row,
+                            col: moveEvent.detail?.from?.col
+                        },
+                        target: {
+                            type: 'board',
+                            row: moveEvent.detail?.to?.row,
+                            col: moveEvent.detail?.to?.col
+                        }
+                    };
+                }
+                if (moveEvent.type === 'return-pending' && Number.isInteger(moveEvent.detail?.toSlot)) {
+                    return {
+                        player,
+                        cardCode: moveEvent.detail.card,
+                        source: {
+                            type: 'board',
+                            row: moveEvent.detail?.from?.row,
+                            col: moveEvent.detail?.from?.col
+                        },
+                        target: { type: 'hand', slot: moveEvent.detail.toSlot }
+                    };
+                }
+                if (moveEvent.type === 'draw') {
+                    const draw = moveEvent.detail?.cards?.[0];
+                    if (!Number.isInteger(draw?.slot)) return null;
+                    return {
+                        player,
+                        cardCode: draw.card,
+                        source: { type: 'deck' },
+                        target: { type: 'hand', slot: draw.slot }
+                    };
+                }
+                return null;
+            }
+            getHandSlotElement(player, slotIndex) {
+                return this.getPlayerEls(player).hand.querySelectorAll('.hand-slot')[slotIndex] ?? null;
+            }
+            getBoardCellElement(row, col) {
+                return this.els.board.querySelectorAll('.cell')[row * BOARD_SIZE + col] ?? null;
+            }
+            getSharedMoveTargetElement(move = this.sharedMoveAnimation?.move) {
+                if (!move) return null;
+                if (move.target.type === 'hand') {
+                    return this.getHandSlotElement(move.player, move.target.slot)?.querySelector('.card') ?? null;
+                }
+                return this.getBoardCellElement(move.target.row, move.target.col)?.querySelector('.board-card-stack') ?? null;
+            }
+            getSharedMoveSourceRect(move) {
+                if (!move) return null;
+                const sourceEl = move.source.type === 'deck'
+                    ? this.getPlayerEls(move.player).deck
+                    : move.source.type === 'hand'
+                        ? this.getHandSlotElement(move.player, move.source.slot)
+                        : this.getBoardCellElement(move.source.row, move.source.col);
+                return sourceEl?.getBoundingClientRect() ?? null;
+            }
+            createSharedMoveGhost(targetEl) {
+                if (!targetEl) return null;
+                const ghost = targetEl.cloneNode(true);
+                ghost.classList.remove('shared-move-hidden');
+                return ghost;
+            }
+            shouldHideSharedMoveHandTarget(player, slotIndex) {
+                const move = this.sharedMoveAnimation?.move;
+                return move?.player === player
+                    && move?.target?.type === 'hand'
+                    && move.target.slot === slotIndex;
+            }
+            shouldHideSharedMoveBoardTarget(row, col) {
+                const move = this.sharedMoveAnimation?.move;
+                return move?.target?.type === 'board'
+                    && move.target.row === row
+                    && move.target.col === col;
+            }
+            finishSharedMoveAnimation() {
+                const animation = this.sharedMoveAnimation;
+                if (!animation) return;
+                this.clearTimer('sharedMoveAnimationTimer');
+                this.getSharedMoveTargetElement(animation.move)?.classList.remove('shared-move-hidden');
+                animation.ghost?.remove();
+                this.sharedMoveAnimation = null;
+            }
+            prepareSharedMoveAnimation(move) {
+                this.finishSharedMoveAnimation();
+                if (!move) return;
+                this.sharedMoveAnimation = { move, ghost: null };
+            }
+            playSharedMoveAnimation(move = this.sharedMoveAnimation?.move) {
+                if (!move || document.hidden) return false;
+                const sourceRect = this.getSharedMoveSourceRect(move);
+                const targetEl = this.getSharedMoveTargetElement(move);
+                if (!sourceRect || !targetEl) return false;
+                const targetRect = targetEl.getBoundingClientRect();
+                const ghost = this.createSharedMoveGhost(targetEl);
+                if (!ghost) return false;
+                ghost.classList.add('returning-card');
+                if (move.target.type === 'board') {
+                    ghost.classList.add('board-ghost');
+                }
+                ghost.style.left = `${sourceRect.left}px`;
+                ghost.style.top = `${sourceRect.top}px`;
+                ghost.style.width = `${targetRect.width}px`;
+                ghost.style.height = `${targetRect.height}px`;
+                ghost.style.opacity = '0.98';
+                ghost.style.transform = 'translate3d(0, 0, 0) scale(1)';
+                document.body.appendChild(ghost);
+                targetEl.classList.add('shared-move-hidden');
+                const finish = () => {
+                    if (this.sharedMoveAnimation?.ghost !== ghost) return;
+                    this.clearTimer('sharedMoveAnimationTimer');
+                    this.getSharedMoveTargetElement(move)?.classList.remove('shared-move-hidden');
+                    ghost.style.transition = 'opacity 90ms linear';
+                    requestAnimationFrame(() => {
+                        if (this.sharedMoveAnimation?.ghost !== ghost) return;
+                        ghost.style.opacity = '0';
+                        this.sharedMoveAnimationTimer = setTimeout(() => {
+                            if (this.sharedMoveAnimation?.ghost !== ghost) return;
+                            ghost.remove();
+                            this.sharedMoveAnimation = null;
+                            this.clearTimer('sharedMoveAnimationTimer');
+                        }, 100);
+                    });
+                };
+                this.sharedMoveAnimation = { move, ghost };
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        if (this.sharedMoveAnimation?.ghost !== ghost) return;
+                        ghost.style.transform = `translate3d(${targetRect.left - sourceRect.left}px, ${targetRect.top - sourceRect.top}px, 0) scale(1)`;
+                        ghost.style.opacity = '0.94';
+                        ghost.style.boxShadow = '0 10px 24px rgba(34, 27, 18, 0.22)';
+                    });
+                });
+                ghost.addEventListener('transitionend', finish, { once: true });
+                this.sharedMoveAnimationTimer = setTimeout(finish, 520);
+                return true;
+            }
             syncSharedRoom(room, seat = this.userPlayer, { animateFlips = true } = {}) {
                 if (!room?.game) return;
                 this.gameOptions.sharedRoomReady = room.status === 'active' || room.status === 'ended';
@@ -4286,9 +4463,21 @@
                 this.communicationState.transient = null;
                 this.clearTimer('communicationTimer');
                 const snapshot = sharedMatch.buildLocalSnapshot(room.game, seat);
+                const sharedMove = this.buildSharedMoveAnimation(snapshot);
                 const flipTransitions = animateFlips ? this.getRevealedCellTransitions(snapshot) : [];
+                this.prepareSharedMoveAnimation(sharedMove);
                 this.restoreSerializedState(snapshot);
-                if (flipTransitions.length) {
+                const moveAnimated = this.playSharedMoveAnimation();
+                if (sharedMove && !moveAnimated) {
+                    this.finishSharedMoveAnimation();
+                }
+                if (flipTransitions.length && moveAnimated) {
+                    setTimeout(() => {
+                        if (!this.isDestroyed) {
+                            this.animateRevealedCells(flipTransitions);
+                        }
+                    }, 520);
+                } else if (flipTransitions.length) {
                     this.animateRevealedCells(flipTransitions);
                 }
             }
@@ -4297,6 +4486,7 @@
                 if (document.hidden) {
                     this.animatingMove = null;
                     this.resetDealingAnimations();
+                    this.finishSharedMoveAnimation();
                     if (this.draggedCard || this.activeDragElement || this.pendingReturnAnimation) {
                         this.finishDragCleanup();
                     } else {
@@ -4330,8 +4520,9 @@
                 document.removeEventListener('pointerup', this.handleDocumentPointerUp);
                 document.removeEventListener('pointercancel', this.handleDocumentPointerUp);
                 document.removeEventListener('visibilitychange', this.handleVisibilityChange);
-                ['communicationTimer', 'returnAnimationTimer', 'setupTimer'].forEach((key) => this.clearTimer(key));
+                ['communicationTimer', 'returnAnimationTimer', 'setupTimer', 'sharedMoveAnimationTimer'].forEach((key) => this.clearTimer(key));
                 this.communicationState.transient = null;
+                this.finishSharedMoveAnimation();
                 this.clearAllowedMoveHighlights();
                 this.clearDragSourceState();
                 this.clearLiftedBoardState();
@@ -6700,6 +6891,9 @@
                         if (cellData) {
                             const { container: cardContainer, back } = this.createBoardCardStack(cellData);
                             const face = cardContainer.querySelector('.board-card.face');
+                            if (this.shouldHideSharedMoveBoardTarget(r, c)) {
+                                cardContainer.classList.add('shared-move-hidden');
+                            }
                             cell.appendChild(cardContainer);
                             if (this.animatingMove?.toRow === r && this.animatingMove?.toCol === c) {
                                 if (cellData.coveredCell) {
@@ -6752,6 +6946,9 @@
                     if (this.dealingToSlot[this.userPlayer] === slotIndex) {
                         cardEl.classList.add('pre-deal');
                     }
+                    if (this.shouldHideSharedMoveHandTarget(player, slotIndex)) {
+                        cardEl.classList.add('shared-move-hidden');
+                    }
                     cardEl.addEventListener('dragstart', (e) => this.handleDragStart(e, card, slotIndex));
                     cardEl.addEventListener('dragend', (e) => this.handleDragEnd(e));
                     cardEl.addEventListener('pointerdown', (e) => this.handlePointerDragStart(e, card, slotIndex));
@@ -6763,6 +6960,9 @@
                 }
                 if (this.animatingMove?.player === this.botPlayer && this.animatingMove.fromSlot === slotIndex) {
                     cardEl.style.opacity = '0';
+                }
+                if (this.shouldHideSharedMoveHandTarget(player, slotIndex)) {
+                    cardEl.classList.add('shared-move-hidden');
                 }
                 return cardEl;
             }
