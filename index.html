@@ -3498,65 +3498,39 @@
         const DIRECTIONS = [[-1, 0], [1, 0], [0, -1], [0, 1]];
         const BOARD_SIZE = 5;
         const HAND_SIZE = 3;
-        const SEARCH_TIMEOUT = Symbol('flood-search-timeout');
         const BOT_STRATEGY = {
+            version: 'simple-frontier-v4',
             cardBands: {
                 utilityMax: 6,
-                developmentMax: 7,
-                powerMin: 11,
-                premiumMin: 12,
-                finisherMin: 13,
-                aceValue: 14
+                developmentMax: 8,
+                premiumMin: 11
             },
-            setup: { lead: 10, lowCard: 8, saveTwo: 4, noLowSlope: 2, saveHigh: 8 },
+            setup: {
+                lowCardBonus: 14,
+                spareTwoPenalty: 6,
+                premiumPenalty: 10
+            },
             move: {
-                claim: 6,
-                capture: 14,
-                selfCover: 16,
-                center: 10,
-                centerProximity: 3,
-                forward: 4,
-                advance: 5,
-                homeExpansion: 8,
-                homeAnchor: 5,
-                highHome: 7,
-                connect: 10,
-                disconnect: 7,
-                frontier: 4,
-                support: 4,
-                pressure: 2,
-                lowClaim: 4,
-                reservePower: 9,
-                cleanCapture: 8,
-                overkill: 4,
-                efficientCapture: 5,
-                captureEconomy: 3,
-                premiumClaimTax: 7,
-                premiumCaptureTax: 8,
-                fragileAdvance: 6,
-                deepPremiumClaim: 8,
-                exposedCapture: 11,
-                supportShield: 4,
-                safeCapture: 6,
-                supportedClaim: 4,
-                unsupportedHigh: 8,
-                deepRaid: 6,
-                captureRisk: 1.15,
-                claimRisk: 0.95,
-                hiddenThreat: 3,
-                safeRisk: 8
+                claimBase: 14,
+                captureBase: 20,
+                centerBonus: 10,
+                progressBonus: 7,
+                supportBonus: 5,
+                homeSeedBonus: 8,
+                cheapClaimBonus: 8,
+                efficientCaptureBonus: 14,
+                defendBonus: 8,
+                premiumClaimPenalty: 18,
+                premiumCapturePenalty: 12,
+                overspendPenalty: 7,
+                exposedPenalty: 8
             },
-            search: {
-                position: {
-                    early: { score: 58, connected: 8, disconnected: 3, frontier: 3, pressure: 5, mobility: 6, threat: 0.6, hand: 1, home: 2 },
-                    late: { score: 110, connected: 8, disconnected: 3, frontier: 3, pressure: 6, mobility: 6, threat: 0.8, hand: 1, home: 3 },
-                    endgame: { score: 180, connected: 8, disconnected: 3, frontier: 3, pressure: 8, mobility: 8, threat: 1, hand: 1, home: 4 }
-                },
-                config: {
-                    early: { depth: 3, rootMoveLimit: 7, nodeMoveLimit: 4, discardLimit: 1, tacticalWidth: 3, staticBlend: 0.035, timeMs: 30, nodeBudget: 1400 },
-                    late: { depth: 3, rootMoveLimit: 8, nodeMoveLimit: 5, discardLimit: 1, tacticalWidth: 3, staticBlend: 0.03, timeMs: 42, nodeBudget: 2400 },
-                    endgame: { depth: 4, rootMoveLimit: 9, nodeMoveLimit: 5, discardLimit: 2, tacticalWidth: 4, staticBlend: 0.02, timeMs: 58, nodeBudget: 4200 }
-                }
+            discard: {
+                lowCardKeep: 12,
+                premiumKeep: 10,
+                loneLowCardBonus: 8,
+                mobilityBonus: 3,
+                centerAnswerBonus: 6
             }
         };
         const createPlayerMap = (factory) => Object.fromEntries(PLAYERS.map((player) => [player, factory(player)]));
@@ -4886,7 +4860,7 @@
                         userPlayer: this.userPlayer,
                         botPlayer: this.botPlayer,
                         seed: this.gameOptions.seed ?? null,
-                        botStrategy: 'strategic-search-lite-v17'
+                        botStrategy: BOT_STRATEGY.version
                     },
                     shuffle: createPlayerMap((player) => this[`${player}Deck`].map((card) => this.cardToCode(card))),
                     events: []
@@ -5572,176 +5546,37 @@
             isUtilityCard(value) {
                 return value <= BOT_STRATEGY.cardBands.utilityMax;
             }
-            isDevelopmentCard(value) {
-                return value <= BOT_STRATEGY.cardBands.developmentMax;
-            }
-            isPowerCard(value) {
-                return value >= BOT_STRATEGY.cardBands.powerMin;
-            }
             isPremiumCard(value) {
                 return value >= BOT_STRATEGY.cardBands.premiumMin;
-            }
-            isFinisherCard(value) {
-                return value >= BOT_STRATEGY.cardBands.finisherMin;
-            }
-            isAceCard(value) {
-                return value === BOT_STRATEGY.cardBands.aceValue;
-            }
-            forEachBoardCell(visitor, board = this.board) {
-                for (let r = 0; r < BOARD_SIZE; r++) {
-                    for (let c = 0; c < BOARD_SIZE; c++) {
-                        const cell = board[r][c];
-                        if (cell) visitor(cell, r, c);
-                    }
-                }
-            }
-            forEachKnownCard(visitor, board = this.board) {
-                const walk = (cell, row, col, depth = 0) => {
-                    if (!cell) return;
-                    visitor(cell, row, col, depth);
-                    walk(cell.coveredCell, row, col, depth + 1);
-                };
-                this.forEachBoardCell((cell, row, col) => walk(cell, row, col), board);
-            }
-            getKnownCardCounts(player, { includeHand = false } = {}) {
-                const counts = {};
-                const push = (card) => {
-                    if (!card) return;
-                    counts[card.rank] = (counts[card.rank] || 0) + 1;
-                };
-                this.forEachKnownCard((cell) => {
-                    if (cell.owner === player) push(cell.card);
-                });
-                this.getPlayerState(player).discard.forEach(push);
-                if (includeHand) {
-                    this.getPlayerState(player).hand.forEach(push);
-                }
-                return counts;
-            }
-            getUnknownRankCount(player, rank, options = {}) {
-                const counts = this.getKnownCardCounts(player, options);
-                return Math.max(0, 2 - (counts[rank] || 0));
-            }
-            countUnknownHigherCards(player, value, options = {}) {
-                return Object.entries(CARD_VALUES).reduce((total, [rank, rankValue]) => {
-                    if (rankValue <= value) return total;
-                    return total + this.getUnknownRankCount(player, rank, options);
-                }, 0);
-            }
-            findLeastWinningCard(player, row, col, targetValue) {
-                const { hand } = this.getPlayerState(player);
-                let best = null;
-                hand.forEach((card, slotIndex) => {
-                    if (!card) return;
-                    const value = this.getCardValue(card);
-                    if (value <= targetValue || !this.isValidMove(row, col, card, player)) return;
-                    const candidate = { card, slotIndex, value, gap: value - targetValue };
-                    if (!best || candidate.value < best.value || (candidate.value === best.value && candidate.gap < best.gap)) {
-                        best = candidate;
-                    }
-                });
-                return best;
-            }
-            getConnectedCellKeys(player, board = this.board) {
-                const connected = new Set();
-                const queue = [];
-                const homeRow = this.getHomeRow(player);
-                for (let c = 0; c < BOARD_SIZE; c++) {
-                    if (board[homeRow][c]?.owner === player) {
-                        queue.push([homeRow, c]);
-                    }
-                }
-                while (queue.length) {
-                    const [row, col] = queue.shift();
-                    const key = `${row},${col}`;
-                    if (connected.has(key) || board[row][col]?.owner !== player) continue;
-                    connected.add(key);
-                    for (const [dr, dc] of DIRECTIONS) {
-                        const nextRow = row + dr;
-                        const nextCol = col + dc;
-                        if (nextRow < 0 || nextRow >= BOARD_SIZE || nextCol < 0 || nextCol >= BOARD_SIZE) continue;
-                        queue.push([nextRow, nextCol]);
-                    }
-                }
-                return connected;
-            }
-            getFrontierCellKeys(player, board = this.board) {
-                const connected = this.getConnectedCellKeys(player, board);
-                const frontier = new Set();
-                const homeRow = this.getHomeRow(player);
-                for (let c = 0; c < BOARD_SIZE; c++) {
-                    const key = `${homeRow},${c}`;
-                    if (!(board[homeRow][c]?.owner === player && connected.has(key))) {
-                        frontier.add(key);
-                    }
-                }
-                connected.forEach((key) => {
-                    const [row, col] = key.split(',').map(Number);
-                    for (const [dr, dc] of DIRECTIONS) {
-                        const nextRow = row + dr;
-                        const nextCol = col + dc;
-                        if (nextRow < 0 || nextRow >= BOARD_SIZE || nextCol < 0 || nextCol >= BOARD_SIZE) continue;
-                        const nextKey = `${nextRow},${nextCol}`;
-                        if (board[nextRow][nextCol]?.owner === player && connected.has(nextKey)) continue;
-                        frontier.add(nextKey);
-                    }
-                });
-                return frontier;
-            }
-            getBoardMetrics(player, board = this.board) {
-                const connected = this.getConnectedCellKeys(player, board);
-                const frontier = this.getFrontierCellKeys(player, board);
-                const homeRow = this.getHomeRow(player);
-                let owned = 0;
-                let disconnected = 0;
-                let disconnectedValue = 0;
-                let openHomeSpaces = 0;
-                for (let c = 0; c < BOARD_SIZE; c++) {
-                    if (!board[homeRow][c]) openHomeSpaces++;
-                }
-                this.forEachBoardCell((cell, row, col) => {
-                    if (cell.owner !== player) return;
-                    owned++;
-                    const key = `${row},${col}`;
-                    if (!connected.has(key)) {
-                        disconnected++;
-                        disconnectedValue += this.getCardValue(cell.card);
-                    }
-                }, board);
-                return { connected, frontier, owned, disconnected, disconnectedValue, openHomeSpaces };
-            }
-            isOpponentSideRow(row, player) {
-                const centerRow = Math.floor(BOARD_SIZE / 2);
-                return this.isUserPlayer(player) ? row < centerRow : row > centerRow;
-            }
-            isOwnSideRow(row, player) {
-                const centerRow = Math.floor(BOARD_SIZE / 2);
-                return this.isUserPlayer(player) ? row > centerRow : row < centerRow;
             }
             getForwardProgress(row, player) {
                 return this.isUserPlayer(player) ? (BOARD_SIZE - 1) - row : row;
             }
-            countAdjacentOwned(row, col, player, board = this.board) {
-                return DIRECTIONS.reduce((count, [dr, dc]) => {
+            countOpenHomeCells(player) {
+                const homeRow = this.getHomeRow(player);
+                let open = 0;
+                for (let col = 0; col < BOARD_SIZE; col++) {
+                    if (!this.board[homeRow][col]) open++;
+                }
+                return open;
+            }
+            countSupport(row, col, player, board = this.board) {
+                let total = 0;
+                for (const [dr, dc] of DIRECTIONS) {
                     const nextRow = row + dr;
                     const nextCol = col + dc;
-                    if (nextRow < 0 || nextRow >= BOARD_SIZE || nextCol < 0 || nextCol >= BOARD_SIZE) {
-                        return count;
-                    }
-                    return count + (board[nextRow][nextCol]?.owner === player ? 1 : 0);
-                }, 0);
-            }
-            countDiagonalOwned(row, col, player, board = this.board) {
-                return [[-1, -1], [-1, 1], [1, -1], [1, 1]].reduce((count, [dr, dc]) => {
+                    if (nextRow < 0 || nextRow >= BOARD_SIZE || nextCol < 0 || nextCol >= BOARD_SIZE) continue;
+                    if (board[nextRow][nextCol]?.owner === player) total += 1;
+                }
+                for (const [dr, dc] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) {
                     const nextRow = row + dr;
                     const nextCol = col + dc;
-                    if (nextRow < 0 || nextRow >= BOARD_SIZE || nextCol < 0 || nextCol >= BOARD_SIZE) {
-                        return count;
-                    }
-                    return count + (board[nextRow][nextCol]?.owner === player ? 1 : 0);
-                }, 0);
+                    if (nextRow < 0 || nextRow >= BOARD_SIZE || nextCol < 0 || nextCol >= BOARD_SIZE) continue;
+                    if (board[nextRow][nextCol]?.owner === player) total += 0.5;
+                }
+                return total;
             }
-            getMovePhaseProfile(player = this.botPlayer) {
+            isEndgame(player = this.botPlayer) {
                 const opponent = this.otherPlayer(player);
                 const selfState = this.getPlayerState(player);
                 const opponentState = this.getPlayerState(opponent);
@@ -5756,56 +5591,31 @@
                         if (!this.board[r][c]) emptyCells++;
                     }
                 }
-                return {
-                    emptyCells,
-                    reserveCards,
-                    lateGame: emptyCells <= 10 || reserveCards <= 14,
-                    endgame: emptyCells <= 7 || reserveCards <= 8
-                };
+                return emptyCells <= 7 || reserveCards <= 8;
             }
-            estimateReplyRisk(row, col, card, player) {
-                const opponent = this.otherPlayer(player);
-                const value = this.getCardValue(card);
-                if (!this.isConnectedToHome(row, col, opponent)) {
-                    return 0;
-                }
-                const exactReply = this.findLeastWinningCard(opponent, row, col, value);
-                const higherCards = this.countUnknownHigherCards(opponent, value);
-                if (!higherCards && !exactReply) {
-                    return 0;
-                }
-                const adjacentPressure = this.countAdjacentOwned(row, col, opponent) * 2;
-                const frontierPressure = this.getFrontierCellKeys(opponent).has(`${row},${col}`) ? 4 : 0;
-                const exactPressure = exactReply ? 8 + exactReply.gap * 2 : 0;
-                return Math.min(26, exactPressure + higherCards * 2 + adjacentPressure + frontierPressure);
-            }
-            simulateMove(row, col, card, player, evaluate) {
-                const previousCell = this.board[row][col];
-                this.board[row][col] = {
-                    card,
-                    owner: player,
-                    faceUp: true,
-                    fromSlot: null,
-                    coveredCell: previousCell ?? null
-                };
-                try {
-                    return evaluate(previousCell);
-                } finally {
-                    this.board[row][col] = previousCell;
-                }
+            findLeastWinningCard(player, row, col, targetValue) {
+                const { hand } = this.getPlayerState(player);
+                let best = null;
+                hand.forEach((card, slotIndex) => {
+                    if (!card) return;
+                    const value = this.getCardValue(card);
+                    if (value <= targetValue || !this.isValidMove(row, col, card, player)) return;
+                    const candidate = { card, slotIndex, value };
+                    if (!best || candidate.value < best.value) {
+                        best = candidate;
+                    }
+                });
+                return best;
             }
             evaluateSetupCard(card, handValues) {
-                const { lead, lowCard, saveTwo, noLowSlope, saveHigh } = BOT_STRATEGY.setup;
+                const { lowCardBonus, spareTwoPenalty, premiumPenalty } = BOT_STRATEGY.setup;
                 const value = this.getCardValue(card);
                 const lowestValue = Math.min(...handValues);
-                const highestValue = Math.max(...handValues);
-                const hasLowCard = handValues.some((current) => this.isUtilityCard(current));
-                let score = lowestValue - value;
-                if (value === lowestValue) score += lead;
-                if (this.isUtilityCard(value)) score += lowCard;
-                if (value === 2) score -= saveTwo;
-                if (!hasLowCard) score += (highestValue - value) * noLowSlope;
-                if (value === highestValue && this.isPowerCard(value)) score -= saveHigh;
+                const cheapCardCount = handValues.filter((current) => current <= BOT_STRATEGY.cardBands.utilityMax).length;
+                let score = 20 - value;
+                if (value === lowestValue) score += lowCardBonus;
+                if (value === 2 && cheapCardCount > 1) score -= spareTwoPenalty;
+                if (this.isPremiumCard(value)) score -= premiumPenalty;
                 return score;
             }
             getRankedSetupChoices() {
@@ -5831,29 +5641,35 @@
                     });
             }
             evaluateDiscardValue(card, player = this.botPlayer) {
-                const opponent = this.otherPlayer(player);
                 const value = this.getCardValue(card);
-                const boardMetrics = this.getBoardMetrics(player);
+                const handValues = this.getPlayerState(player).hand
+                    .filter(Boolean)
+                    .map((current) => this.getCardValue(current));
+                const lowCardCount = handValues.filter((current) => this.isUtilityCard(current)).length;
                 const centerCell = this.board[2][2];
-                let keepScore = value * 3;
-                if (centerCell?.owner === opponent && value > this.getCardValue(centerCell.card)) {
-                    keepScore += Math.max(8, 18 - (value - this.getCardValue(centerCell.card)) * 3);
-                }
-                this.forEachBoardCell((cell, row, col) => {
-                    if (cell.owner !== opponent) return;
-                    const targetValue = this.getCardValue(cell.card);
-                    if (value <= targetValue) return;
-                    keepScore += Math.max(0, 10 - (value - targetValue) * 2);
-                    if (row === 2 && col === 2) keepScore += 8;
-                    if (this.isOpponentSideRow(row, player)) keepScore += 4;
-                });
+                let keepScore = this.countCardLegalMoves(card, player) * BOT_STRATEGY.discard.mobilityBonus;
                 if (this.isUtilityCard(value)) {
-                    keepScore += boardMetrics.openHomeSpaces * 2;
+                    keepScore += BOT_STRATEGY.discard.lowCardKeep;
                 }
-                if (this.isFinisherCard(value)) keepScore += 10;
-                if (this.isAceCard(value)) keepScore += 8;
-                if (this.countUnknownHigherCards(opponent, value) === 0) keepScore += 6;
+                if (this.isPremiumCard(value)) keepScore += BOT_STRATEGY.discard.premiumKeep;
+                if (this.isUtilityCard(value) && lowCardCount === 1) {
+                    keepScore += BOT_STRATEGY.discard.loneLowCardBonus;
+                }
+                if (centerCell?.owner === this.otherPlayer(player) && value > this.getCardValue(centerCell.card)) {
+                    keepScore += BOT_STRATEGY.discard.centerAnswerBonus;
+                }
                 return keepScore;
+            }
+            countCardLegalMoves(card, player) {
+                let total = 0;
+                for (let r = 0; r < BOARD_SIZE; r++) {
+                    for (let c = 0; c < BOARD_SIZE; c++) {
+                        if (this.isValidMove(r, c, card, player)) {
+                            total++;
+                        }
+                    }
+                }
+                return total;
             }
             getRankedDiscardChoices(player = this.botPlayer) {
                 const { hand } = this.getPlayerState(player);
@@ -5865,526 +5681,141 @@
                         return {
                             ...option,
                             keepScore,
-                            score: -keepScore,
+                            score: 18 - keepScore,
                             slotIndex: option.index
                         };
                     })
                     .sort((a, b) => {
-                        const scoreDiff = a.keepScore - b.keepScore;
-                        if (scoreDiff !== 0) return scoreDiff;
-                        return this.getCardValue(a.card) - this.getCardValue(b.card);
-                    });
-            }
-            findBestDiscard(player = this.botPlayer) {
-                return this.getRankedDiscardChoices(player)[0] ?? null;
-            }
-            cloneSearchCell(cell) {
-                return cell ? {
-                    card: cell.card,
-                    owner: cell.owner,
-                    faceUp: cell.faceUp,
-                    fromSlot: cell.fromSlot ?? null,
-                    coveredCell: this.cloneSearchCell(cell.coveredCell)
-                } : null;
-            }
-            captureSearchState() {
-                return {
-                    board: this.board.map((row) => row.map((cell) => this.cloneSearchCell(cell))),
-                    redHand: [...this.redHand],
-                    blackHand: [...this.blackHand],
-                    redDeck: [...this.redDeck],
-                    blackDeck: [...this.blackDeck],
-                    redDiscard: [...this.redDiscard],
-                    blackDiscard: [...this.blackDiscard],
-                    currentPlayer: this.currentPlayer,
-                    waitingForFlip: this.waitingForFlip,
-                    openingMoveComplete: this.openingMoveComplete,
-                    gamePhase: this.gamePhase,
-                    searchFocus: this.searchFocus ? { ...this.searchFocus } : null
-                };
-            }
-            restoreSearchState(snapshot) {
-                this.board = snapshot.board.map((row) => row.map((cell) => this.cloneSearchCell(cell)));
-                this.redHand = [...snapshot.redHand];
-                this.blackHand = [...snapshot.blackHand];
-                this.redDeck = [...snapshot.redDeck];
-                this.blackDeck = [...snapshot.blackDeck];
-                this.redDiscard = [...snapshot.redDiscard];
-                this.blackDiscard = [...snapshot.blackDiscard];
-                this.currentPlayer = snapshot.currentPlayer;
-                this.waitingForFlip = snapshot.waitingForFlip;
-                this.openingMoveComplete = snapshot.openingMoveComplete;
-                this.gamePhase = snapshot.gamePhase;
-                this.searchFocus = snapshot.searchFocus ? { ...snapshot.searchFocus } : null;
-            }
-            drawSearchCard(player) {
-                const { deck, hand } = this.getPlayerState(player);
-                const emptySlot = hand.findIndex((slot) => slot === null);
-                if (emptySlot === -1 || deck.length === 0) return;
-                hand[emptySlot] = deck.pop();
-            }
-            advanceSearchTurn(nextPlayer) {
-                this.currentPlayer = nextPlayer;
-                this.waitingForFlip = null;
-                this.openingMoveComplete = true;
-                let safety = 0;
-                while (safety++ < 4) {
-                    if (this.isGameOver()) return;
-                    const { hand, deck } = this.getPlayerState(this.currentPlayer);
-                    const hasCards = hand.some((card) => card !== null);
-                    if (hasCards || deck.length > 0) break;
-                    this.currentPlayer = this.otherPlayer();
-                }
-                if (this.isGameOver()) return;
-                this.drawSearchCard(this.currentPlayer);
-            }
-            countLegalMoves(player) {
-                const { hand } = this.getPlayerState(player);
-                let total = 0;
-                for (let r = 0; r < BOARD_SIZE; r++) {
-                    for (let c = 0; c < BOARD_SIZE; c++) {
-                        for (const card of hand) {
-                            if (card && this.isValidMove(r, c, card, player)) {
-                                total++;
-                            }
-                        }
-                    }
-                }
-                return total;
-            }
-            evaluateHandForSearch(player = this.botPlayer) {
-                const opponent = this.otherPlayer(player);
-                const { hand, deck } = this.getPlayerState(player);
-                const metrics = this.getBoardMetrics(player);
-                return hand.filter(Boolean).reduce((total, card) => {
-                    const value = this.getCardValue(card);
-                    let cardScore = this.isPowerCard(value) ? 10 : 0;
-                    if (this.isUtilityCard(value)) cardScore += 6 + metrics.openHomeSpaces * 1.4;
-                    if (this.countUnknownHigherCards(opponent, value, { includeHand: true }) === 0) cardScore += 6;
-                    if (this.isPremiumCard(value) && metrics.openHomeSpaces <= 1) cardScore -= 6;
-                    return total + cardScore;
-                }, deck.length * 1.5);
-            }
-            evaluateImmediateCapturePressure(player) {
-                const opponent = this.otherPlayer(player);
-                const { hand } = this.getPlayerState(player);
-                let pressure = 0;
-                this.forEachBoardCell((cell, row, col) => {
-                    if (cell.owner !== opponent) return;
-                    const targetValue = this.getCardValue(cell.card);
-                    let cheapestGap = Infinity;
-                    hand.forEach((card) => {
-                        if (!card || !this.isValidMove(row, col, card, player)) return;
-                        const gap = this.getCardValue(card) - targetValue;
-                        if (gap > 0 && gap < cheapestGap) {
-                            cheapestGap = gap;
-                        }
-                    });
-                    if (!Number.isFinite(cheapestGap)) return;
-                    let swing = targetValue * 2.2 + Math.max(0, 11 - cheapestGap * 2.2);
-                    if (row === 2 && col === 2) swing += 9;
-                    if (this.isOwnSideRow(row, player)) swing += 7;
-                    if (this.isOpponentSideRow(row, player)) swing += 4;
-                    pressure += swing;
-                });
-                return pressure;
-            }
-            getSearchActionKey(action) {
-                return action.type === 'move'
-                    ? `move:${action.row}:${action.col}:${action.slotIndex}:${this.cardToCode(action.card)}`
-                    : `discard:${action.index ?? action.slotIndex}:${this.cardToCode(action.card)}`;
-            }
-            getFocusedResponseMoves(player, row, col, limit = 2) {
-                const targetCell = this.board[row]?.[col];
-                if (!targetCell) return [];
-                const targetValue = this.getCardValue(targetCell.card);
-                const { hand } = this.getPlayerState(player);
-                return hand
-                    .map((card, slotIndex) => {
-                        if (!card || !this.isValidMove(row, col, card, player)) return null;
-                        const gap = this.getCardValue(card) - targetValue;
-                        if (gap <= 0) return null;
-                        return {
-                            row,
-                            col,
-                            card,
-                            slotIndex,
-                            gap,
-                            score: this.evaluateMove(row, col, card, player)
-                        };
-                    })
-                    .filter(Boolean)
-                    .sort((a, b) => {
-                        const gapDiff = a.gap - b.gap;
-                        if (gapDiff !== 0) return gapDiff;
                         const scoreDiff = b.score - a.score;
                         if (scoreDiff !== 0) return scoreDiff;
+                        const keepDiff = a.keepScore - b.keepScore;
+                        if (keepDiff !== 0) return keepDiff;
                         return this.getCardValue(a.card) - this.getCardValue(b.card);
-                    })
-                    .slice(0, limit);
+                    });
             }
-            getTacticalSearchActions(player, config, depth) {
-                const opponent = this.otherPlayer(player);
-                const tacticalMoves = [];
-                const addMove = (move, bonus = 0) => {
-                    if (!move) return;
-                    const action = {
-                        ...move,
-                        type: 'move',
-                        staticScore: move.score + bonus
-                    };
-                    action.score = action.staticScore;
-                    tacticalMoves.push(action);
-                };
-                if (this.searchFocus) {
-                    const focusCell = this.board[this.searchFocus.row]?.[this.searchFocus.col];
-                    if (focusCell && focusCell.owner === opponent) {
-                        this.getFocusedResponseMoves(
-                            player,
-                            this.searchFocus.row,
-                            this.searchFocus.col,
-                            Math.min(3, (config.tacticalWidth ?? 3) + (depth === config.depth ? 1 : 0))
-                        ).forEach((move, index) => addMove(move, 24 - index * 6));
+            getRankedMoves(player = this.botPlayer) {
+                const moves = [];
+                const { hand } = this.getPlayerState(player);
+                for (let r = 0; r < BOARD_SIZE; r++) {
+                    for (let c = 0; c < BOARD_SIZE; c++) {
+                        hand.forEach((card, slotIndex) => {
+                            if (card !== null && this.isValidMove(r, c, card, player)) {
+                                moves.push({
+                                    row: r,
+                                    col: c,
+                                    card,
+                                    slotIndex,
+                                    score: this.evaluateMove(r, c, card, player)
+                                });
+                            }
+                        });
                     }
                 }
-                const targets = [];
-                this.forEachBoardCell((cell, row, col) => {
-                    if (cell.owner !== opponent) return;
-                    let urgency = this.getCardValue(cell.card) * 1.8;
-                    if (row === 2 && col === 2) urgency += 18;
-                    if (this.isOwnSideRow(row, player)) urgency += 14;
-                    if (row === this.getHomeRow(player)) urgency += 12;
-                    if (this.searchFocus && row === this.searchFocus.row && col === this.searchFocus.col) urgency += 30;
-                    if (urgency < 18) return;
-                    targets.push({ row, col, urgency });
-                });
-                targets
-                    .sort((a, b) => b.urgency - a.urgency)
-                    .slice(0, config.tacticalWidth ?? 3)
-                    .forEach((target) => {
-                        this.getFocusedResponseMoves(player, target.row, target.col, 2)
-                            .forEach((move, index) => addMove(move, target.urgency * 0.25 - index * 4));
-                    });
-                const deduped = new Map();
-                tacticalMoves.forEach((move) => {
-                    const key = this.getSearchActionKey(move);
-                    const current = deduped.get(key);
-                    if (!current || move.staticScore > current.staticScore) {
-                        deduped.set(key, move);
-                    }
-                });
-                return [...deduped.values()].sort((a, b) => {
-                    const scoreDiff = b.staticScore - a.staticScore;
+                return moves.sort((a, b) => {
+                    const scoreDiff = b.score - a.score;
                     if (scoreDiff !== 0) return scoreDiff;
-                    return this.getCardValue(a.card) - this.getCardValue(b.card);
+                    const cardDiff = this.getCardValue(a.card) - this.getCardValue(b.card);
+                    if (cardDiff !== 0) return cardDiff;
+                    return this.getForwardProgress(b.row, player) - this.getForwardProgress(a.row, player);
                 });
             }
-            evaluateSearchPosition(player = this.botPlayer) {
+            evaluateMove(row, col, card, player = this.botPlayer) {
                 const opponent = this.otherPlayer(player);
-                const selfMetrics = this.getBoardMetrics(player);
-                const opponentMetrics = this.getBoardMetrics(opponent);
-                const phase = this.getMovePhaseProfile(player);
-                const stage = phase.endgame
-                    ? BOT_STRATEGY.search.position.endgame
-                    : phase.lateGame
-                        ? BOT_STRATEGY.search.position.late
-                        : BOT_STRATEGY.search.position.early;
-                const scores = this.getScores();
-                const scoreDiff = scores[player] - scores[opponent];
-                const ownMobility = this.countLegalMoves(player);
-                const opponentMobility = this.countLegalMoves(opponent);
-                const ownThreat = this.evaluateImmediateCapturePressure(player);
-                const opponentThreat = this.evaluateImmediateCapturePressure(opponent);
-                let ownPressure = 0;
-                let opponentPressure = 0;
-                this.forEachBoardCell((cell, row) => {
-                    if (cell.owner === player && this.isOpponentSideRow(row, player)) ownPressure++;
-                    if (cell.owner === opponent && this.isOpponentSideRow(row, opponent)) opponentPressure++;
-                });
-                return (
-                    scoreDiff * stage.score +
-                    (selfMetrics.connected.size - opponentMetrics.connected.size) * stage.connected +
-                    (opponentMetrics.disconnectedValue - selfMetrics.disconnectedValue) * stage.disconnected +
-                    (selfMetrics.frontier.size - opponentMetrics.frontier.size) * stage.frontier +
-                    (ownPressure - opponentPressure) * stage.pressure +
-                    (ownMobility - opponentMobility) * stage.mobility +
-                    (ownThreat - opponentThreat) * stage.threat +
-                    (this.evaluateHandForSearch(player) - this.evaluateHandForSearch(opponent)) * stage.hand +
-                    (opponentMetrics.openHomeSpaces - selfMetrics.openHomeSpaces) * stage.home
-                );
+                const value = this.getCardValue(card);
+                const targetCell = this.board[row][col];
+                if (targetCell?.owner === player) {
+                    return -999;
+                }
+                const targetValue = targetCell ? this.getCardValue(targetCell.card) : 0;
+                const capture = targetCell?.owner === opponent;
+                const cheapestCapture = capture ? this.findLeastWinningCard(player, row, col, targetValue) : null;
+                const endgame = this.isEndgame(player);
+                const weights = BOT_STRATEGY.move;
+                const homeRow = this.getHomeRow(player);
+                const progress = this.getForwardProgress(row, player);
+                const support = this.countSupport(row, col, player);
+                const enemyPressure = this.countSupport(row, col, opponent);
+                const distFromCenter = Math.abs(row - 2) + Math.abs(col - 2);
+                const center = row === 2 && col === 2;
+                let score = capture
+                    ? weights.captureBase + targetValue * 3
+                    : weights.claimBase + (endgame ? weights.defendBonus : 0);
+                score += progress * weights.progressBonus;
+                score += support * weights.supportBonus;
+                score += (4 - distFromCenter) * 3;
+                if (center) score += weights.centerBonus;
+                if (!capture && row === homeRow && this.countOpenHomeCells(player) > 0) {
+                    score += weights.homeSeedBonus;
+                }
+                if (!capture && value <= BOT_STRATEGY.cardBands.developmentMax) {
+                    score += weights.cheapClaimBonus;
+                }
+                if (capture && progress <= 1) {
+                    score += weights.defendBonus;
+                }
+                if (capture && cheapestCapture) {
+                    const overspend = value - cheapestCapture.value;
+                    score += overspend === 0 ? weights.efficientCaptureBonus : -overspend * weights.overspendPenalty;
+                }
+                if (!endgame && this.isPremiumCard(value)) {
+                    score -= capture && !center && targetValue < 10
+                        ? weights.premiumCapturePenalty
+                        : weights.premiumClaimPenalty;
+                }
+                if (enemyPressure > support + (center ? 1 : 0)) {
+                    score -= weights.exposedPenalty + (enemyPressure - support) * 2;
+                }
+                if (capture && endgame && enemyPressure > support) {
+                    score -= weights.exposedPenalty;
+                }
+                if (!capture && progress >= 3 && support === 0 && !endgame) {
+                    score -= weights.exposedPenalty;
+                }
+                return score;
             }
-            getTerminalSearchScore() {
-                const scores = this.getScores();
-                const diff = scores[this.botPlayer] - scores[this.userPlayer];
-                if (diff > 0) return 100000 + diff * 1000;
-                if (diff < 0) return -100000 + diff * 1000;
-                return 0;
-            }
-            getSearchConfig() {
-                const phase = this.getMovePhaseProfile(this.botPlayer);
-                const stage = phase.reserveCards <= 8
-                    ? BOT_STRATEGY.search.config.endgame
-                    : phase.reserveCards <= 12 || phase.emptyCells <= 9
-                        ? BOT_STRATEGY.search.config.late
-                        : BOT_STRATEGY.search.config.early;
-                return { ...stage };
-            }
-            createSearchSession(config) {
-                const startTime = performance.now();
+            getBestStrategicAction() {
+                let rankedActions = this.getRankedMoves(this.botPlayer).map((move) => ({
+                    ...move,
+                    type: 'move',
+                    staticScore: move.score,
+                    searchScore: move.score
+                }));
+                if (!rankedActions.length && this.canDiscard(this.botPlayer)) {
+                    rankedActions = this.getRankedDiscardChoices(this.botPlayer).map((option) => ({
+                        ...option,
+                        type: 'discard',
+                        staticScore: option.score,
+                        searchScore: option.score
+                    }));
+                }
                 return {
-                    startTime,
-                    deadline: startTime + (config.timeMs ?? 24),
-                    nodeBudget: config.nodeBudget ?? 1200,
+                    bestAction: rankedActions[0] ? { ...rankedActions[0] } : null,
+                    rankedActions: rankedActions.map((action) => ({ ...action })),
+                    config: { mode: BOT_STRATEGY.version },
+                    searchedDepth: 0,
+                    timedOut: false,
                     nodes: 0
                 };
             }
-            isSearchBudgetExceeded(session) {
-                return session.nodes >= session.nodeBudget || performance.now() >= session.deadline;
-            }
-            touchSearchNode(session) {
-                if (!session) return;
-                session.nodes += 1;
-                if (session.nodes >= session.nodeBudget) {
-                    throw SEARCH_TIMEOUT;
-                }
-                if (performance.now() >= session.deadline) {
-                    throw SEARCH_TIMEOUT;
-                }
-            }
-            getRankedActions(player = this.currentPlayer, config = this.getSearchConfig(), depth = config.depth) {
-                const moveLimit = depth === config.depth ? config.rootMoveLimit : config.nodeMoveLimit;
-                const baseMoves = this.getRankedMoves(player)
-                    .slice(0, moveLimit)
-                    .map((move) => ({
-                        ...move,
-                        type: 'move',
-                        staticScore: move.score
-                    }));
-                const homeRowMoves = this.getHomeRowExpansionMoves(player).map((move) => ({
-                    ...move,
-                    type: 'move',
-                    staticScore: move.score
-                }));
-                const tacticalMoves = this.getTacticalSearchActions(player, config, depth);
-                const canExpandHomeRow = homeRowMoves.length > 0;
-                const discards = this.canDiscard(player) && !canExpandHomeRow
-                    ? this.getRankedDiscardChoices(player)
-                        .slice(0, config.discardLimit)
-                        .map((option) => ({
-                            ...option,
-                            type: 'discard',
-                            staticScore: option.score
-                        }))
-                    : [];
-                const merged = new Map();
-                [...baseMoves, ...homeRowMoves, ...tacticalMoves, ...discards].forEach((action) => {
-                    const normalized = {
-                        ...action,
-                        staticScore: Number.isFinite(action.staticScore) ? action.staticScore : action.score,
-                        score: Number.isFinite(action.score) ? action.score : action.staticScore
-                    };
-                    const key = this.getSearchActionKey(normalized);
-                    const current = merged.get(key);
-                    if (!current || normalized.staticScore > current.staticScore) {
-                        merged.set(key, normalized);
-                    }
-                });
-                return [...merged.values()].sort((a, b) => {
-                    const scoreDiff = b.staticScore - a.staticScore;
-                    if (scoreDiff !== 0) return scoreDiff;
-                    return this.getCardValue(a.card) - this.getCardValue(b.card);
-                });
-            }
-            applySearchAction(action, player) {
-                if (action.type === 'move') {
-                    const targetCell = this.board[action.row][action.col];
-                    this.searchFocus = {
-                        row: action.row,
-                        col: action.col,
-                        player,
-                        targetOwner: targetCell?.owner ?? null
-                    };
-                    this.getPlayerState(player).hand[action.slotIndex] = null;
-                    this.board[action.row][action.col] = {
-                        card: action.card,
-                        owner: player,
-                        faceUp: true,
-                        fromSlot: null,
-                        coveredCell: null
-                    };
-                } else {
-                    const { hand, discard } = this.getPlayerState(player);
-                    hand[action.index ?? action.slotIndex] = null;
-                    discard.push(action.card);
-                    this.searchFocus = null;
-                }
-                this.waitingForFlip = null;
-                this.advanceSearchTurn(this.otherPlayer(player));
-            }
-            getSearchStateKey(depth) {
-                const encodeCard = (card) => this.cardToCode(card) ?? '--';
-                const encodeCell = (cell) => {
-                    if (!cell) return '__';
-                    const parts = [];
-                    let current = cell;
-                    while (current) {
-                        parts.push(`${current.owner[0]}:${this.cardToCode(current.card)}:${current.faceUp ? 'u' : 'd'}`);
-                        current = current.coveredCell;
-                    }
-                    return parts.join('>');
-                };
-                const boardKey = this.board.map((row) => row.map(encodeCell).join(',')).join('/');
-                const focusKey = this.searchFocus
-                    ? `${this.searchFocus.row},${this.searchFocus.col},${this.searchFocus.player},${this.searchFocus.targetOwner ?? '_'}`
-                    : 'none';
-                return [
-                    depth,
-                    this.currentPlayer,
-                    this.openingMoveComplete ? '1' : '0',
-                    focusKey,
-                    boardKey,
-                    this.redHand.map(encodeCard).join(','),
-                    this.blackHand.map(encodeCard).join(','),
-                    this.redDeck.map(encodeCard).join(','),
-                    this.blackDeck.map(encodeCard).join(','),
-                    this.redDiscard.map(encodeCard).join(','),
-                    this.blackDiscard.map(encodeCard).join(',')
-                ].join('|');
-            }
-            searchGameTree(depth, alpha, beta, cache, config, session) {
-                this.touchSearchNode(session);
-                if (this.isGameOver()) {
-                    return this.getTerminalSearchScore();
-                }
-                if (depth <= 0) {
-                    return this.evaluateSearchPosition(this.botPlayer);
-                }
-                const key = this.getSearchStateKey(depth);
-                if (cache.has(key)) {
-                    return cache.get(key);
-                }
-                const player = this.currentPlayer;
-                const maximizing = player === this.botPlayer;
-                const actions = this.getRankedActions(player, config, depth);
-                if (!actions.length) {
-                    const fallback = this.evaluateSearchPosition(this.botPlayer);
-                    cache.set(key, fallback);
-                    return fallback;
-                }
-                let best = maximizing ? -Infinity : Infinity;
-                for (const action of actions) {
-                    const snapshot = this.captureSearchState();
-                    let value;
-                    try {
-                        this.applySearchAction(action, player);
-                        value = this.searchGameTree(depth - 1, alpha, beta, cache, config, session);
-                    } finally {
-                        this.restoreSearchState(snapshot);
-                    }
-                    if (maximizing) {
-                        best = Math.max(best, value);
-                        alpha = Math.max(alpha, best);
-                    } else {
-                        best = Math.min(best, value);
-                        beta = Math.min(beta, best);
-                    }
-                    if (beta <= alpha) break;
-                }
-                cache.set(key, best);
-                return best;
-            }
-            getBestStrategicAction() {
-                const config = this.getSearchConfig();
-                const baseActions = this.getRankedActions(this.botPlayer, config, config.depth)
-                    .map((action) => ({
-                        ...action,
-                        searchScore: action.staticScore,
-                        score: action.staticScore
-                    }));
-                if (!baseActions.length) {
-                    return { bestAction: null, rankedActions: [], config };
-                }
-                const session = this.createSearchSession(config);
-                let rankedActions = baseActions;
-                let bestCompleted = {
-                    bestAction: rankedActions[0] ? { ...rankedActions[0] } : null,
-                    rankedActions: rankedActions.map((action) => ({ ...action })),
-                    config,
-                    searchedDepth: 0,
-                    timedOut: false
-                };
-                for (let depth = 1; depth <= config.depth; depth++) {
-                    if (this.isSearchBudgetExceeded(session)) {
-                        break;
-                    }
-                    const cache = new Map();
-                    let completedDepth = true;
-                    for (const action of rankedActions) {
-                        if (this.isSearchBudgetExceeded(session)) {
-                            completedDepth = false;
-                            break;
-                        }
-                        const snapshot = this.captureSearchState();
-                        try {
-                            this.applySearchAction(action, this.botPlayer);
-                            const searchScore = this.searchGameTree(depth - 1, -Infinity, Infinity, cache, config, session);
-                            action.searchScore = searchScore;
-                            action.score = searchScore + action.staticScore * config.staticBlend;
-                        } catch (error) {
-                            if (error !== SEARCH_TIMEOUT) throw error;
-                            completedDepth = false;
-                            break;
-                        } finally {
-                            this.restoreSearchState(snapshot);
-                        }
-                    }
-                    rankedActions.sort((a, b) => {
-                        const scoreDiff = b.score - a.score;
-                        if (scoreDiff !== 0) return scoreDiff;
-                        return b.staticScore - a.staticScore;
-                    });
-                    if (completedDepth) {
-                        bestCompleted = {
-                            bestAction: rankedActions[0] ? { ...rankedActions[0] } : null,
-                            rankedActions: rankedActions.map((action) => ({ ...action })),
-                            config,
-                            searchedDepth: depth,
-                            timedOut: false
-                        };
-                    } else {
-                        break;
-                    }
-                }
-                return {
-                    ...bestCompleted,
-                    timedOut: bestCompleted.searchedDepth < config.depth,
-                    nodes: session.nodes
-                };
-            }
             aiSetupTurn() {
-                if (this.gamePhase !== 'setup' || this.setupPlacements[this.botPlayer]) {
-                    return;
-                }
+                if (this.gamePhase !== 'setup' || this.setupPlacements[this.botPlayer]) return;
                 const setupChoices = this.getRankedSetupChoices();
                 const setupChoice = setupChoices[0];
-                if (!setupChoice) {
-                    return;
-                }
+                if (!setupChoice) return;
                 this.logGameEvent('bot-setup-eval', {
                     options: setupChoices.slice(0, 3).map((option) => this.summarizeSetupOption(option))
                 });
-                const { card, index } = setupChoice;
                 const homeRow = this.getHomeRow(this.botPlayer);
                 const targetCol = this.getPreferredSetupColumns().find((col) => !this.board[homeRow][col]) ?? 2;
-                this.draggedSlot = index;
+                this.draggedSlot = setupChoice.index;
                 this.animatingMove = {
                     player: this.botPlayer,
-                    fromSlot: index,
-                    originRect: this.getHandCardRect(this.botPlayer, index),
+                    fromSlot: setupChoice.index,
+                    originRect: this.getHandCardRect(this.botPlayer, setupChoice.index),
                     toRow: homeRow,
                     toCol: targetCol
                 };
-                this.placeCard(homeRow, targetCol, card, this.botPlayer);
+                this.placeCard(homeRow, targetCol, setupChoice.card, this.botPlayer);
                 this.draggedSlot = null;
                 setTimeout(() => {
                     this.animatingMove = null;
@@ -6393,8 +5824,8 @@
             }
             aiTurn() {
                 if (this.currentPlayer !== this.botPlayer || this.gamePhase !== 'playing') return;
-                const { hand, discard } = this.getPlayerState(this.botPlayer);
-                if (!hand.some((card) => card !== null)) {
+                const { hand } = this.getPlayerState(this.botPlayer);
+                if (!hand.some(Boolean)) {
                     this.checkAndSkipIfNoCards();
                     this.updateUI();
                     return;
@@ -6404,11 +5835,11 @@
                     const decision = this.getBestStrategicAction();
                     const action = decision.bestAction;
                     if (action?.type === 'move') {
-                        const moveOptions = decision.rankedActions
-                            .filter((option) => option.type === 'move')
-                            .slice(0, 5);
                         this.logGameEvent('bot-move-eval', {
-                            options: moveOptions.map((option) => this.summarizeMoveOption(option))
+                            options: decision.rankedActions
+                                .filter((option) => option.type === 'move')
+                                .slice(0, 5)
+                                .map((option) => this.summarizeMoveOption(option))
                         });
                         this.draggedSlot = action.slotIndex;
                         this.animatingMove = {
@@ -6429,166 +5860,20 @@
                         return;
                     }
                     if (action?.type === 'discard') {
-                        if (this.hasHomeRowExpansionMove(this.botPlayer)) {
-                            this.announce('Bot chose to keep developing from home row', 'info');
-                        } else {
-                            const discardOptions = decision.rankedActions
+                        this.logGameEvent('bot-discard-eval', {
+                            options: decision.rankedActions
                                 .filter((option) => option.type === 'discard')
-                                .slice(0, 3);
-                            this.logGameEvent('bot-discard-eval', {
-                                options: discardOptions.map((option) => this.summarizeDiscardOption(option))
-                            });
-                            this.commitDiscard(this.botPlayer, action.card, action.index ?? action.slotIndex, 'Bot discarded a card');
-                            this.finishTurn({ delay: 600 });
-                            return;
-                        }
+                                .slice(0, 3)
+                                .map((option) => this.summarizeDiscardOption(option))
+                        });
+                        this.commitDiscard(this.botPlayer, action.card, action.index ?? action.slotIndex, 'Bot discarded a card');
+                        this.finishTurn({ delay: 600 });
+                        return;
                     }
-                    if (this.canDiscard(this.botPlayer) && !this.hasHomeRowExpansionMove(this.botPlayer)) {
-                        const discardChoice = this.findBestDiscard(this.botPlayer);
-                        if (discardChoice) {
-                            this.logGameEvent('bot-discard-eval', {
-                                options: this.getRankedDiscardChoices(this.botPlayer).slice(0, 3).map((option) => this.summarizeDiscardOption(option))
-                            });
-                            this.commitDiscard(this.botPlayer, discardChoice.card, discardChoice.index, 'Bot discarded a card');
-                            this.finishTurn({ delay: 600 });
-                            return;
-                        }
-                    }
-                    this.announce('Bot must open on the board', 'info');
+                    this.announce('Bot has no legal action', 'info');
                     this.currentPlayer = this.userPlayer;
                     this.updateUI();
                 }, 1000);
-            }
-            getRankedMoves(player = this.botPlayer) {
-                const moves = [];
-                const { hand } = this.getPlayerState(player);
-                for (let r = 0; r < BOARD_SIZE; r++) {
-                    for (let c = 0; c < BOARD_SIZE; c++) {
-                        hand.forEach((card, slotIndex) => {
-                            if (card !== null && this.isValidMove(r, c, card, player)) {
-                                const score = this.evaluateMove(r, c, card, player);
-                                moves.push({ row: r, col: c, card, slotIndex, score });
-                            }
-                        });
-                    }
-                }
-                return this.sortMovesByPriority(moves, player);
-            }
-            getHomeRowExpansionMoves(player = this.botPlayer) {
-                const homeRow = this.getHomeRow(player);
-                const { hand } = this.getPlayerState(player);
-                const moves = [];
-                for (let col = 0; col < BOARD_SIZE; col++) {
-                    if (this.board[homeRow][col]) continue;
-                    hand.forEach((card, slotIndex) => {
-                        if (card !== null && this.isValidMove(homeRow, col, card, player)) {
-                            const score = this.evaluateMove(homeRow, col, card, player);
-                            moves.push({ row: homeRow, col, card, slotIndex, score });
-                        }
-                    });
-                }
-                return this.sortMovesByPriority(moves, player);
-            }
-            hasHomeRowExpansionMove(player = this.botPlayer) {
-                return this.getHomeRowExpansionMoves(player).length > 0;
-            }
-            sortMovesByPriority(moves, player = this.botPlayer) {
-                return moves.sort((a, b) => {
-                    const scoreDiff = b.score - a.score;
-                    if (scoreDiff !== 0) return scoreDiff;
-                    const cardDiff = this.getCardValue(a.card) - this.getCardValue(b.card);
-                    if (cardDiff !== 0) return cardDiff;
-                    return this.getForwardProgress(b.row, player) - this.getForwardProgress(a.row, player);
-                });
-            }
-            evaluateMove(row, col, card, player = this.botPlayer) {
-                const opponent = this.otherPlayer(player);
-                const value = this.getCardValue(card);
-                const targetCell = this.board[row][col];
-                const targetValue = targetCell ? this.getCardValue(targetCell.card) : 0;
-                const cheapestCapture = targetCell?.owner === opponent
-                    ? this.findLeastWinningCard(player, row, col, targetValue)
-                    : null;
-                const beforeSelf = this.getBoardMetrics(player);
-                const beforeOpponent = this.getBoardMetrics(opponent);
-                const phase = this.getMovePhaseProfile(player);
-                const weights = BOT_STRATEGY.move;
-                const hiddenThreat = Math.min(BOT_STRATEGY.cardBands.utilityMax, this.countUnknownHigherCards(opponent, value));
-                const developmentCard = this.isDevelopmentCard(value);
-                const powerCard = this.isPowerCard(value);
-                const premiumCard = this.isPremiumCard(value);
-                const homeRow = this.getHomeRow(player);
-                return this.simulateMove(row, col, card, player, () => {
-                    const afterSelf = this.getBoardMetrics(player);
-                    const afterOpponent = this.getBoardMetrics(opponent);
-                    const adjacentSelf = this.countAdjacentOwned(row, col, player);
-                    const diagonalSelf = this.countDiagonalOwned(row, col, player);
-                    const adjacentOpponent = this.countAdjacentOwned(row, col, opponent);
-                    const diagonalOpponent = this.countDiagonalOwned(row, col, opponent);
-                    const support = adjacentSelf + diagonalSelf * 0.5;
-                    const pressure = adjacentOpponent + diagonalOpponent * 0.5;
-                    const forward = this.getForwardProgress(row, player);
-                    const distFromCenter = Math.abs(row - 2) + Math.abs(col - 2);
-                    const risk = this.estimateReplyRisk(row, col, card, player);
-                    const capture = targetCell?.owner === opponent;
-                    const emptyClaim = !targetCell;
-                    const ownSide = row === this.getHomeRow(player) || this.isOwnSideRow(row, player);
-                    const opponentHome = row === this.getHomeRow(opponent);
-                    const gap = capture ? value - targetValue : 0;
-                    const exactReply = capture ? this.findLeastWinningCard(opponent, row, col, value) : null;
-                    const overspend = capture && cheapestCapture ? Math.max(0, value - cheapestCapture.value) : 0;
-                    const connectGain = afterSelf.connected.size - beforeSelf.connected.size;
-                    const disconnectGain = afterOpponent.disconnectedValue - beforeOpponent.disconnectedValue;
-                    const frontierSwing = (afterSelf.frontier.size - beforeSelf.frontier.size) + (beforeOpponent.frontier.size - afterOpponent.frontier.size);
-                    const homeExpansionGain = Math.max(0, beforeSelf.openHomeSpaces - afterSelf.openHomeSpaces);
-                    let score = capture ? weights.capture + targetValue : weights.claim;
-                    if (targetCell?.owner === player) {
-                        score = -weights.selfCover;
-                    }
-                    score += connectGain * weights.connect;
-                    score += disconnectGain * weights.disconnect;
-                    score += frontierSwing * weights.frontier;
-                    score += support * weights.support;
-                    score += pressure * (capture ? weights.pressure : weights.pressure * 0.5);
-                    score += (4 - distFromCenter) * weights.centerProximity;
-                    score += forward * weights.forward;
-                    score += homeExpansionGain * weights.homeExpansion;
-                    if (row === 2 && col === 2) score += weights.center;
-                    if (this.isOpponentSideRow(row, player)) score += weights.advance;
-                    if (emptyClaim && developmentCard) score += weights.lowClaim;
-                    if (emptyClaim && ownSide && developmentCard) score += weights.homeAnchor;
-                    if (emptyClaim && ownSide && powerCard) score -= weights.highHome;
-                    if (!phase.lateGame && emptyClaim && row !== homeRow && powerCard && beforeSelf.openHomeSpaces >= 2) {
-                        score -= weights.reservePower;
-                    }
-                    if (!phase.endgame && emptyClaim && premiumCard) {
-                        score -= weights.premiumClaimTax;
-                    }
-                    if (opponentHome && !phase.endgame) score -= weights.deepRaid;
-                    if (capture) {
-                        score += Math.max(0, weights.cleanCapture - Math.max(0, gap - 1) * weights.overkill);
-                        if (overspend === 0) score += weights.efficientCapture;
-                        score -= overspend * weights.captureEconomy;
-                        if (!phase.endgame && premiumCard && !this.isPowerCard(targetValue)) {
-                            score -= weights.premiumCaptureTax;
-                        }
-                        if (exactReply) {
-                            score -= weights.exposedCapture + exactReply.gap * weights.captureEconomy;
-                            if (support >= 1) score += weights.supportShield;
-                        }
-                        if (risk <= weights.safeRisk) score += weights.safeCapture;
-                    } else if (support >= 1) {
-                        score += weights.supportedClaim;
-                    }
-                    if (!capture && !phase.endgame && this.isOpponentSideRow(row, player) && powerCard && support < 2) {
-                        score -= weights.fragileAdvance;
-                        if (premiumCard) score -= weights.deepPremiumClaim;
-                    }
-                    if (support === 0 && powerCard) score -= weights.unsupportedHigh;
-                    score -= hiddenThreat * weights.hiddenThreat;
-                    score -= risk * (capture ? weights.captureRisk : weights.claimRisk);
-                    return score;
-                });
             }
             checkAndSkipIfNoCards() {
                 const { hand, deck } = this.getPlayerState(this.currentPlayer);
