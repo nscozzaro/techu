@@ -6201,12 +6201,16 @@
                     }
                     const action = decision.bestAction;
                     if (action?.type === 'move') {
-                        const moveOptions = decision.rankedActions
-                            .filter((option) => option.type === 'move')
-                            .slice(0, 5);
-                        this.logGameEvent('bot-move-eval', {
-                            options: moveOptions.map((option) => this.summarizeMoveOption(option))
-                        });
+                        // Only log move evaluation details when using the heuristic bot
+                        // (RL actions don't carry score/staticScore/searchScore fields).
+                        if (!rlReady) {
+                            const moveOptions = decision.rankedActions
+                                .filter((option) => option.type === 'move')
+                                .slice(0, 5);
+                            this.logGameEvent('bot-move-eval', {
+                                options: moveOptions.map((option) => this.summarizeMoveOption(option))
+                            });
+                        }
                         this.draggedSlot = action.slotIndex;
                         this.animatingMove = {
                             player: this.botPlayer,
