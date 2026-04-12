@@ -1,0 +1,38 @@
+{
+  "description": "Fast-iteration config — visible progress in 30-60 min of single-core training (Tier 1+2)",
+  "mctsSims": 48,
+  "dirichletAlpha": 0.25,
+  "dirichletWeight": 0.25,
+  "cPuct": 1.5,
+  "temperatureMoves": 20,
+
+  "optimizer": "adam",
+  "learningRate": 3e-4,
+  "adamBeta1": 0.9,
+  "adamBeta2": 0.999,
+  "adamEps": 1e-8,
+
+  "entropyCoeff": 0.01,
+  "valueCoeff": 1.5,
+  "gradClip": 1.0,
+
+  "batchSize": 32,
+  "epochsPerGen": 2,
+  "gamesPerGen": 80,
+  "replayCapacity": 16000,
+
+  "opponentMix": {
+    "static": 0.35,
+    "random": 0.1,
+    "self": 0.55
+  },
+
+  "evalGamesVsRandom": 60,
+  "evalGamesVsStatic": 60,
+  "promoSprtMin": 60,
+  "promoSprtMax": 320,
+
+  "checkpointDir": "training/checkpoints",
+  "dashboardPort": 3001,
+  "maxGenerations": 50
+}

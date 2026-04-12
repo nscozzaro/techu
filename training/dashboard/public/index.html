@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flood RL Training Dashboard</title>
+<style>
+    :root {
+        --bg: #0f1115;
+        --panel: #1a1d25;
+        --border: #262a33;
+        --text: #e0e2e6;
+        --muted: #9ea1a8;
+        --accent: #7fbf4f;
+        --warn: #e8a82c;
+        --danger: #d65a3a;
+    }
+    * { box-sizing: border-box; }
+    body {
+        margin: 0; padding: 24px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: var(--bg); color: var(--text);
+    }
+    h1 { margin: 0 0 4px 0; font-size: 20px; font-weight: 600; }
+    .sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+    .panel {
+        background: var(--panel); border: 1px solid var(--border);
+        border-radius: 8px; padding: 16px; margin-bottom: 16px;
+    }
+    .panel h2 { margin: 0 0 12px 0; font-size: 14px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .metric-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+    .metric { padding: 12px; background: rgba(255,255,255,0.02); border-radius: 6px; }
+    .metric .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .metric .value { font-size: 24px; font-weight: 600; margin-top: 4px; font-variant-numeric: tabular-nums; }
+    .metric .ci { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .chart-wrap { position: relative; height: 220px; }
+    canvas { width: 100%; height: 100%; display: block; }
+    .legend {
+        display: flex; flex-wrap: wrap; gap: 14px;
+        font-size: 11px; color: var(--muted); margin-bottom: 10px;
+        text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .legend .item { display: flex; align-items: center; gap: 6px; }
+    .legend .sw { width: 14px; height: 2px; border-radius: 1px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+    th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+    tr.promoted { background: rgba(127, 191, 79, 0.08); }
+    .event { padding: 8px 12px; border-left: 3px solid var(--accent); margin-bottom: 6px; font-size: 12px; background: rgba(127,191,79,0.06); }
+    .event.rejected { border-left-color: var(--warn); background: rgba(232,168,44,0.06); }
+    .event .ts { color: var(--muted); font-size: 10px; display: block; }
+    .pct { font-weight: 600; }
+    .pct.good { color: var(--accent); }
+    .pct.bad { color: var(--danger); }
+    .pct.mid { color: var(--warn); }
+</style>
+</head>
+<body>
+<h1>Flood RL Training</h1>
+<div class="sub" id="subtitle">Connecting…</div>
+
+<div class="panel">
+    <h2>Reality checks (headline)</h2>
+    <div class="metric-row">
+        <div class="metric"><div class="label">Generation</div><div class="value" id="genValue">—</div></div>
+        <div class="metric"><div class="label">Win rate vs Random</div><div class="value" id="vsRandomValue">—</div><div class="ci" id="vsRandomCI"></div></div>
+        <div class="metric"><div class="label">Win rate vs FloodBotStatic</div><div class="value" id="vsStaticValue">—</div><div class="ci" id="vsStaticCI"></div></div>
+        <div class="metric"><div class="label">Win rate vs previous champion</div><div class="value" id="vsChampionValue">—</div><div class="ci" id="vsChampionCI"></div></div>
+    </div>
+</div>
+
+<div class="panel">
+    <h2>Training health</h2>
+    <div class="metric-row">
+        <div class="metric"><div class="label">Policy loss</div><div class="value" id="policyLoss">—</div></div>
+        <div class="metric"><div class="label">Value loss</div><div class="value" id="valueLoss">—</div></div>
+        <div class="metric"><div class="label">Entropy bonus</div><div class="value" id="entropyBonus">—</div></div>
+        <div class="metric"><div class="label">Gradient norm</div><div class="value" id="gradNorm">—</div></div>
+    </div>
+</div>
+
+<div class="panel">
+    <h2>Win rate over time</h2>
+    <div class="legend">
+        <div class="item"><div class="sw" style="background:#7fbf4f"></div> vs Random</div>
+        <div class="item"><div class="sw" style="background:#e8a82c"></div> vs FloodBotStatic</div>
+        <div class="item"><div class="sw" style="background:#b28cff"></div> vs Previous Champion (self)</div>
+        <div class="item"><div class="sw" style="background:rgba(255,255,255,0.35);height:0;border-top:2px dashed rgba(255,255,255,0.35)"></div> 50% reference</div>
+    </div>
+    <div class="chart-wrap"><canvas id="winRateChart"></canvas></div>
+</div>
+
+<div class="panel">
+    <h2>Recent generations</h2>
+    <table>
+        <thead><tr><th>Gen</th><th>Policy loss</th><th>Value loss</th><th>vs Random</th><th>vs Static</th><th>vs Champion</th><th>Decision</th></tr></thead>
+        <tbody id="genTable"></tbody>
+    </table>
+</div>
+
+<div class="panel">
+    <h2>Events</h2>
+    <div id="events"></div>
+</div>
+
+<script>
+// --- Multi-series line chart renderer (no Chart.js — self-contained) ---
+// series: Array<{ data: number[], color: string, label?: string }>
+const drawChart = (canvas, series, { min = 0, max = 1 } = {}) => {
+    const ctx = canvas.getContext('2d');
+    const ratio = window.devicePixelRatio || 1;
+    const w = canvas.clientWidth * ratio;
+    const h = canvas.clientHeight * ratio;
+    if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+    ctx.clearRect(0, 0, w, h);
+
+    // Padding for y-axis labels on the left
+    const padL = 32 * ratio;
+    const padR = 6 * ratio;
+    const padT = 6 * ratio;
+    const padB = 18 * ratio;
+    const plotW = w - padL - padR;
+    const plotH = h - padT - padB;
+
+    // Grid + y-axis labels (0%, 25%, 50%, 75%, 100%)
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.font = `${10 * ratio}px -apple-system, sans-serif`;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = 1 * ratio;
+    for (let i = 0; i <= 4; i++) {
+        const frac = i / 4;
+        const y = padT + plotH * (1 - frac);
+        ctx.beginPath();
+        ctx.moveTo(padL, y);
+        ctx.lineTo(padL + plotW, y);
+        ctx.stroke();
+        ctx.fillText(`${Math.round(frac * 100)}%`, padL - 4 * ratio, y);
+    }
+
+    // 50% reference line (dashed white)
+    ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+    ctx.setLineDash([4 * ratio, 4 * ratio]);
+    ctx.lineWidth = 1 * ratio;
+    const y50 = padT + plotH * 0.5;
+    ctx.beginPath();
+    ctx.moveTo(padL, y50);
+    ctx.lineTo(padL + plotW, y50);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Determine max length across series (for x-axis step) and draw x-axis labels (gen numbers)
+    const maxLen = series.reduce((acc, s) => Math.max(acc, s.data.length), 0);
+    if (maxLen === 0) return;
+
+    // X-axis labels: gen ticks (at most 10 labels)
+    const tickStep = Math.max(1, Math.ceil(maxLen / 10));
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    for (let i = 0; i < maxLen; i += tickStep) {
+        const x = padL + (maxLen <= 1 ? plotW / 2 : (i * plotW) / (maxLen - 1));
+        ctx.fillText(`g${i}`, x, padT + plotH + 4 * ratio);
+    }
+    if (maxLen > 1) {
+        const x = padL + plotW;
+        ctx.fillText(`g${maxLen - 1}`, x, padT + plotH + 4 * ratio);
+    }
+
+    // Draw each series
+    for (const s of series) {
+        const { data, color } = s;
+        if (!data || data.length === 0) continue;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2 * ratio;
+        ctx.beginPath();
+        for (let i = 0; i < data.length; i++) {
+            const x = padL + (maxLen <= 1 ? plotW / 2 : (i * plotW) / (maxLen - 1));
+            const y = padT + plotH * (1 - (data[i] - min) / (max - min));
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // Points
+        ctx.fillStyle = color;
+        for (let i = 0; i < data.length; i++) {
+            const x = padL + (maxLen <= 1 ? plotW / 2 : (i * plotW) / (maxLen - 1));
+            const y = padT + plotH * (1 - (data[i] - min) / (max - min));
+            ctx.beginPath();
+            ctx.arc(x, y, 2.5 * ratio, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+};
+
+const pctClass = (p) => p >= 0.7 ? 'good' : p >= 0.45 ? 'mid' : 'bad';
+const formatPct = (p) => `<span class="pct ${pctClass(p)}">${(100 * p).toFixed(1)}%</span>`;
+
+const update = (data) => {
+    if (!data || data.status === 'no_training_active') {
+        document.getElementById('subtitle').textContent = 'No active training run. Start with: node training/cli/train.mjs';
+        return;
+    }
+    const history = data.history ?? [];
+    const last = history[history.length - 1];
+    document.getElementById('subtitle').textContent =
+        `Started ${new Date(data.startedAt).toLocaleTimeString()} — last update ${new Date(data.lastUpdate).toLocaleTimeString()} — ${history.length} generations`;
+
+    document.getElementById('genValue').textContent = data.generation ?? '—';
+
+    if (last) {
+        const rWR = last.vsRandom?.winRate ?? 0;
+        document.getElementById('vsRandomValue').innerHTML = formatPct(rWR);
+        const rCI = last.vsRandom?.wilson;
+        if (rCI) document.getElementById('vsRandomCI').textContent = `[${(100 * rCI.lo).toFixed(1)}, ${(100 * rCI.hi).toFixed(1)}]`;
+
+        const sWR = last.vsStatic?.winRate ?? 0;
+        document.getElementById('vsStaticValue').innerHTML = formatPct(sWR);
+        const sCI = last.vsStatic?.wilson;
+        if (sCI) document.getElementById('vsStaticCI').textContent = `[${(100 * sCI.lo).toFixed(1)}, ${(100 * sCI.hi).toFixed(1)}]`;
+
+        const cWR = last.vsChampion?.winRate ?? 0;
+        document.getElementById('vsChampionValue').innerHTML = formatPct(cWR);
+        document.getElementById('vsChampionCI').textContent = last.vsChampion?.decision ?? '';
+
+        document.getElementById('policyLoss').textContent = last.policyLoss?.toFixed(3) ?? '—';
+        document.getElementById('valueLoss').textContent = last.valueLoss?.toFixed(3) ?? '—';
+        document.getElementById('entropyBonus').textContent = last.entropyBonus?.toFixed(4) ?? '—';
+        document.getElementById('gradNorm').textContent = last.gradNorm?.toFixed(3) ?? '—';
+    }
+
+    // Chart — multi-series win rates
+    const canvas = document.getElementById('winRateChart');
+    drawChart(canvas, [
+        { data: history.map(h => h.vsRandom?.winRate ?? 0),   color: '#7fbf4f', label: 'vs Random' },
+        { data: history.map(h => h.vsStatic?.winRate ?? 0),   color: '#e8a82c', label: 'vs FloodBotStatic' },
+        { data: history.map(h => h.vsChampion?.winRate ?? 0), color: '#b28cff', label: 'vs Previous Champion' },
+    ], { min: 0, max: 1 });
+
+    // Table
+    const tbody = document.getElementById('genTable');
+    tbody.innerHTML = '';
+    for (const h of history.slice(-12).reverse()) {
+        const tr = document.createElement('tr');
+        if (h.promoted) tr.classList.add('promoted');
+        tr.innerHTML = `
+            <td>${h.gen}</td>
+            <td>${h.policyLoss?.toFixed(3) ?? '—'}</td>
+            <td>${h.valueLoss?.toFixed(3) ?? '—'}</td>
+            <td>${formatPct(h.vsRandom?.winRate ?? 0)}</td>
+            <td>${formatPct(h.vsStatic?.winRate ?? 0)}</td>
+            <td>${formatPct(h.vsChampion?.winRate ?? 0)}</td>
+            <td>${h.vsChampion?.decision ?? ''}</td>
+        `;
+        tbody.appendChild(tr);
+    }
+
+    // Events
+    const events = document.getElementById('events');
+    events.innerHTML = '';
+    for (const e of (data.events ?? []).slice(-10).reverse()) {
+        const div = document.createElement('div');
+        div.className = 'event' + (e.type === 'rejected' ? ' rejected' : '');
+        div.innerHTML = `<span class="ts">gen ${e.gen} · ${new Date(e.at).toLocaleTimeString()}</span>${e.message}`;
+        events.appendChild(div);
+    }
+};
+
+// Poll /live.json every second
+const poll = async () => {
+    try {
+        const r = await fetch('/live.json', { cache: 'no-store' });
+        if (r.ok) {
+            const d = await r.json();
+            update(d);
+        }
+    } catch (err) {
+        console.error(err);
+    }
+};
+poll();
+setInterval(poll, 1000);
+</script>
+</body>
+</html>

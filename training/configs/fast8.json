@@ -1,0 +1,22 @@
+{
+  "description": "Real training run — 8 generations with autoadjust + strong static signal",
+  "mctsSims": 40,
+  "dirichletAlpha": 0.3,
+  "dirichletWeight": 0.25,
+  "cPuct": 1.5,
+  "temperatureMoves": 15,
+  "learningRate": 3e-3,
+  "entropyCoeff": 0.005,
+  "gradClip": 1.0,
+  "batchSize": 32,
+  "epochsPerGen": 2,
+  "gamesPerGen": 50,
+  "opponentMix": { "static": 0.55, "random": 0.2, "self": 0.25 },
+  "evalGamesVsRandom": 30,
+  "evalGamesVsStatic": 20,
+  "promoSprtMin": 30,
+  "promoSprtMax": 80,
+  "checkpointDir": "training/checkpoints",
+  "dashboardPort": 3001,
+  "maxGenerations": 8
+}

@@ -3446,6 +3446,7 @@
             </div>
         </div>
     </div>
+    <script src="/rl-inference.js"></script>
     <script>
         const CARD_VALUES = {
             'A': 14, 'K': 13, 'Q': 12, 'J': 11,
@@ -6183,7 +6184,23 @@
                 }
                 this.announce('Bot is thinking...', 'info');
                 setTimeout(() => {
-                    const decision = this.getBestStrategicAction();
+                    // RL mode: if localStorage flag is set AND the RL model is loaded,
+                    // consult the trained MCTS bot instead of the built-in heuristic.
+                    const useRL = (typeof window !== 'undefined'
+                        && window.localStorage?.getItem('flood-bot-mode') === 'rl'
+                        && window.FloodRL?.isReady?.());
+                    let decision;
+                    if (useRL) {
+                        const rlAction = window.FloodRL.getBestMove(this, this.botPlayer);
+                        if (rlAction) {
+                            decision = { bestAction: rlAction, rankedActions: [rlAction] };
+                        } else {
+                            // RL bot couldn't decide (rare) - fall back to heuristic
+                            decision = this.getBestStrategicAction();
+                        }
+                    } else {
+                        decision = this.getBestStrategicAction();
+                    }
                     const action = decision.bestAction;
                     if (action?.type === 'move') {
                         const moveOptions = decision.rankedActions

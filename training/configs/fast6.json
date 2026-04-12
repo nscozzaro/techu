@@ -1,0 +1,22 @@
+{
+  "description": "First real training run — 6 generations",
+  "mctsSims": 48,
+  "dirichletAlpha": 0.25,
+  "dirichletWeight": 0.25,
+  "cPuct": 1.5,
+  "temperatureMoves": 20,
+  "learningRate": 5e-3,
+  "entropyCoeff": 0.01,
+  "gradClip": 1.0,
+  "batchSize": 32,
+  "epochsPerGen": 2,
+  "gamesPerGen": 60,
+  "opponentMix": { "static": 0.35, "random": 0.1, "self": 0.55 },
+  "evalGamesVsRandom": 20,
+  "evalGamesVsStatic": 20,
+  "promoSprtMin": 30,
+  "promoSprtMax": 100,
+  "checkpointDir": "training/checkpoints",
+  "dashboardPort": 3001,
+  "maxGenerations": 6
+}
