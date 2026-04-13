@@ -35,7 +35,7 @@ const playOne = (redBot, blackBot, seed) => {
 /** Sequential probability ratio test for H0: p = p0 vs H1: p = p1.
  *  Returns one of 'accept_h1', 'accept_h0', 'continue' after each game.
  *  Early-stops when likelihood ratio crosses the upper or lower bound. */
-export const sprtDecision = (wins, losses, { p0 = 0.5, p1 = 0.60, alpha = 0.05, beta = 0.05 } = {}) => {
+export const sprtDecision = (wins, losses, { p0 = 0.5, p1 = 0.65, alpha = 0.05, beta = 0.05 } = {}) => {
     // Log-likelihood ratio under Bernoulli(p1) vs Bernoulli(p0)
     // llr = wins * log(p1/p0) + losses * log((1-p1)/(1-p0))
     const llr = wins * Math.log(p1 / p0) + losses * Math.log((1 - p1) / (1 - p0));
@@ -52,7 +52,7 @@ export const evaluateChallenger = (challenger, champion, {
     minGames = 40,      // min paired (×2 for both sides)
     maxGames = 200,     // max paired
     sprtP0 = 0.5,
-    sprtP1 = 0.60,
+    sprtP1 = 0.65,
     sprtAlpha = 0.05,
     sprtBeta = 0.05,
     seedPrefix = 'promo',
@@ -90,5 +90,5 @@ export const evaluateChallenger = (challenger, champion, {
 };
 
 /** Return true if challenger clearly beats champion per SPRT and multi-gate. */
-export const shouldPromote = (result, { winRateFloor = 0.60 } = {}) =>
+export const shouldPromote = (result, { winRateFloor = 0.65 } = {}) =>
     result.decision === 'accept_h1' && result.winRate >= winRateFloor;

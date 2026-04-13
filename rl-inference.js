@@ -544,7 +544,7 @@
          *  MCTS with the loaded weights and return an action object
          *  compatible with FloodGame.getBestStrategicAction().bestAction.
          *  Returns null if no legal moves or model not loaded. */
-        getBestMove(game, player, { numSims = 48, cPuct = 1.5 } = {}) {
+        getBestMove(game, player, { numSims = 96, cPuct = 1.5 } = {}) {
             if (!params) return null;
             const state = snapshotGame(game);
             state.currentPlayer = player; // force to our turn

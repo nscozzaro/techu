@@ -1,38 +1,45 @@
 {
-  "description": "Fast-iteration config — visible progress in 30-60 min of single-core training (Tier 1+2)",
-  "mctsSims": 48,
+  "description": "Hybrid MCTS (heuristic-blended leaf eval) + self-play, 65% promotion threshold",
+  "mctsSims": 96,
   "dirichletAlpha": 0.25,
   "dirichletWeight": 0.25,
   "cPuct": 1.5,
   "temperatureMoves": 20,
+  "challengerPerturbSigma": 0,
+
+  "heuristicBlend": 0.3,
+  "heuristicScale": 580,
 
   "optimizer": "adam",
-  "learningRate": 3e-4,
+  "learningRate": 1e-3,
   "adamBeta1": 0.9,
   "adamBeta2": 0.999,
   "adamEps": 1e-8,
+  "weightDecay": 1e-4,
 
-  "entropyCoeff": 0.01,
+  "entropyCoeff": 0.005,
   "valueCoeff": 1.5,
+  "valueTargetBlend": 0.25,
   "gradClip": 1.0,
 
   "batchSize": 32,
   "epochsPerGen": 2,
-  "gamesPerGen": 80,
-  "replayCapacity": 16000,
+  "gamesPerGen": 120,
+  "replayCapacity": 24000,
 
   "opponentMix": {
+    "self": 0.50,
     "static": 0.35,
-    "random": 0.1,
-    "self": 0.55
+    "champion": 0.10,
+    "random": 0.05
   },
 
   "evalGamesVsRandom": 60,
-  "evalGamesVsStatic": 60,
+  "evalGamesVsStatic": 100,
   "promoSprtMin": 60,
   "promoSprtMax": 320,
 
   "checkpointDir": "training/checkpoints",
   "dashboardPort": 3001,
-  "maxGenerations": 50
+  "maxGenerations": 999999
 }

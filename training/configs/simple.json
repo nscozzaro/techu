@@ -1,0 +1,27 @@
+{
+  "description": "Simple continuous training — no frozen champion, no SPRT, just get better at beating FloodBotStatic",
+  "mctsSims": 96,
+  "dirichletAlpha": 0.25,
+  "dirichletWeight": 0.25,
+  "cPuct": 1.5,
+  "temperatureMoves": 20,
+
+  "learningRate": 1e-3,
+  "entropyCoeff": 0.005,
+  "valueCoeff": 1.5,
+  "valueTargetBlend": 0.25,
+  "gradClip": 1.0,
+
+  "batchSize": 32,
+  "epochsPerGen": 4,
+  "gamesPerGen": 120,
+  "selfPlayFraction": 0.5,
+  "replayCapacity": 24000,
+
+  "evalGames": 100,
+
+  "checkpointDir": "training/checkpoints",
+  "maxGenerations": 200,
+
+  "startFrom": "training/checkpoints/champion.json"
+}

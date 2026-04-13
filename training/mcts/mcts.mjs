@@ -13,6 +13,7 @@
 import {
     cloneState, applyMove, isTerminal, getLegalMoves, otherPlayer, getScores
 } from '../engine/core.mjs';
+import { evaluateSearchPosition } from '../engine/search.mjs';
 import {
     INPUT_SIZE, ACTION_SIZE, encodeState, encodeActionMask, decodeAction, encodeAction
 } from '../engine/encoding.mjs';
@@ -82,6 +83,8 @@ export const runMcts = (rootState, rootPlayer, params, {
     cPuct = 1.5,
     dirichletAlpha = 0,
     dirichletWeight = 0.25,
+    heuristicBlend = 0,
+    heuristicScale = 580,
     rng = Math.random
 } = {}) => {
     // Build root
@@ -144,8 +147,18 @@ export const runMcts = (rootState, rootPlayer, params, {
                     node.children.set(i, new Node(leafPriors[i]));
                 }
             }
-            // lValue is from curPlayer's perspective. Convert to rootPlayer's.
-            leafValueFromRoot = curPlayer === rootPlayer ? lValue : -lValue;
+            // Hybrid leaf evaluation: blend MLP value with heuristic evaluator.
+            // The heuristic provides positional understanding (territory, connectivity,
+            // card value, mobility) that guides MCTS to find stronger moves, which the
+            // policy net then trains to match.
+            let blendedValue = lValue;
+            if (heuristicBlend > 0) {
+                const heuristicRaw = evaluateSearchPosition(state, curPlayer);
+                const heuristicValue = Math.tanh(heuristicRaw / heuristicScale);
+                blendedValue = (1 - heuristicBlend) * lValue + heuristicBlend * heuristicValue;
+            }
+            // blendedValue is from curPlayer's perspective. Convert to rootPlayer's.
+            leafValueFromRoot = curPlayer === rootPlayer ? blendedValue : -blendedValue;
         }
 
         // Backup — every node on the path records rootPlayer's perspective.

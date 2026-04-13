@@ -64,18 +64,18 @@
     <div class="metric-row">
         <div class="metric"><div class="label">Generation</div><div class="value" id="genValue">—</div></div>
         <div class="metric"><div class="label">Win rate vs Random</div><div class="value" id="vsRandomValue">—</div><div class="ci" id="vsRandomCI"></div></div>
-        <div class="metric"><div class="label">Win rate vs FloodBotStatic</div><div class="value" id="vsStaticValue">—</div><div class="ci" id="vsStaticCI"></div></div>
-        <div class="metric"><div class="label">Win rate vs previous champion</div><div class="value" id="vsChampionValue">—</div><div class="ci" id="vsChampionCI"></div></div>
+        <div class="metric"><div class="label">Win rate vs FloodBotFull</div><div class="value" id="vsStaticValue">—</div><div class="ci" id="vsStaticCI"></div></div>
+        <div class="metric"><div class="label">Win rate vs previous version</div><div class="value" id="vsChampionValue">—</div><div class="ci" id="vsChampionCI"></div></div>
     </div>
 </div>
 
 <div class="panel">
     <h2>Training health</h2>
     <div class="metric-row">
-        <div class="metric"><div class="label">Policy loss</div><div class="value" id="policyLoss">—</div></div>
-        <div class="metric"><div class="label">Value loss</div><div class="value" id="valueLoss">—</div></div>
-        <div class="metric"><div class="label">Entropy bonus</div><div class="value" id="entropyBonus">—</div></div>
-        <div class="metric"><div class="label">Gradient norm</div><div class="value" id="gradNorm">—</div></div>
+        <div class="metric"><div class="label">Games this batch</div><div class="value" id="gamesCount">—</div></div>
+        <div class="metric"><div class="label">Training time</div><div class="value" id="trainTime">—</div></div>
+        <div class="metric"><div class="label">Best vs FloodBotFull</div><div class="value" id="bestVsFull">—</div></div>
+        <div class="metric"><div class="label">Games/sec</div><div class="value" id="gamesPerSec">—</div></div>
     </div>
 </div>
 
@@ -83,8 +83,8 @@
     <h2>Win rate over time</h2>
     <div class="legend">
         <div class="item"><div class="sw" style="background:#7fbf4f"></div> vs Random</div>
-        <div class="item"><div class="sw" style="background:#e8a82c"></div> vs FloodBotStatic</div>
-        <div class="item"><div class="sw" style="background:#b28cff"></div> vs Previous Champion (self)</div>
+        <div class="item"><div class="sw" style="background:#e8a82c"></div> vs FloodBotFull</div>
+        <div class="item"><div class="sw" style="background:#b28cff"></div> vs Previous Version</div>
         <div class="item"><div class="sw" style="background:rgba(255,255,255,0.35);height:0;border-top:2px dashed rgba(255,255,255,0.35)"></div> 50% reference</div>
     </div>
     <div class="chart-wrap"><canvas id="winRateChart"></canvas></div>
@@ -93,7 +93,7 @@
 <div class="panel">
     <h2>Recent generations</h2>
     <table>
-        <thead><tr><th>Gen</th><th>Policy loss</th><th>Value loss</th><th>vs Random</th><th>vs Static</th><th>vs Champion</th><th>Decision</th></tr></thead>
+        <thead><tr><th>Batch</th><th>Games</th><th>Time</th><th>vs Random</th><th>vs FloodBotFull</th><th>vs Prev Version</th><th>Best</th></tr></thead>
         <tbody id="genTable"></tbody>
     </table>
 </div>
@@ -224,10 +224,14 @@ const update = (data) => {
         document.getElementById('vsChampionValue').innerHTML = formatPct(cWR);
         document.getElementById('vsChampionCI').textContent = last.vsChampion?.decision ?? '';
 
-        document.getElementById('policyLoss').textContent = last.policyLoss?.toFixed(3) ?? '—';
-        document.getElementById('valueLoss').textContent = last.valueLoss?.toFixed(3) ?? '—';
-        document.getElementById('entropyBonus').textContent = last.entropyBonus?.toFixed(4) ?? '—';
-        document.getElementById('gradNorm').textContent = last.gradNorm?.toFixed(3) ?? '—';
+        document.getElementById('gamesCount').textContent = last.replayBufferSize ?? '—';
+        const trainSec = last.selfplayMs ? (last.selfplayMs / 1000).toFixed(0) + 's' : '—';
+        document.getElementById('trainTime').textContent = trainSec;
+        // Find best vs FloodBotFull across all history
+        const bestFull = Math.max(...history.map(h => h.vsStatic?.winRate ?? 0));
+        document.getElementById('bestVsFull').innerHTML = formatPct(bestFull);
+        const gps = last.selfplayMs > 0 ? ((last.replayBufferSize ?? 0) / (last.selfplayMs / 1000)).toFixed(1) : '—';
+        document.getElementById('gamesPerSec').textContent = gps;
     }
 
     // Chart — multi-series win rates
@@ -244,14 +248,15 @@ const update = (data) => {
     for (const h of history.slice(-12).reverse()) {
         const tr = document.createElement('tr');
         if (h.promoted) tr.classList.add('promoted');
+        const timeSec = h.selfplayMs ? (h.selfplayMs / 1000).toFixed(0) + 's' : '—';
         tr.innerHTML = `
             <td>${h.gen}</td>
-            <td>${h.policyLoss?.toFixed(3) ?? '—'}</td>
-            <td>${h.valueLoss?.toFixed(3) ?? '—'}</td>
+            <td>${h.replayBufferSize ?? '—'}</td>
+            <td>${timeSec}</td>
             <td>${formatPct(h.vsRandom?.winRate ?? 0)}</td>
             <td>${formatPct(h.vsStatic?.winRate ?? 0)}</td>
             <td>${formatPct(h.vsChampion?.winRate ?? 0)}</td>
-            <td>${h.vsChampion?.decision ?? ''}</td>
+            <td>${h.promoted ? '✓ BEST' : ''}</td>
         `;
         tbody.appendChild(tr);
     }

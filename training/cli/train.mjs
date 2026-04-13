@@ -24,8 +24,10 @@ import {
     deserializeParams
 } from '../net/mlp.mjs';
 import { playSelfPlayGame, makeMctsBot, playMatch } from '../selfplay/selfplay.mjs';
+import { runParallelSelfPlay } from '../selfplay/pool.mjs';
 import { FloodBotStatic } from '../bot/tiers.mjs';
 import { getLegalMoves } from '../engine/core.mjs';
+import os from 'os';
 import { evaluateChallenger, wilsonInterval, shouldPromote } from '../league/evaluate.mjs';
 import { evaluateTriggers, applyChanges } from '../hyper/autoadjust.mjs';
 
@@ -57,6 +59,23 @@ if (fs.existsSync(championPath)) {
     console.log('Initialized new champion from zero-init');
 }
 let challengerParams = new Float32Array(championParams);
+
+// ---- Challenger weight perturbation ----
+// When starting from a frozen champion, the challenger MUST diverge from the
+// champion's policy before training signal from champion-games becomes useful.
+// With identical weights, self-play against the champion produces ~50/50 random
+// outcomes that provide zero useful gradient. Adding small Gaussian noise breaks
+// the symmetry so the challenger immediately plays a slightly different style,
+// and champion-game outcomes teach it which deviations are good vs bad.
+const perturbSigma = config.challengerPerturbSigma ?? 0;
+if (perturbSigma > 0) {
+    let rngState = 77777;
+    const rng = () => { rngState = Math.imul(rngState ^ (rngState >>> 15), 1 | rngState); rngState ^= rngState + Math.imul(rngState ^ (rngState >>> 7), 61 | rngState); return ((rngState ^ (rngState >>> 14)) >>> 0) / 4294967296; };
+    const gauss = () => { let u = 0, v = 0; while (u === 0) u = rng(); while (v === 0) v = rng(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+    for (let i = 0; i < PARAM_COUNT; i++) challengerParams[i] += gauss() * perturbSigma;
+    console.log(`Perturbed challenger weights: σ = ${perturbSigma}`);
+}
+
 const grads = new Float32Array(PARAM_COUNT);
 
 // ---- Rolling replay buffer ----
@@ -111,9 +130,13 @@ const chooseOpponent = (mix) => {
     return Object.keys(mix)[0];
 };
 
-// ---- Training loop ----
+// ---- Training loop (async for parallel self-play) ----
+
+const NUM_WORKERS = config.numWorkers ?? os.cpus().length;
+console.log(`Self-play workers: ${NUM_WORKERS}`);
 
 const maxGen = config.maxGenerations ?? 50;
+const runTraining = async () => {
 for (let gen = 0; gen < maxGen; gen++) {
     const t0 = Date.now();
 
@@ -139,39 +162,28 @@ for (let gen = 0; gen < maxGen; gen++) {
         applyChanges(config, changes);
     }
 
-    // ---- Self-play ----
+    // ---- Self-play (parallel across all CPU cores) ----
     const championBot = makeMctsBot(championParams, {
-        name: `Champion-gen${gen}`, numSimulations: config.mctsSims, cPuct: config.cPuct
+        name: `Champion-gen${gen}`, numSimulations: config.mctsSims, cPuct: config.cPuct,
+        heuristicBlend: config.heuristicBlend ?? 0, heuristicScale: config.heuristicScale ?? 580
     });
-    const genExamples = [];
-    let winsVsStatic = 0, lossesVsStatic = 0;
-    let gamesVsStatic = 0;
+    const gameSpecs = [];
     for (let i = 0; i < config.gamesPerGen; i++) {
         const type = chooseOpponent(config.opponentMix);
-        const seed = `gen${gen}:game${i}:${type}`;
-        const learnerPlayer = i % 2 === 0 ? 'red' : 'black';
-        let opponent = null;
-        if (type === 'static') opponent = FloodBotStatic;
-        else if (type === 'random') opponent = randomBot;
-        // 'self' leaves opponent = null (MCTS both sides with challenger params)
-        const { examples, winner } = playSelfPlayGame({
-            params: challengerParams,
-            seed,
-            numSimulations: config.mctsSims,
-            cPuct: config.cPuct,
-            dirichletAlpha: config.dirichletAlpha,
-            dirichletWeight: config.dirichletWeight,
-            temperatureMoves: config.temperatureMoves,
-            opponent,
-            learnerPlayer: opponent ? learnerPlayer : null
+        gameSpecs.push({
+            seed: `gen${gen}:game${i}:${type}`,
+            opponentType: type,
+            learnerPlayer: i % 2 === 0 ? 'red' : 'black',
         });
-        if (opponent === FloodBotStatic) {
-            gamesVsStatic++;
-            if (winner === learnerPlayer) winsVsStatic++;
-            else if (winner) lossesVsStatic++;
-        }
-        genExamples.push(...examples);
     }
+    const { examples: genExamples, stats: selfplayStats } = await runParallelSelfPlay({
+        challengerParams,
+        championParams,
+        games: gameSpecs,
+        config,
+        numWorkers: NUM_WORKERS,
+    });
+    const { winsVsStatic, lossesVsStatic, gamesVsStatic } = selfplayStats;
     const selfplayMs = Date.now() - t0;
 
     // ---- Add this gen's examples to the replay buffer (and trim oldest) ----
@@ -223,15 +235,15 @@ for (let gen = 0; gen < maxGen; gen++) {
                 const scale = 1 / batchSteps;
                 for (let i = 0; i < PARAM_COUNT; i++) grads[i] *= scale;
                 const lr = config.learningRate ?? (useAdam ? 3e-4 : 5e-3);
-                const clipOpts = { gradClip: config.gradClip ?? 1.0 };
+                const optOpts = { gradClip: config.gradClip ?? 1.0, weightDecay: config.weightDecay ?? 0 };
                 const { gradNorm } = useAdam
                     ? adamStep(challengerParams, grads, lr, adamState, {
                         beta1: config.adamBeta1 ?? 0.9,
                         beta2: config.adamBeta2 ?? 0.999,
                         eps: config.adamEps ?? 1e-8,
-                        ...clipOpts
+                        ...optOpts
                     })
-                    : sgdStep(challengerParams, grads, lr, clipOpts);
+                    : sgdStep(challengerParams, grads, lr, optOpts);
                 gradNormSum += gradNorm;
                 gradNormCount += 1;
             }
@@ -243,7 +255,8 @@ for (let gen = 0; gen < maxGen; gen++) {
     // ---- Eval ----
     const t2 = Date.now();
     const challengerBot = makeMctsBot(challengerParams, {
-        name: `Challenger-gen${gen}`, numSimulations: config.mctsSims, cPuct: config.cPuct
+        name: `Challenger-gen${gen}`, numSimulations: config.mctsSims, cPuct: config.cPuct,
+        heuristicBlend: config.heuristicBlend ?? 0, heuristicScale: config.heuristicScale ?? 580
     });
     const vsRandom = playMatch(challengerBot, randomBot, Math.floor(config.evalGamesVsRandom / 2), { seedPrefix: `eval-r-gen${gen}` });
     const vsStatic = playMatch(challengerBot, FloodBotStatic, Math.floor(config.evalGamesVsStatic / 2), { seedPrefix: `eval-s-gen${gen}` });
@@ -258,7 +271,7 @@ for (let gen = 0; gen < maxGen; gen++) {
     let promoted = false;
     const vsRandomWR = vsRandom.aWins / vsRandom.totalGames;
     const vsStaticWR = vsStatic.aWins / vsStatic.totalGames;
-    if (shouldPromote(vsChampion, { winRateFloor: 0.60 }) && vsRandomWR >= 0.85) {
+    if (shouldPromote(vsChampion, { winRateFloor: 0.65 }) && vsRandomWR >= 0.85) {
         championParams = new Float32Array(challengerParams);
         fs.writeFileSync(championPath, JSON.stringify(serializeParams(championParams)));
         promoted = true;
@@ -315,7 +328,23 @@ for (let gen = 0; gen < maxGen; gen++) {
         `vs-champ=${vsChampion.aWins}/${vsChampion.totalGames} (${(100 * vsChampion.winRate).toFixed(0)}%) [${vsChampion.decision}]` +
         `${promoted ? ' *PROMOTED*' : ''}`
     );
+
+    // ---- Auto-stop: if vs-static hits 100% for 5 consecutive gens, we're done ----
+    const perfectStreak = config.perfectStopStreak ?? 5;
+    if (live.history.length >= perfectStreak) {
+        const lastN = live.history.slice(-perfectStreak);
+        const allPerfect = lastN.every(h => h.vsStatic?.winRate >= 1.0);
+        if (allPerfect) {
+            console.log(`\n🎯 vs-static at 100% for ${perfectStreak} consecutive gens — stopping.`);
+            fs.writeFileSync(championPath, JSON.stringify(serializeParams(championParams)));
+            fs.writeFileSync(latestPath, JSON.stringify(serializeParams(challengerParams)));
+            break;
+        }
+    }
 }
 
 console.log('\nTraining complete. Latest checkpoint:', latestPath);
 console.log('Champion checkpoint:', championPath);
+};
+
+runTraining().catch(err => { console.error(err); process.exit(1); });

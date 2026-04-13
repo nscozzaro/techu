@@ -37,23 +37,26 @@ export const evaluateTriggers = (live, mutableConfig) => {
     // 1.5× on every gen and quickly pushing wall time out of budget.
     const lastStagnationGen = findLastEventGen(live.events, 'stagnation');
     const currentGen = history.length - 1; // 0-indexed
-    const stagnationCooldownOK = lastStagnationGen < 0 || (currentGen - lastStagnationGen) >= 3;
+    const stagnationCooldownOK = lastStagnationGen < 0 || (currentGen - lastStagnationGen) >= 10;
     const recent = history.slice(-3);
     const rejectedRun = recent.length === 3 && recent.every(h => h.vsChampion?.decision === 'accept_h0');
     if (rejectedRun && stagnationCooldownOK) {
         events.push({
             type: 'stagnation',
-            message: `3 consecutive rejected challengers — boosting MCTS sims and Dirichlet α`
+            message: `3 consecutive rejected challengers — boosting Dirichlet α for exploration`
         });
-        if (mutableConfig.mctsSims < 256) {
-            changes.push({ key: 'mctsSims', from: mutableConfig.mctsSims, to: Math.ceil(mutableConfig.mctsSims * 1.5) });
-        }
+        // NOTE: do NOT boost mctsSims. Overnight data (188 gens, sims boosted from 96→324)
+        // showed zero win rate improvement — more sims doesn't help when the search is
+        // already informed by the heuristic blend. Only boost dirichletAlpha (exploration).
         if (mutableConfig.dirichletAlpha < 1) {
             changes.push({ key: 'dirichletAlpha', from: mutableConfig.dirichletAlpha, to: Math.min(1, mutableConfig.dirichletAlpha * 1.3) });
         }
-        if (mutableConfig.learningRate > 1e-4) {
-            changes.push({ key: 'learningRate', from: mutableConfig.learningRate, to: mutableConfig.learningRate * 0.5 });
-        }
+        // NOTE: do NOT halve the learning rate on stagnation. With the replay buffer
+        // and persistent-challenger architecture (no reset on rejection), LR decays
+        // compound across the entire run. Three consecutive rejections are EXPECTED
+        // during early training (buffer is filling) and after promotions (new champion
+        // is harder to beat). Adam already handles per-parameter learning rate
+        // adaptation; external LR decay just kills training velocity.
     }
 
     // ---- Trigger 3: Value loss divergent (3-gen moving avg rising) → halve LR ----

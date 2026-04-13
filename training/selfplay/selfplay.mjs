@@ -21,6 +21,9 @@ export const playSelfPlayGame = ({
     dirichletAlpha = 0.25,
     dirichletWeight = 0.25,
     temperatureMoves = 20,
+    valueTargetBlend = 0, // fraction of MCTS root Q value mixed into the value label
+    heuristicBlend = 0,  // blend weight for heuristic evaluator at MCTS leaves
+    heuristicScale = 580, // normalization scale for heuristic output
     opponent = null, // optional: { getMove(state, player) } — the non-learner
     learnerPlayer = null, // 'red' | 'black' — which side is learning
     rng = Math.random
@@ -36,21 +39,25 @@ export const playSelfPlayGame = ({
         if (useLearner) {
             // MCTS for the learner
             const temperature = turns < temperatureMoves ? 1.0 : 0.0;
-            const { visitDistribution } = runMcts(state, current, params, {
+            const { visitDistribution, value: rootQ } = runMcts(state, current, params, {
                 numSimulations,
                 cPuct,
                 dirichletAlpha,
                 dirichletWeight,
+                heuristicBlend,
+                heuristicScale,
                 rng
             });
-            // Record training example
+            // Record training example (rootQ is the MCTS root value estimate
+            // from the current player's perspective — used for soft value targets)
             const input = encodeState(state, current);
             const mask = encodeActionMask(state, current);
             examples.push({
                 input,
                 mask,
                 policy: visitDistribution,
-                perspective: current
+                perspective: current,
+                rootQ
             });
             const actionIdx = sampleFromDistribution(visitDistribution, temperature, rng);
             if (actionIdx < 0) break;
@@ -68,11 +75,15 @@ export const playSelfPlayGame = ({
         turns += 1;
     }
     const winner = getWinner(state);
-    // Label each example with the game outcome from its perspective
+    // Label each example: blend game outcome with MCTS root Q value.
+    // Pure outcome labels (-1/0/+1) are very noisy — a single unlucky card draw
+    // flips the label for every position in the game. Blending with the MCTS
+    // root Q provides a smoother, per-position signal that reflects the net's
+    // own assessment of the position at the time it was visited.
+    const blend = valueTargetBlend ?? 0;
     for (const ex of examples) {
-        if (winner === null) ex.targetValue = 0;
-        else if (winner === ex.perspective) ex.targetValue = 1;
-        else ex.targetValue = -1;
+        const outcome = winner === null ? 0 : (winner === ex.perspective ? 1 : -1);
+        ex.targetValue = (1 - blend) * outcome + blend * (ex.rootQ ?? 0);
     }
     return { examples, winner, turns, scores: getScores(state) };
 };
@@ -121,11 +132,11 @@ const playSingleGame = (redBot, blackBot, seed) => {
 
 /** Wrap MLP params in a bot interface for head-to-head matches.
  *  Runs greedy MCTS with temperature 0. */
-export const makeMctsBot = (params, { name = 'MCTS', numSimulations = 64, cPuct = 1.5 } = {}) => ({
+export const makeMctsBot = (params, { name = 'MCTS', numSimulations = 64, cPuct = 1.5, heuristicBlend = 0, heuristicScale = 580 } = {}) => ({
     name,
     getMove: (state, player) => {
         const { visitDistribution } = runMcts(state, player, params, {
-            numSimulations, cPuct, dirichletAlpha: 0
+            numSimulations, cPuct, dirichletAlpha: 0, heuristicBlend, heuristicScale
         });
         const actionIdx = sampleFromDistribution(visitDistribution, 0);
         return actionIdx < 0 ? null : decodeAction(actionIdx);
