@@ -2,6 +2,11 @@
 
 Lightweight reinforcement-learning pipeline for training a bot that can beat the hand-tuned heuristic-plus-alpha-beta baseline in `index.html`.
 
+`main` now contains two distinct learning paths:
+
+- `training/cli/train.mjs`: the original policy/value RL path.
+- `training/cli/train-compact.mjs`: the new compact 116-feature value-net path intended for a lightweight browser/WASM bot.
+
 ## Layout
 
 ```
@@ -26,11 +31,18 @@ training/
   dashboard/
     server.mjs         HTTP server (no deps) serving public/index.html + SSE
     public/index.html  Live dashboard with reality-check metrics
+  compact/
+    bot.mjs            Search-guided compact bot using the 116-feature value net
+    worker.mjs         Parallel teacher-data generation for compact training
   configs/
     fast.json          Fast-iteration hyperparameters
     fast8.json         8-gen training config used for initial runs
+    compact.json       Default config for the compact value-net trainer
+    compact-interactive.json Faster local profile for live dashboard iteration
   cli/
     train.mjs          Main training loop
+    train-compact.mjs  Compact value-net trainer (teacher search + fixed suites)
+    eval-compact.mjs   Compact checkpoint evaluator vs Random/Static/Full
     smoke.mjs          Engine smoke test (random vs random)
     bot-vs-random.mjs  Verify FloodBotStatic beats random
     tier-matrix.mjs    Round-robin Static/Shallow/Full + Random
@@ -59,6 +71,29 @@ cp training/checkpoints/champion.json flood-model.json
 localStorage.setItem('flood-bot-mode', 'rl')  // then restart a game
 # Use 'heuristic' or remove the key to revert to the built-in bot.
 ```
+
+## Compact bot quick start
+
+```bash
+# 1. Train the compact 116-feature value net with all CPU cores
+#    Use compact-interactive.json for faster local iteration,
+#    or compact.json for a deeper overnight run.
+node training/cli/train-compact.mjs training/configs/compact-interactive.json
+node training/cli/train-compact.mjs training/configs/compact.json
+
+# 2. In another terminal, open the dashboard
+node training/dashboard/server.mjs 3001
+
+# 3. Evaluate the latest compact checkpoint directly
+node training/cli/eval-compact.mjs flood-compact-model.json 20
+
+# 4. Opt into compact mode in the browser
+localStorage.setItem('flood-bot-mode', 'compact')
+# Restart or refresh the page. Use 'heuristic' to go back to the shipped search bot.
+```
+
+Compact mode is opt-in on purpose. The browser defaults to the heuristic bot unless
+`flood-bot-mode` is explicitly set to `compact` or `rl`.
 
 ## How the plateau defenses work
 

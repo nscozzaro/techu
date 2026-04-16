@@ -569,6 +569,12 @@
         }
     };
 
-    // Auto-load on script load
-    window.FloodRL.loadModel();
+    // Only auto-load when the user explicitly opts into legacy RL mode.
+    try {
+        if (window.localStorage?.getItem('flood-bot-mode') === 'rl') {
+            window.FloodRL.loadModel();
+        }
+    } catch (err) {
+        // Ignore storage failures and leave the heuristic bot as default.
+    }
 })();

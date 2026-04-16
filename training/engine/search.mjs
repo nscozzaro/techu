@@ -407,6 +407,21 @@ export const evaluateSearchPosition = (state, botPlayer) => {
     );
 };
 
+const evaluateLeafPosition = (state, botPlayer, config) => {
+    const heuristicScore = evaluateSearchPosition(state, botPlayer);
+    if (typeof config?.leafEvaluator !== 'function') {
+        return heuristicScore;
+    }
+    const learnedScore = config.leafEvaluator(state, botPlayer);
+    if (!Number.isFinite(learnedScore)) {
+        return heuristicScore;
+    }
+    const blend = Math.max(0, Math.min(1, config.leafBlend ?? 1));
+    if (blend <= 0) return heuristicScore;
+    if (blend >= 1) return learnedScore;
+    return heuristicScore * (1 - blend) + learnedScore * blend;
+};
+
 const getTerminalSearchScore = (state, botPlayer) => {
     const scores = getScores(state);
     const userPlayer = otherPlayer(botPlayer);
@@ -459,7 +474,7 @@ const searchGameTree = (state, botPlayer, depth, alpha, beta, cache, config, ses
         return getTerminalSearchScore(state, botPlayer);
     }
     if (depth <= 0) {
-        return evaluateSearchPosition(state, botPlayer);
+        return evaluateLeafPosition(state, botPlayer, config);
     }
     const key = getSearchStateKey(state, depth);
     if (cache.has(key)) return cache.get(key);
@@ -468,7 +483,7 @@ const searchGameTree = (state, botPlayer, depth, alpha, beta, cache, config, ses
     const maximizing = player === botPlayer;
     const actions = getRankedSearchActions(state, player, config, depth);
     if (!actions.length) {
-        const fallback = evaluateSearchPosition(state, botPlayer);
+        const fallback = evaluateLeafPosition(state, botPlayer, config);
         cache.set(key, fallback);
         return fallback;
     }

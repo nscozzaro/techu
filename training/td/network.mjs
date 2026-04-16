@@ -1,21 +1,23 @@
 // training/td/network.mjs
-// TD-Gammon style value network: 103 → 64 → 32 → 1
-// Pure value function — no policy head. Move selection is one-ply lookahead:
-// try each legal move, evaluate the resulting position, pick the best.
+// Compact value network: 116 → 64 → 32 → 1
+// Pure value function — no policy head. This file started as the TD-lambda
+// network, but we also reuse it for search-guided supervised training and
+// browser-side compact inference.
 //
-// Key difference from mlp.mjs: this module provides computeGradient() which
-// returns dOutput/dParams — needed for TD-lambda eligibility traces.
+// Key difference from mlp.mjs: this module exposes computeGradient() so TD
+// style updates can build eligibility traces, while also providing generic
+// backward/optimizer helpers for ordinary supervised learning.
 
 export const INPUT_SIZE = 116;
 export const H1 = 64;
 export const H2 = 32;
 
-const SIZE_W1 = H1 * INPUT_SIZE;  // 6592
-const SIZE_B1 = H1;                // 64
-const SIZE_W2 = H2 * H1;           // 2048
-const SIZE_B2 = H2;                // 32
-const SIZE_W3 = 1 * H2;            // 32
-const SIZE_B3 = 1;                  // 1
+const SIZE_W1 = H1 * INPUT_SIZE;
+const SIZE_B1 = H1;
+const SIZE_W2 = H2 * H1;
+const SIZE_B2 = H2;
+const SIZE_W3 = 1 * H2;
+const SIZE_B3 = 1;
 
 const OFF_W1 = 0;
 const OFF_B1 = OFF_W1 + SIZE_W1;
@@ -24,7 +26,7 @@ const OFF_B2 = OFF_W2 + SIZE_W2;
 const OFF_W3 = OFF_B2 + SIZE_B2;
 const OFF_B3 = OFF_W3 + SIZE_W3;
 
-export const PARAM_COUNT = OFF_B3 + SIZE_B3; // 8769
+export const PARAM_COUNT = OFF_B3 + SIZE_B3;
 
 // ====== Initialization ======
 
@@ -140,11 +142,95 @@ export const computeGradient = (params, input) => {
     return { grad, value };
 };
 
+export const backwardValue = (params, grads, input, targetValue, {
+    loss = 'huber',
+    huberDelta = 0.75
+} = {}) => {
+    const { grad, value } = computeGradient(params, input);
+    const error = value - targetValue;
+    const absError = Math.abs(error);
+    let lossValue;
+    let scale;
+    if (loss === 'mse') {
+        lossValue = 0.5 * error * error;
+        scale = error;
+    } else {
+        if (absError <= huberDelta) {
+            lossValue = 0.5 * error * error;
+            scale = error;
+        } else {
+            lossValue = huberDelta * (absError - 0.5 * huberDelta);
+            scale = huberDelta * Math.sign(error);
+        }
+    }
+    for (let i = 0; i < PARAM_COUNT; i++) {
+        grads[i] += grad[i] * scale;
+    }
+    return { value, error, loss: lossValue };
+};
+
+export const createAdamState = () => ({
+    m: new Float32Array(PARAM_COUNT),
+    v: new Float32Array(PARAM_COUNT),
+    step: 0
+});
+
+export const resetAdamState = (state) => {
+    state.m.fill(0);
+    state.v.fill(0);
+    state.step = 0;
+};
+
+export const adamStep = (params, grads, lr, state, {
+    beta1 = 0.9,
+    beta2 = 0.999,
+    eps = 1e-8,
+    gradClip = 1.0,
+    weightDecay = 0
+} = {}) => {
+    let sqSum = 0;
+    for (let i = 0; i < PARAM_COUNT; i++) sqSum += grads[i] * grads[i];
+    const norm = Math.sqrt(sqSum);
+    const scale = norm > gradClip ? gradClip / norm : 1;
+
+    state.step += 1;
+    const biasCorr1 = 1 - Math.pow(beta1, state.step);
+    const biasCorr2 = 1 - Math.pow(beta2, state.step);
+    const { m, v } = state;
+
+    for (let i = 0; i < PARAM_COUNT; i++) {
+        const g = grads[i] * scale;
+        m[i] = beta1 * m[i] + (1 - beta1) * g;
+        v[i] = beta2 * v[i] + (1 - beta2) * g * g;
+        const mHat = m[i] / biasCorr1;
+        const vHat = v[i] / biasCorr2;
+        params[i] -= lr * (mHat / (Math.sqrt(vHat) + eps) + weightDecay * params[i]);
+        grads[i] = 0;
+    }
+    return { gradNorm: norm };
+};
+
+export const sgdStep = (params, grads, lr, {
+    gradClip = 1.0,
+    weightDecay = 0
+} = {}) => {
+    let sqSum = 0;
+    for (let i = 0; i < PARAM_COUNT; i++) sqSum += grads[i] * grads[i];
+    const norm = Math.sqrt(sqSum);
+    const scale = norm > gradClip ? gradClip / norm : 1;
+    for (let i = 0; i < PARAM_COUNT; i++) {
+        params[i] -= lr * (grads[i] * scale + weightDecay * params[i]);
+        grads[i] = 0;
+    }
+    return { gradNorm: norm };
+};
+
 // ====== Serialize / Deserialize ======
 
 export const serializeParams = (params) => ({
-    version: 2,
+    version: 3,
     type: 'td-value',
+    architecture: '116x64x32x1',
     inputSize: INPUT_SIZE,
     h1: H1,
     h2: H2,

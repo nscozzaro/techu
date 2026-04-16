@@ -1,0 +1,47 @@
+{
+  "description": "Interactive compact 116-feature value-net distillation profile with faster teacher search and tighter benchmark suites for live dashboard iteration.",
+  "datasetGames": 256,
+  "datasetMix": {
+    "teacherSelf": 0.35,
+    "vsFull": 0.25,
+    "vsStatic": 0.25,
+    "vsRandom": 0.15
+  },
+  "teacherSearch": {
+    "depth": 4,
+    "rootMoveLimit": 9,
+    "nodeMoveLimit": 5,
+    "discardLimit": 2,
+    "tacticalWidth": 4,
+    "staticBlend": 0.01,
+    "timeMs": 42,
+    "nodeBudget": 3600
+  },
+  "minTeacherDepth": 2,
+  "targetScale": 480,
+  "validationFraction": 0.1,
+  "epochs": 10,
+  "batchSize": 128,
+  "learningRate": 0.0012,
+  "weightDecay": 0.00005,
+  "gradClip": 1.0,
+  "loss": "huber",
+  "huberDelta": 0.75,
+  "evalEvery": 2,
+  "evalPairsRandom": 8,
+  "evalPairsStatic": 8,
+  "evalPairsFull": 8,
+  "evalPairsFrozen": 8,
+  "stopPairsStatic": 8,
+  "stopPairsFull": 8,
+  "stopTargets": {
+    "vsStatic": 1.0,
+    "vsFull": 1.0
+  },
+  "inference": {
+    "leafScale": 420,
+    "leafBlend": 0.85
+  },
+  "checkpointDir": "training/checkpoints",
+  "deployPath": "flood-compact-model.json"
+}

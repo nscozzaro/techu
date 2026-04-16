@@ -1,0 +1,25 @@
+{
+  "description": "Self-play value learning for the compact CNN. Warm starts from the distillation checkpoint, then learns from game outcomes to exceed the teacher.",
+  "startFrom": "training/checkpoints/compact-best.json",
+  "generations": 15,
+  "gamesPerGeneration": 200,
+  "epochsPerGeneration": 8,
+  "batchSize": 64,
+  "learningRate": 0.0004,
+  "lrMin": 0.00005,
+  "loss": "huber",
+  "huberDelta": 1.0,
+  "gradClip": 1.0,
+  "weightDecay": 0.0001,
+  "promoteThreshold": 0.55,
+  "evalPairsRandom": 10,
+  "evalPairsStatic": 15,
+  "evalPairsFull": 20,
+  "evalPairsFrozen": 15,
+  "inference": {
+    "leafScale": 420,
+    "leafBlend": 0.85
+  },
+  "checkpointDir": "training/checkpoints",
+  "deployPath": "flood-compact-model.json"
+}

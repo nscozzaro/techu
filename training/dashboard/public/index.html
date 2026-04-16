@@ -3,98 +3,277 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Flood RL Training Dashboard</title>
+<title>Flood Training Dashboard</title>
 <style>
     :root {
-        --bg: #0f1115;
-        --panel: #1a1d25;
-        --border: #262a33;
-        --text: #e0e2e6;
-        --muted: #9ea1a8;
-        --accent: #7fbf4f;
-        --warn: #e8a82c;
-        --danger: #d65a3a;
+        --bg: #0d1117;
+        --panel: #151b23;
+        --panel-alt: #10161d;
+        --border: #273244;
+        --text: #ebeff5;
+        --muted: #95a1b3;
+        --good: #7fd067;
+        --warn: #f1c453;
+        --bad: #ef7a6b;
+        --full: #ff9f68;
+        --static: #79c7ff;
+        --frozen: #b294ff;
+        --random: #8ce07c;
+        --loss: #f3d25c;
     }
     * { box-sizing: border-box; }
     body {
-        margin: 0; padding: 24px;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        background: var(--bg); color: var(--text);
+        margin: 0;
+        padding: 24px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: var(--text);
+        background:
+            radial-gradient(circle at top, rgba(121, 199, 255, 0.08), transparent 32%),
+            radial-gradient(circle at bottom right, rgba(178, 148, 255, 0.1), transparent 28%),
+            var(--bg);
     }
-    h1 { margin: 0 0 4px 0; font-size: 20px; font-weight: 600; }
-    .sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+    h1 {
+        margin: 0 0 6px;
+        font-size: 24px;
+        font-weight: 700;
+    }
+    .subtitle {
+        color: var(--muted);
+        font-size: 13px;
+        margin-bottom: 18px;
+        line-height: 1.5;
+    }
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 16px;
+        margin-bottom: 16px;
+    }
     .panel {
-        background: var(--panel); border: 1px solid var(--border);
-        border-radius: 8px; padding: 16px; margin-bottom: 16px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 16px;
+        margin-bottom: 16px;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
     }
-    .panel h2 { margin: 0 0 12px 0; font-size: 14px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
-    .metric-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
-    .metric { padding: 12px; background: rgba(255,255,255,0.02); border-radius: 6px; }
-    .metric .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
-    .metric .value { font-size: 24px; font-weight: 600; margin-top: 4px; font-variant-numeric: tabular-nums; }
-    .metric .ci { font-size: 11px; color: var(--muted); margin-top: 2px; }
-    .chart-wrap { position: relative; height: 220px; }
-    canvas { width: 100%; height: 100%; display: block; }
+    .panel h2 {
+        margin: 0 0 12px;
+        font-size: 12px;
+        color: var(--muted);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-weight: 600;
+    }
+    .metric {
+        background: var(--panel-alt);
+        border: 1px solid rgba(255,255,255,0.04);
+        border-radius: 12px;
+        padding: 14px;
+    }
+    .label {
+        font-size: 11px;
+        color: var(--muted);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-bottom: 6px;
+    }
+    .value {
+        font-size: 26px;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+    }
+    .subvalue {
+        margin-top: 4px;
+        font-size: 12px;
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+    }
+    .progress-track {
+        width: 100%;
+        height: 8px;
+        margin-top: 10px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.08);
+        overflow: hidden;
+    }
+    .progress-fill {
+        height: 100%;
+        width: 0%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--static), var(--good));
+        transition: width 0.25s ease;
+    }
+    .good { color: var(--good); }
+    .warn { color: var(--warn); }
+    .bad { color: var(--bad); }
     .legend {
-        display: flex; flex-wrap: wrap; gap: 14px;
-        font-size: 11px; color: var(--muted); margin-bottom: 10px;
-        text-transform: uppercase; letter-spacing: 0.05em;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        margin-bottom: 10px;
+        font-size: 11px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
     }
-    .legend .item { display: flex; align-items: center; gap: 6px; }
-    .legend .sw { width: 14px; height: 2px; border-radius: 1px; }
-    table { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
-    th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
-    th { color: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
-    tr.promoted { background: rgba(127, 191, 79, 0.08); }
-    .event { padding: 8px 12px; border-left: 3px solid var(--accent); margin-bottom: 6px; font-size: 12px; background: rgba(127,191,79,0.06); }
-    .event.rejected { border-left-color: var(--warn); background: rgba(232,168,44,0.06); }
-    .event .ts { color: var(--muted); font-size: 10px; display: block; }
-    .pct { font-weight: 600; }
-    .pct.good { color: var(--accent); }
-    .pct.bad { color: var(--danger); }
-    .pct.mid { color: var(--warn); }
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .swatch {
+        width: 14px;
+        height: 2px;
+        border-radius: 999px;
+    }
+    .chart-wrap {
+        position: relative;
+        height: 240px;
+    }
+    canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+        font-variant-numeric: tabular-nums;
+    }
+    th, td {
+        text-align: left;
+        padding: 8px 6px;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+        vertical-align: top;
+    }
+    th {
+        color: var(--muted);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        font-weight: 600;
+    }
+    tr.promoted {
+        background: rgba(127, 208, 103, 0.06);
+    }
+    .event {
+        padding: 10px 12px;
+        border-left: 3px solid var(--static);
+        border-radius: 8px;
+        background: rgba(121, 199, 255, 0.08);
+        margin-bottom: 8px;
+        font-size: 12px;
+        line-height: 1.45;
+    }
+    .event .ts {
+        display: block;
+        font-size: 10px;
+        color: var(--muted);
+        margin-bottom: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .empty {
+        color: var(--muted);
+        font-size: 13px;
+    }
+    @media (max-width: 760px) {
+        body { padding: 16px; }
+        .value { font-size: 22px; }
+        .chart-wrap { height: 220px; }
+    }
 </style>
 </head>
 <body>
-<h1>Flood RL Training</h1>
-<div class="sub" id="subtitle">Connecting…</div>
+<h1>Flood Training Dashboard</h1>
+<div class="subtitle" id="subtitle">Waiting for a training run…</div>
 
-<div class="panel">
-    <h2>Reality checks (headline)</h2>
-    <div class="metric-row">
-        <div class="metric"><div class="label">Generation</div><div class="value" id="genValue">—</div></div>
-        <div class="metric"><div class="label">Win rate vs Random</div><div class="value" id="vsRandomValue">—</div><div class="ci" id="vsRandomCI"></div></div>
-        <div class="metric"><div class="label">Win rate vs FloodBotFull</div><div class="value" id="vsStaticValue">—</div><div class="ci" id="vsStaticCI"></div></div>
-        <div class="metric"><div class="label">Win rate vs previous version</div><div class="value" id="vsChampionValue">—</div><div class="ci" id="vsChampionCI"></div></div>
+<div class="grid">
+    <div class="metric">
+        <div class="label">Epoch</div>
+        <div class="value" id="epochValue">—</div>
+        <div class="subvalue" id="phaseValue">phase: —</div>
+    </div>
+    <div class="metric">
+        <div class="label">Vs FloodBotFull</div>
+        <div class="value" id="fullValue">—</div>
+        <div class="subvalue" id="fullCI">—</div>
+    </div>
+    <div class="metric">
+        <div class="label">Vs FloodBotStatic</div>
+        <div class="value" id="staticValue">—</div>
+        <div class="subvalue" id="staticCI">—</div>
+    </div>
+    <div class="metric">
+        <div class="label">Vs Frozen Copy</div>
+        <div class="value" id="frozenValue">—</div>
+        <div class="subvalue" id="suiteValue">suite: —</div>
+    </div>
+</div>
+
+<div class="grid">
+    <div class="metric">
+        <div class="label">Dataset Positions</div>
+        <div class="value" id="datasetPositions">—</div>
+        <div class="subvalue" id="datasetMeta">—</div>
+        <div class="progress-track"><div class="progress-fill" id="datasetProgressBar"></div></div>
+    </div>
+    <div class="metric">
+        <div class="label">Train Loss</div>
+        <div class="value" id="trainLoss">—</div>
+        <div class="subvalue" id="trainMae">—</div>
+    </div>
+    <div class="metric">
+        <div class="label">Validation RMSE</div>
+        <div class="value" id="valRmse">—</div>
+        <div class="subvalue" id="valMae">—</div>
+    </div>
+    <div class="metric">
+        <div class="label">Teacher Depth</div>
+        <div class="value" id="teacherDepth">—</div>
+        <div class="subvalue" id="epochTime">—</div>
     </div>
 </div>
 
 <div class="panel">
-    <h2>Training health</h2>
-    <div class="metric-row">
-        <div class="metric"><div class="label">Games this batch</div><div class="value" id="gamesCount">—</div></div>
-        <div class="metric"><div class="label">Training time</div><div class="value" id="trainTime">—</div></div>
-        <div class="metric"><div class="label">Best vs FloodBotFull</div><div class="value" id="bestVsFull">—</div></div>
-        <div class="metric"><div class="label">Games/sec</div><div class="value" id="gamesPerSec">—</div></div>
-    </div>
-</div>
-
-<div class="panel">
-    <h2>Win rate over time</h2>
+    <h2>Benchmark Curves</h2>
     <div class="legend">
-        <div class="item"><div class="sw" style="background:#7fbf4f"></div> vs Random</div>
-        <div class="item"><div class="sw" style="background:#e8a82c"></div> vs FloodBotFull</div>
-        <div class="item"><div class="sw" style="background:#b28cff"></div> vs Previous Version</div>
-        <div class="item"><div class="sw" style="background:rgba(255,255,255,0.35);height:0;border-top:2px dashed rgba(255,255,255,0.35)"></div> 50% reference</div>
+        <div class="legend-item"><div class="swatch" style="background:var(--full)"></div> vs Full</div>
+        <div class="legend-item"><div class="swatch" style="background:var(--static)"></div> vs Static</div>
+        <div class="legend-item"><div class="swatch" style="background:var(--frozen)"></div> vs Frozen</div>
+        <div class="legend-item"><div class="swatch" style="background:var(--random)"></div> vs Random</div>
+        <div class="legend-item"><div class="swatch" style="background:rgba(255,255,255,0.35);border-top:2px dashed rgba(255,255,255,0.35);height:0"></div> 50% ref</div>
     </div>
-    <div class="chart-wrap"><canvas id="winRateChart"></canvas></div>
+    <div class="chart-wrap"><canvas id="benchmarkChart"></canvas></div>
 </div>
 
 <div class="panel">
-    <h2>Recent generations</h2>
+    <h2>Loss Curves</h2>
+    <div class="legend">
+        <div class="legend-item"><div class="swatch" style="background:var(--loss)"></div> train loss</div>
+        <div class="legend-item"><div class="swatch" style="background:#ffffff"></div> val RMSE</div>
+    </div>
+    <div class="chart-wrap"><canvas id="lossChart"></canvas></div>
+</div>
+
+<div class="panel">
+    <h2>Recent Epochs</h2>
     <table>
-        <thead><tr><th>Batch</th><th>Games</th><th>Time</th><th>vs Random</th><th>vs FloodBotFull</th><th>vs Prev Version</th><th>Best</th></tr></thead>
-        <tbody id="genTable"></tbody>
+        <thead>
+            <tr>
+                <th>Epoch</th>
+                <th>Train</th>
+                <th>Val</th>
+                <th>Full</th>
+                <th>Static</th>
+                <th>Frozen</th>
+                <th>Suite</th>
+                <th>Best</th>
+            </tr>
+        </thead>
+        <tbody id="historyRows"></tbody>
     </table>
 </div>
 
@@ -104,31 +283,53 @@
 </div>
 
 <script>
-// --- Multi-series line chart renderer (no Chart.js — self-contained) ---
-// series: Array<{ data: number[], color: string, label?: string }>
-const drawChart = (canvas, series, { min = 0, max = 1 } = {}) => {
+const fmtPct = (value) => `${(100 * value).toFixed(1)}%`;
+const fmtNum = (value, digits = 3) => Number.isFinite(value) ? value.toFixed(digits) : '—';
+const fmtMaybe = (value, formatter) => Number.isFinite(value) ? formatter(value) : '—';
+const pctClass = (value) => value >= 0.7 ? 'good' : value >= 0.5 ? 'warn' : 'bad';
+const fmtDuration = (ms) => {
+    if (!Number.isFinite(ms) || ms < 0) return '—';
+    const totalSeconds = Math.round(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    if (minutes <= 0) return `${seconds}s`;
+    if (minutes < 60) return `${minutes}m ${seconds}s`;
+    const hours = Math.floor(minutes / 60);
+    return `${hours}h ${minutes % 60}m`;
+};
+
+const extractEval = (row) => row?.evaluation ?? row ?? {};
+
+const drawLineChart = (canvas, series, {
+    min = 0,
+    max = 1,
+    showHalf = false
+} = {}) => {
     const ctx = canvas.getContext('2d');
     const ratio = window.devicePixelRatio || 1;
-    const w = canvas.clientWidth * ratio;
-    const h = canvas.clientHeight * ratio;
-    if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
-    ctx.clearRect(0, 0, w, h);
+    const width = canvas.clientWidth * ratio;
+    const height = canvas.clientHeight * ratio;
+    if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
+    }
+    ctx.clearRect(0, 0, width, height);
 
-    // Padding for y-axis labels on the left
-    const padL = 32 * ratio;
-    const padR = 6 * ratio;
-    const padT = 6 * ratio;
+    const padL = 34 * ratio;
+    const padR = 8 * ratio;
+    const padT = 8 * ratio;
     const padB = 18 * ratio;
-    const plotW = w - padL - padR;
-    const plotH = h - padT - padB;
+    const plotW = width - padL - padR;
+    const plotH = height - padT - padB;
+    const maxLen = series.reduce((acc, entry) => Math.max(acc, entry.data.length), 0);
+    if (!maxLen) return;
 
-    // Grid + y-axis labels (0%, 25%, 50%, 75%, 100%)
-    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
     ctx.font = `${10 * ratio}px -apple-system, sans-serif`;
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
-    ctx.lineWidth = 1 * ratio;
+
     for (let i = 0; i <= 4; i++) {
         const frac = i / 4;
         const y = padT + plotH * (1 - frac);
@@ -136,154 +337,184 @@ const drawChart = (canvas, series, { min = 0, max = 1 } = {}) => {
         ctx.moveTo(padL, y);
         ctx.lineTo(padL + plotW, y);
         ctx.stroke();
-        ctx.fillText(`${Math.round(frac * 100)}%`, padL - 4 * ratio, y);
+        const labelValue = min + (max - min) * frac;
+        ctx.fillText(labelValue <= 1 && max <= 1.05 ? `${Math.round(labelValue * 100)}%` : labelValue.toFixed(2), padL - 4 * ratio, y);
     }
 
-    // 50% reference line (dashed white)
-    ctx.strokeStyle = 'rgba(255,255,255,0.22)';
-    ctx.setLineDash([4 * ratio, 4 * ratio]);
-    ctx.lineWidth = 1 * ratio;
-    const y50 = padT + plotH * 0.5;
-    ctx.beginPath();
-    ctx.moveTo(padL, y50);
-    ctx.lineTo(padL + plotW, y50);
-    ctx.stroke();
-    ctx.setLineDash([]);
+    if (showHalf && min <= 0.5 && max >= 0.5) {
+        const y = padT + plotH * (1 - ((0.5 - min) / (max - min)));
+        ctx.setLineDash([4 * ratio, 4 * ratio]);
+        ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+        ctx.beginPath();
+        ctx.moveTo(padL, y);
+        ctx.lineTo(padL + plotW, y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
 
-    // Determine max length across series (for x-axis step) and draw x-axis labels (gen numbers)
-    const maxLen = series.reduce((acc, s) => Math.max(acc, s.data.length), 0);
-    if (maxLen === 0) return;
-
-    // X-axis labels: gen ticks (at most 10 labels)
-    const tickStep = Math.max(1, Math.ceil(maxLen / 10));
-    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    for (let i = 0; i < maxLen; i += tickStep) {
-        const x = padL + (maxLen <= 1 ? plotW / 2 : (i * plotW) / (maxLen - 1));
-        ctx.fillText(`g${i}`, x, padT + plotH + 4 * ratio);
-    }
-    if (maxLen > 1) {
-        const x = padL + plotW;
-        ctx.fillText(`g${maxLen - 1}`, x, padT + plotH + 4 * ratio);
+    const tickEvery = Math.max(1, Math.ceil(maxLen / 8));
+    for (let i = 0; i < maxLen; i += tickEvery) {
+        const x = padL + (maxLen === 1 ? plotW / 2 : (i * plotW) / (maxLen - 1));
+        ctx.fillText(String(i + 1), x, padT + plotH + 4 * ratio);
     }
 
-    // Draw each series
-    for (const s of series) {
-        const { data, color } = s;
-        if (!data || data.length === 0) continue;
-        ctx.strokeStyle = color;
+    for (const entry of series) {
+        if (!entry.data.length) continue;
+        ctx.strokeStyle = entry.color;
+        ctx.fillStyle = entry.color;
         ctx.lineWidth = 2 * ratio;
+        let started = false;
         ctx.beginPath();
-        for (let i = 0; i < data.length; i++) {
-            const x = padL + (maxLen <= 1 ? plotW / 2 : (i * plotW) / (maxLen - 1));
-            const y = padT + plotH * (1 - (data[i] - min) / (max - min));
-            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-        }
+        entry.data.forEach((value, index) => {
+            if (!Number.isFinite(value)) {
+                started = false;
+                return;
+            }
+            const x = padL + (maxLen === 1 ? plotW / 2 : (index * plotW) / (maxLen - 1));
+            const y = padT + plotH * (1 - ((value - min) / (max - min)));
+            if (!started) {
+                ctx.moveTo(x, y);
+                started = true;
+            } else {
+                ctx.lineTo(x, y);
+            }
+        });
         ctx.stroke();
-
-        // Points
-        ctx.fillStyle = color;
-        for (let i = 0; i < data.length; i++) {
-            const x = padL + (maxLen <= 1 ? plotW / 2 : (i * plotW) / (maxLen - 1));
-            const y = padT + plotH * (1 - (data[i] - min) / (max - min));
+        entry.data.forEach((value, index) => {
+            if (!Number.isFinite(value)) return;
+            const x = padL + (maxLen === 1 ? plotW / 2 : (index * plotW) / (maxLen - 1));
+            const y = padT + plotH * (1 - ((value - min) / (max - min)));
             ctx.beginPath();
             ctx.arc(x, y, 2.5 * ratio, 0, Math.PI * 2);
             ctx.fill();
-        }
+        });
     }
 };
-
-const pctClass = (p) => p >= 0.7 ? 'good' : p >= 0.45 ? 'mid' : 'bad';
-const formatPct = (p) => `<span class="pct ${pctClass(p)}">${(100 * p).toFixed(1)}%</span>`;
 
 const update = (data) => {
     if (!data || data.status === 'no_training_active') {
-        document.getElementById('subtitle').textContent = 'No active training run. Start with: node training/cli/train.mjs';
+        document.getElementById('subtitle').textContent = 'No active training run. Start with: node training/cli/train-compact.mjs training/configs/compact.json';
         return;
     }
+
     const history = data.history ?? [];
     const last = history[history.length - 1];
+    const evalData = extractEval(last);
+
+    const configDescription = data.config?.description ?? 'Training run active';
     document.getElementById('subtitle').textContent =
-        `Started ${new Date(data.startedAt).toLocaleTimeString()} — last update ${new Date(data.lastUpdate).toLocaleTimeString()} — ${history.length} generations`;
+        `${configDescription} · phase ${data.phase ?? '—'} · started ${new Date(data.startedAt).toLocaleTimeString()} · updated ${new Date(data.lastUpdate).toLocaleTimeString()}`;
 
-    document.getElementById('genValue').textContent = data.generation ?? '—';
+    document.getElementById('epochValue').textContent = last?.epoch ?? data.generation ?? '—';
+    const evalProgress = data.evalProgress;
+    document.getElementById('phaseValue').textContent = evalProgress?.label
+        ? `phase: ${data.phase ?? '—'} · ${evalProgress.label} (${evalProgress.index}/${evalProgress.total})`
+        : `phase: ${data.phase ?? '—'}`;
 
-    if (last) {
-        const rWR = last.vsRandom?.winRate ?? 0;
-        document.getElementById('vsRandomValue').innerHTML = formatPct(rWR);
-        const rCI = last.vsRandom?.wilson;
-        if (rCI) document.getElementById('vsRandomCI').textContent = `[${(100 * rCI.lo).toFixed(1)}, ${(100 * rCI.hi).toFixed(1)}]`;
+    const fullWR = evalData?.vsFull?.winRate;
+    document.getElementById('fullValue').innerHTML = Number.isFinite(fullWR)
+        ? `<span class="${pctClass(fullWR)}">${fmtPct(fullWR)}</span>`
+        : '—';
+    document.getElementById('fullCI').textContent = evalData?.vsFull?.wilson
+        ? `Wilson [${fmtPct(evalData.vsFull.wilson.lo)}, ${fmtPct(evalData.vsFull.wilson.hi)}]`
+        : '—';
 
-        const sWR = last.vsStatic?.winRate ?? 0;
-        document.getElementById('vsStaticValue').innerHTML = formatPct(sWR);
-        const sCI = last.vsStatic?.wilson;
-        if (sCI) document.getElementById('vsStaticCI').textContent = `[${(100 * sCI.lo).toFixed(1)}, ${(100 * sCI.hi).toFixed(1)}]`;
+    const staticWR = evalData?.vsStatic?.winRate;
+    document.getElementById('staticValue').innerHTML = Number.isFinite(staticWR)
+        ? `<span class="${pctClass(staticWR)}">${fmtPct(staticWR)}</span>`
+        : '—';
+    document.getElementById('staticCI').textContent = evalData?.vsStatic?.wilson
+        ? `Wilson [${fmtPct(evalData.vsStatic.wilson.lo)}, ${fmtPct(evalData.vsStatic.wilson.hi)}]`
+        : '—';
 
-        const cWR = last.vsChampion?.winRate ?? 0;
-        document.getElementById('vsChampionValue').innerHTML = formatPct(cWR);
-        document.getElementById('vsChampionCI').textContent = last.vsChampion?.decision ?? '';
+    const frozenWR = evalData?.vsFrozen?.winRate;
+    document.getElementById('frozenValue').innerHTML = Number.isFinite(frozenWR)
+        ? `<span class="${pctClass(frozenWR)}">${fmtPct(frozenWR)}</span>`
+        : '—';
+    const suiteFull = evalData?.suites?.full?.winRate;
+    const suiteStatic = evalData?.suites?.static?.winRate;
+    document.getElementById('suiteValue').textContent =
+        Number.isFinite(suiteFull) && Number.isFinite(suiteStatic)
+            ? `suite full ${fmtPct(suiteFull)} · suite static ${fmtPct(suiteStatic)}`
+            : 'suite: —';
 
-        document.getElementById('gamesCount').textContent = last.replayBufferSize ?? '—';
-        const trainSec = last.selfplayMs ? (last.selfplayMs / 1000).toFixed(0) + 's' : '—';
-        document.getElementById('trainTime').textContent = trainSec;
-        // Find best vs FloodBotFull across all history
-        const bestFull = Math.max(...history.map(h => h.vsStatic?.winRate ?? 0));
-        document.getElementById('bestVsFull').innerHTML = formatPct(bestFull);
-        const gps = last.selfplayMs > 0 ? ((last.replayBufferSize ?? 0) / (last.selfplayMs / 1000)).toFixed(1) : '—';
-        document.getElementById('gamesPerSec').textContent = gps;
-    }
+    const dataset = data.dataset ?? {};
+    document.getElementById('datasetPositions').textContent = dataset.positions ?? '—';
+    const progress = Number.isFinite(dataset.progress) ? dataset.progress : 0;
+    document.getElementById('datasetMeta').textContent =
+        dataset.gamesPlayed != null
+            ? `${dataset.gamesPlayed}/${dataset.plannedGames ?? '—'} games · ${fmtNum(dataset.avgTeacherDepth ?? 0, 2)} avg depth · ETA ${fmtDuration(dataset.etaMs)}`
+            : '—';
+    document.getElementById('datasetProgressBar').style.width = `${Math.max(0, Math.min(100, progress * 100))}%`;
 
-    // Chart — multi-series win rates
-    const canvas = document.getElementById('winRateChart');
-    drawChart(canvas, [
-        { data: history.map(h => h.vsRandom?.winRate ?? 0),   color: '#7fbf4f', label: 'vs Random' },
-        { data: history.map(h => h.vsStatic?.winRate ?? 0),   color: '#e8a82c', label: 'vs FloodBotStatic' },
-        { data: history.map(h => h.vsChampion?.winRate ?? 0), color: '#b28cff', label: 'vs Previous Champion' },
-    ], { min: 0, max: 1 });
+    document.getElementById('trainLoss').textContent = last ? fmtNum(last.trainLoss ?? NaN, 4) : '—';
+    document.getElementById('trainMae').textContent = last ? `train MAE ${fmtNum(last.trainMae ?? NaN, 4)}` : '—';
+    document.getElementById('valRmse').textContent = last ? fmtNum(last.valRmse ?? NaN, 4) : '—';
+    document.getElementById('valMae').textContent = last ? `val MAE ${fmtNum(last.valMae ?? NaN, 4)}` : '—';
+    document.getElementById('teacherDepth').textContent = fmtMaybe(dataset.avgTeacherDepth, (v) => v.toFixed(2));
+    document.getElementById('epochTime').textContent = last?.epochMs ? `${(last.epochMs / 1000).toFixed(1)}s / epoch` : '—';
 
-    // Table
-    const tbody = document.getElementById('genTable');
-    tbody.innerHTML = '';
-    for (const h of history.slice(-12).reverse()) {
+    drawLineChart(document.getElementById('benchmarkChart'), [
+        { color: getComputedStyle(document.documentElement).getPropertyValue('--full').trim(), data: history.map((row) => extractEval(row)?.vsFull?.winRate) },
+        { color: getComputedStyle(document.documentElement).getPropertyValue('--static').trim(), data: history.map((row) => extractEval(row)?.vsStatic?.winRate) },
+        { color: getComputedStyle(document.documentElement).getPropertyValue('--frozen').trim(), data: history.map((row) => extractEval(row)?.vsFrozen?.winRate) },
+        { color: getComputedStyle(document.documentElement).getPropertyValue('--random').trim(), data: history.map((row) => extractEval(row)?.vsRandom?.winRate) }
+    ], { min: 0, max: 1, showHalf: true });
+
+    const lossValues = history.flatMap((row) => [row.trainLoss, row.valRmse]).filter((value) => Number.isFinite(value));
+    const lossMax = lossValues.length ? Math.max(...lossValues, 0.001) : 1;
+    drawLineChart(document.getElementById('lossChart'), [
+        { color: getComputedStyle(document.documentElement).getPropertyValue('--loss').trim(), data: history.map((row) => row.trainLoss) },
+        { color: '#ffffff', data: history.map((row) => row.valRmse) }
+    ], { min: 0, max: lossMax * 1.1 });
+
+    const historyRows = document.getElementById('historyRows');
+    historyRows.innerHTML = '';
+    for (const row of history.slice(-12).reverse()) {
+        const evalRow = extractEval(row);
         const tr = document.createElement('tr');
-        if (h.promoted) tr.classList.add('promoted');
-        const timeSec = h.selfplayMs ? (h.selfplayMs / 1000).toFixed(0) + 's' : '—';
+        if (row.promoted) tr.classList.add('promoted');
         tr.innerHTML = `
-            <td>${h.gen}</td>
-            <td>${h.replayBufferSize ?? '—'}</td>
-            <td>${timeSec}</td>
-            <td>${formatPct(h.vsRandom?.winRate ?? 0)}</td>
-            <td>${formatPct(h.vsStatic?.winRate ?? 0)}</td>
-            <td>${formatPct(h.vsChampion?.winRate ?? 0)}</td>
-            <td>${h.promoted ? '✓ BEST' : ''}</td>
+            <td>${row.epoch}</td>
+            <td>${fmtNum(row.trainLoss ?? NaN, 4)}</td>
+            <td>${fmtNum(row.valRmse ?? NaN, 4)}</td>
+            <td>${Number.isFinite(evalRow?.vsFull?.winRate) ? fmtPct(evalRow.vsFull.winRate) : '—'}</td>
+            <td>${Number.isFinite(evalRow?.vsStatic?.winRate) ? fmtPct(evalRow.vsStatic.winRate) : '—'}</td>
+            <td>${Number.isFinite(evalRow?.vsFrozen?.winRate) ? fmtPct(evalRow.vsFrozen.winRate) : '—'}</td>
+            <td>${Number.isFinite(evalRow?.suites?.full?.winRate) ? `${fmtPct(evalRow.suites.full.winRate)} / ${fmtPct(evalRow.suites.static.winRate)}` : '—'}</td>
+            <td>${row.promoted ? '✓' : ''}</td>
         `;
-        tbody.appendChild(tr);
+        historyRows.appendChild(tr);
     }
 
-    // Events
-    const events = document.getElementById('events');
-    events.innerHTML = '';
-    for (const e of (data.events ?? []).slice(-10).reverse()) {
-        const div = document.createElement('div');
-        div.className = 'event' + (e.type === 'rejected' ? ' rejected' : '');
-        div.innerHTML = `<span class="ts">gen ${e.gen} · ${new Date(e.at).toLocaleTimeString()}</span>${e.message}`;
-        events.appendChild(div);
+    const eventsEl = document.getElementById('events');
+    eventsEl.innerHTML = '';
+    const events = (data.events ?? []).slice(-12).reverse();
+    if (!events.length) {
+        eventsEl.innerHTML = '<div class="empty">No events yet.</div>';
+    } else {
+        for (const event of events) {
+            const div = document.createElement('div');
+            div.className = 'event';
+            div.innerHTML = `<span class="ts">epoch ${event.gen ?? '—'} · ${new Date(event.at).toLocaleTimeString()}</span>${event.message}`;
+            eventsEl.appendChild(div);
+        }
     }
 };
 
-// Poll /live.json every second
 const poll = async () => {
     try {
-        const r = await fetch('/live.json', { cache: 'no-store' });
-        if (r.ok) {
-            const d = await r.json();
-            update(d);
-        }
-    } catch (err) {
-        console.error(err);
+        const response = await fetch('/live.json', { cache: 'no-store' });
+        if (!response.ok) return;
+        update(await response.json());
+    } catch (error) {
+        console.error(error);
     }
 };
+
 poll();
 setInterval(poll, 1000);
 </script>

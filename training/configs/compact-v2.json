@@ -1,0 +1,49 @@
+{
+  "description": "CNN compact value net (conv2d board + conv1d cards + FC merge) distilled from heuristic search, evaluated as a search leaf against Random/Static/Full/frozen suites.",
+  "datasetGames": 1500,
+  "datasetMix": {
+    "teacherSelf": 0.35,
+    "vsFull": 0.25,
+    "vsStatic": 0.25,
+    "vsRandom": 0.15
+  },
+  "teacherSearch": {
+    "depth": 5,
+    "rootMoveLimit": 10,
+    "nodeMoveLimit": 6,
+    "discardLimit": 2,
+    "tacticalWidth": 4,
+    "staticBlend": 0.01,
+    "timeMs": 95,
+    "nodeBudget": 9500
+  },
+  "minTeacherDepth": 2,
+  "targetScale": 480,
+  "validationFraction": 0.1,
+  "epochs": 60,
+  "batchSize": 64,
+  "learningRate": 0.0012,
+  "lrSchedule": "cosine",
+  "lrMin": 0.00008,
+  "weightDecay": 0.0001,
+  "gradClip": 1.0,
+  "loss": "huber",
+  "huberDelta": 0.75,
+  "evalEvery": 4,
+  "evalPairsRandom": 20,
+  "evalPairsStatic": 20,
+  "evalPairsFull": 30,
+  "evalPairsFrozen": 20,
+  "stopPairsStatic": 20,
+  "stopPairsFull": 30,
+  "stopTargets": {
+    "vsStatic": 1.0,
+    "vsFull": 0.6
+  },
+  "inference": {
+    "leafScale": 420,
+    "leafBlend": 0.85
+  },
+  "checkpointDir": "training/checkpoints",
+  "deployPath": "flood-compact-model.json"
+}

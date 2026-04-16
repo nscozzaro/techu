@@ -1,0 +1,26 @@
+{
+  "description": "Fast self-play training with outcome blending for smoother targets.",
+  "startFrom": "training/checkpoints/compact-best.json",
+  "generations": 10,
+  "gamesPerGeneration": 80,
+  "epochsPerGeneration": 5,
+  "batchSize": 64,
+  "learningRate": 0.0003,
+  "lrMin": 0.00004,
+  "loss": "huber",
+  "huberDelta": 1.0,
+  "gradClip": 1.0,
+  "weightDecay": 0.0001,
+  "outcomeBlend": 0.7,
+  "promoteThreshold": 0.58,
+  "evalPairsRandom": 8,
+  "evalPairsStatic": 10,
+  "evalPairsFull": 15,
+  "evalPairsFrozen": 10,
+  "inference": {
+    "leafScale": 420,
+    "leafBlend": 0.85
+  },
+  "checkpointDir": "training/checkpoints",
+  "deployPath": "flood-compact-model.json"
+}
